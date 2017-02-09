@@ -1,5 +1,5 @@
 __version__ = '0.0.1a'
-__all__ = ['cluster', 'osimage', 'bmcsetup', 'node', 'switch', 'network', 'tracker', 'manager', 'utils']
+__all__ = ['cluster', 'osimage', 'bmcsetup', 'group', 'node', 'switch', 'network', 'tracker', 'manager', 'utils']
 __author__ = 'Dmitry Chirikov'
 
 '''
@@ -24,12 +24,14 @@ along with Luna.  If not, see <http://www.gnu.org/licenses/>.
 
 '''
 
-from luna.config import *
+from config import *
+
 import pymongo
 from cluster import Cluster
 from osimage import OsImage
 from bmcsetup import BMCSetup
-from node import Node, Group
+from group import Group
+from node import Node
 from switch import Switch, MacUpdater
 from network import Network
 from tracker import *
