@@ -89,7 +89,7 @@ class Manager(tornado.web.RequestHandler):
                     if bool(mac):
                         mac = str(mac.lower())
                         self.app_logger.info("Node '{}' trying to set '{}' as mac".format(req_nodename, mac))
-                        if node.set_mac(mac):
+                        if node.change_mac(mac):
                             node.update_status('boot.mac_assigned')
                             break
                         self.app_logger.error("MAC: '{}' looks wrong.".format(mac))
