@@ -12,6 +12,7 @@ class UtilsFreelistTests(unittest.TestCase):
         self.flist1 = [{'start': 1, 'end': 254}]
         self.flist2 = [{'start': 10, 'end': 18}, {'start': 20, 'end': 254}]
         self.flist3 = [{'start': 254, 'end': 254}]
+        self.flist4 = [{'start': 10, 'end': 10}, {'start': 12, 'end': 254}]
 
     def test_next_free(self):
 
@@ -145,6 +146,13 @@ class UtilsFreelistTests(unittest.TestCase):
         self.assertEqual(flist, [{'start': 5, 'end': 12},
                                  {'start': 254, 'end': 254}])
         self.assertEqual(freed, [5, 12])
+
+        # freelist with a single element range. Free one element
+
+        flist, freed = freelist.free_range(self.flist4, 9)
+        self.assertEqual(flist, [{'start': 9, 'end': 10},
+                                 {'start': 12, 'end': 254}])
+        self.assertEqual(freed, 9)
 
     def test_set_upper_limit(self):
 
