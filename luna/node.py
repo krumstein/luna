@@ -253,6 +253,26 @@ class Node(Base):
 
         return params
 
+    def show(self):
+        def get_value(dbref):
+            mongo_collection = self._mongo_db[dbref.collection]
+            try:
+                name = mongo_collection.find_one({'_id': dbref.id})['name']
+                name = '[' + name + ']'
+            except:
+                name = '[id_' + str(dbref.id) + ']'
+            return name
+
+        json = self._json.copy()
+
+        for attr in self._json:
+            if attr in ['_id', use_key, usedby_key]:
+                json.pop(attr)
+
+        json['group'] = get_value(json['group'])
+
+        return json
+
     def set_group(self, new_group_name=None):
         if not new_group_name:
             self.log.error("Group needs to be specified")
