@@ -390,7 +390,7 @@ class Node(Base):
 
     def get_ip(self, interface=None, bmc=False, format='human'):
         group = Group(id=self._json['group'].id, mongo_db=self._mongo_db)
-        if bmc:
+        if bmc and 'bmcnetwork' in self._json:
             ipnum = self._json['bmcnetwork']
         elif interface in self._json['interfaces']:
             ipnum = self._json['interfaces'][interface]
