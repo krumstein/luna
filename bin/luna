@@ -752,21 +752,21 @@ def node_change(**args):
         node = luna.Node(nodename)
 
         for attr in ['group', 'mac', 'switch']:
-            if attr in args:
+            if args[attr]:
                 getattr(node, "set_%s" % attr)(args[attr])
 
         for attr in ['localboot', 'setupbmc', 'service']:
-            if attr in args:
+            if args[attr]:
                 flag = True if args[attr] in ['y', 'yes'] else False
                 node.set(attr, flag)
 
-        if 'interface' in args:
+        if args['interface']:
             node.set_ip(args['interface'][0], ip=args['interface'][1])
 
-        if 'bmcip' in args:
+        if args['bmcip']:
             node.set_ip(ip=args['bmcip'], bmc=True)
 
-        if 'port' in args:
+        if args['port']:
             node.set('port', args['port'])
 
 def node_delete(name):
@@ -1199,6 +1199,8 @@ cmd_group.add_argument('--interface', '-i', help='Interface')
 cmd_group.add_argument('--bmcnetwork', '--bn', action='store_true',
                        help='Network for BMC.')
 
+cmd.add_argument('--add', '-A', action='store_true',
+                 help='Add interface')
 cmd.add_argument('--delete', '-D', action='store_true',
                  help='Delete interface')
 cmd.add_argument('--setnet', '--sn', metavar='NETWORK',
