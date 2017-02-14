@@ -751,27 +751,23 @@ def node_change(**args):
     for nodename in hostlist.expand_hostlist(args['name']):
         node = luna.Node(nodename)
 
-        for attr in ['group', 'mac', 'switch', 'port']:
+        for attr in ['group', 'mac', 'switch']:
             if attr in args:
-                getattr(node, "change_%s" % attr)(args[attr])
+                getattr(node, "set_%s" % attr)(args[attr])
+
+        for attr in ['localboot', 'setupbmc', 'service']:
+            if attr in args:
+                flag = True if args[attr] in ['y', 'yes'] else False
+                node.set(attr, flag)
 
         if 'interface' in args:
-            node.change_ip(args['interface'][0], ip=args['interface'][1])
+            node.set_ip(args['interface'][0], ip=args['interface'][1])
 
         if 'bmcip' in args:
-            node.change_ip(ip=args['bmcip'], bmc=True)
+            node.set_ip(ip=args['bmcip'], bmc=True)
 
-        if 'localboot' in args:
-            flag = True if args['localboot'] in ['y', 'yes'] else False
-            node.set('localboot', flag)
-
-        if 'setupbmc' in args:
-            flag = True if args['setupbmc'] in ['y', 'yes'] else False
-            node.set('setupbmc', flag)
-
-        if 'service' in args:
-            flag = True if args['service'] in ['y', 'yes'] else False
-            node.set('service', flag)
+        if 'port' in args:
+            node.set('port', args['port'])
 
 def node_delete(name):
     for nodename in hostlist.expand_hostlist(name):

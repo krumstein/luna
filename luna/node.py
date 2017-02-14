@@ -253,7 +253,7 @@ class Node(Base):
 
         return params
 
-    def change_group(self, new_group_name=None):
+    def set_group(self, new_group_name=None):
         if not new_group_name:
             self.log.error("Group needs to be specified")
             return None
@@ -313,7 +313,7 @@ class Node(Base):
 
         return res
 
-    def change_ip(self, interface=None, ip=None, bmc=False):
+    def set_ip(self, interface=None, ip=None, bmc=False):
         if not ip:
             self.log.error("IP address should be provided")
             return None
@@ -330,7 +330,7 @@ class Node(Base):
 
         return None
 
-    def change_mac(self, mac=None):
+    def set_mac(self, mac=None):
         if not mac:
             mac = self.get_mac()
             self._mongo_db['switch_mac'].remove({'mac': mac})
@@ -346,7 +346,7 @@ class Node(Base):
 
         return True
 
-    def change_switch(self, value):
+    def set_switch(self, value):
         if value:
             switch = self._json['switch']
             new_switch = Switch(value).DBRef
@@ -367,9 +367,6 @@ class Node(Base):
             self.unlink(Switch(id=switch.id).DBRef)
 
         return bool(res)
-
-    def change_port(self, value):
-        self.set('port', value)
 
     def get_ip(self, interface=None, bmc=False, format='human'):
         group = Group(id=self._json['group'].id, mongo_db=self._mongo_db)
