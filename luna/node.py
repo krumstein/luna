@@ -206,7 +206,7 @@ class Node(Base):
 
         params = {}
         group = Group(id=self.get('group').id, mongo_db=self._mongo_db)
-        group_params = group.boot_params()
+        group_params = group.boot_params
 
         params['boot_if'] = group_params['boot_if']
         params['kernel_file'] = group_params['kernel_file']
