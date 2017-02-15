@@ -122,6 +122,109 @@ EOF"""
 
         self.log = logging.getLogger('group.' + self._name)
 
+    @property
+    def boot_params(self):
+        params = {}
+
+        osimage = OsImage(id=self.get('osimage').id, mongo_db=self._mongo_db)
+        params['kernel_file'] = osimage.get('kernfile')
+        params['initrd_file'] = osimage.get('initrdfile')
+        params['kern_opts'] = osimage.get('kernopts')
+
+        params['boot_if'] = self.get('boot_if')
+        params['net_prefix'] = ""
+
+        interfaces = self.get('interfaces')
+        if not params['boot_if'] in interfaces:
+            params['boot_if'] = ""
+
+            self.log.error(("Unknown boot interface '{}'. Must be one of '{}'"
+                            .format(params['boot_if'], interfaces.keys())))
+
+        elif 'network' in interfaces[params['boot_if']]:
+            net = Network(id=interfaces[params['boot_if']]['network'].id,
+                          mongo_db=self._mongo_db)
+
+            params['net_prefix'] = net.get('PREFIX')
+
+        else:
+            self.log.error(("Boot interface '{}' has no network configured"
+                            .format(params['boot_if'])))
+
+        return params
+
+    @property
+    def install_params(self):
+        params = {}
+        params['prescript'] = self.get('prescript')
+        params['partscript'] = self.get('partscript')
+        params['postscript'] = self.get('postscript')
+        params['boot_if'] = self.get('boot_if')
+        params['torrent_if'] = self.get('torrent_if')
+        params['torrent_if_net_prefix'] = ""
+
+        interfaces = self.get('interfaces')
+        if not params['torrent_if'] in interfaces:
+            params['torrent_if'] = ""
+
+        elif 'network' in interfaces[params['torrent_if']]:
+            net = Network(id=interfaces[params['torrent_if']]['network'].id,
+                          mongo_db=self._mongo_db)
+
+            params['torrent_if_net_prefix'] = net.get('PREFIX')
+
+        if (params['boot_if'] in interfaces and
+            'network' in interfaces[params['boot_if']]):
+
+            net = Network(id=interfaces[params['boot_if']]['network'].id,
+                          mongo_db=self._mongo_db)
+            params['domain'] = net.name
+
+        else:
+            params['domain'] = ""
+
+        params['interfaces'] = {}
+        interfaces = self.get('interfaces')
+        for nic in interfaces:
+            params['interfaces'][nic] = self.get_if_parms(nic).strip()
+            net_prefix = ""
+
+            if 'network' in interfaces[nic] and interfaces[nic]['network']:
+                net = Network(id=interfaces[nic]['network'].id,
+                              mongo_db=self._mongo_db)
+
+                net_prefix = 'PREFIX=' + str(net.get('PREFIX'))
+
+            params['interfaces'][nic] += '\n' + net_prefix
+
+        osimage = OsImage(id=self.get('osimage').id, mongo_db=self._mongo_db)
+
+        params['kernver'] = osimage.get('kernver')
+        params['kernopts'] = osimage.get('kernopts')
+        params['torrent'] = osimage.get('torrent')
+        params['tarball'] = osimage.get('tarball')
+
+        params['torrent'] += ".torrent" if params['torrent'] else ''
+        params['tarball'] += ".tgz" if params['tarball'] else ''
+
+        params['bmcsetup'] = {}
+        if self.get('bmcsetup'):
+            bmc = BMCSetup(id=self.get('bmcsetup').id, mongo_db=self._mongo_db)
+
+            params['bmcsetup']['mgmtchannel'] = bmc.get('mgmtchannel') or 1
+            params['bmcsetup']['netchannel'] = bmc.get('netchannel') or 1
+            params['bmcsetup']['userid'] = bmc.get('userid') or 3
+            params['bmcsetup']['user'] = bmc.get('user') or "ladmin"
+            params['bmcsetup']['password'] = bmc.get('password') or "ladmin"
+            params['bmcsetup']['netmask'] = ''
+
+            bmcnet = self.get('bmcnetwork')
+            if bmcnet:
+                net = Network(id=bmcnet.id, mongo_db=self._mongo_db)
+                params['bmcsetup']['netmask'] = net.get('NETMASK')
+
+        return params
+
     def osimage(self, osimage_name):
         if not self._id:
             self.log.error("Was object deleted?")
@@ -420,129 +523,5 @@ EOF"""
                                    net._json['PREFIX'])
 
         return None
-
-    @property
-    def boot_params(self):
-        params = {}
-        params['boot_if'] = None
-        params['net_prefix'] = None
-        osimage = OsImage(id=self.get('osimage').id, mongo_db=self._mongo_db)
-
-        try:
-            params['kernel_file'] = osimage.get('kernfile')
-        except:
-            params['kernel_file'] = ""
-        try:
-            params['initrd_file'] = osimage.get('initrdfile')
-        except:
-            params['initrd_file'] = ""
-        try:
-            params['kern_opts'] = osimage.get('kernopts')
-        except:
-            params['kern_opts'] = ""
-        try:
-            params['boot_if'] = self.get('boot_if')
-        except:
-            params['boot_if'] = ""
-            params['net_prefix'] = ""
-            return params
-
-        interfaces = self._get_json()['interfaces']
-        try:
-            if_params = interfaces[params['boot_if']]
-        except:
-            self.log.error(("Unknown boot interface '{}'. Must be one of '{}'"
-                            .format(params['boot_if'], interfaces.keys())))
-            params['boot_if'] = ""
-            params['net_prefix'] = ""
-            return params
-        net = None
-        try:
-            if_net = if_params['network']
-            net = Network(id = if_net.id, mongo_db = self._mongo_db)
-        except:
-            pass
-        if not bool(net):
-            self.log.error(("Boot interface '{}' has no network configured"
-                            .format(params['boot_if'])))
-            params['boot_if'] = ""
-            params['net_prefix'] = ""
-            return params
-
-        params['net_prefix'] = net.get('PREFIX')
-        return params
-
-    @property
-    def install_params(self):
-        params = {}
-        params['prescript'] = self.get('prescript')
-        params['partscript'] = self.get('partscript')
-        params['postscript'] = self.get('postscript')
-        try:
-            params['boot_if'] = self.get('boot_if')
-        except:
-            params['boot_if'] = ''
-        try:
-            params['torrent_if'] = self.get('torrent_if')
-        except:
-            params['torrent_if'] = ''
-        json = self._get_json()
-        if bool(params['torrent_if']):
-            try:
-                net_dbref = json['interfaces'][params['torrent_if']]['network']
-                net = Network(id = net_dbref.id, mongo_db = self._mongo_db)
-                params['torrent_if_net_prefix'] = str(net.get('PREFIX'))
-            except:
-                params['torrent_if'] = ''
-        try:
-            net_dbref = json['interfaces'][self.get('boot_if')]['network']
-            net = Network(id = net_dbref.id, mongo_db = self._mongo_db)
-            params['domain'] = str(net.name)
-        except:
-            params['domain'] = ""
-        params['interfaces'] = {}
-        try:
-            interfaces = json['interfaces'].keys()
-            for interface in interfaces:
-                params['interfaces'][str(interface)] = str(self.get_if_parms(interface))
-        except:
-            pass
-        try:
-            interfaces = json['interfaces'].keys()
-        except:
-            interfaces = []
-
-        for interface in interfaces:
-            net_dbref = json['interfaces'][interface]['network']
-            try:
-                net = Network(id = net_dbref.id, mongo_db = self._mongo_db)
-                net_prefix = "\n" + "PREFIX=" + str(net.get('PREFIX'))
-            except:
-                net_prefix = ""
-            params['interfaces'][str(interface)] = params['interfaces'][str(interface)].strip() + net_prefix
-        osimage = OsImage(id = self.get('osimage').id, mongo_db = self._mongo_db)
-        try:
-            params['torrent'] = osimage.get('torrent') + ".torrent"
-            params['tarball'] = osimage.get('tarball') + ".tgz"
-        except:
-            params['torrent'] = ""
-            params['tarball'] = ""
-        params['kernver'] = osimage.get('kernver')
-        params['kernopts'] = osimage.get('kernopts')
-        params['bmcsetup'] = {}
-        if self.get('bmcsetup'):
-            bmcsetup = BMCSetup(id = self.get('bmcsetup').id, mongo_db = self._mongo_db)
-            params['bmcsetup']['mgmtchannel'] = bmcsetup.get('mgmtchannel') or 1
-            params['bmcsetup']['netchannel'] = bmcsetup.get('netchannel') or 1
-            params['bmcsetup']['userid'] = bmcsetup.get('userid') or 3
-            params['bmcsetup']['user'] = bmcsetup.get('user') or "ladmin"
-            params['bmcsetup']['password'] = bmcsetup.get('password') or "ladmin"
-            try:
-                net_dbref = json['bmcnetwork']
-                net = Network(id = net_dbref.id, mongo_db = self._mongo_db)
-                params['bmcsetup']['netmask'] = net.get('NETMASK')
-            except:
-                params['bmcsetup']['netmask'] = ''
-        return params
 
 from luna.node import Node
