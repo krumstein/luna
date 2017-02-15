@@ -628,7 +628,7 @@ def group_change(**args):
         elif bool(args['delnet']):
             group.del_net_from_if(args['interface'])
         elif args['edit']:
-            group.set_if_parms(args['interface'], _edit_script(group.get_if_parms(args['interface'])))
+            group.set_if_params(args['interface'], _edit_script(group.get_if_params(args['interface'])))
         else:
             print(group.show_if(args['interface']))
     elif bool(args['bmcnetwork']):

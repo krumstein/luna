@@ -24,7 +24,6 @@ from config import *
 
 import logging
 
-from bson.dbref import DBRef
 from bson.objectid import ObjectId
 
 from luna import utils
@@ -186,7 +185,7 @@ EOF"""
         params['interfaces'] = {}
         interfaces = self.get('interfaces')
         for nic in interfaces:
-            params['interfaces'][nic] = self.get_if_parms(nic).strip()
+            params['interfaces'][nic] = self.get_if_params(nic).strip()
             net_prefix = ""
 
             if 'network' in interfaces[nic] and interfaces[nic]['network']:
@@ -226,20 +225,14 @@ EOF"""
         return params
 
     def osimage(self, osimage_name):
-        if not self._id:
-            self.log.error("Was object deleted?")
-            return None
         osimage = OsImage(osimage_name)
         old_dbref = self._get_json()['osimage']
         self.unlink(old_dbref)
-        res = self._mongo_collection.update({'_id': self._id}, {'$set': {'osimage': osimage.DBRef}}, multi=False, upsert=False)
+        res = self.set('osimage', osimage.DBRef)
         self.link(osimage.DBRef)
-        return not res['err']
+        return res
 
     def bmcsetup(self, bmcsetup_name):
-        if not self._id:
-            self.log.error("Was object deleted?")
-            return None
         bmcsetup = None
         if bool(bmcsetup_name):
             bmcsetup = BMCSetup(bmcsetup_name)
@@ -247,11 +240,11 @@ EOF"""
         if bool(old_dbref):
             self.unlink(old_dbref)
         if bool(bmcsetup):
-            res = self._mongo_collection.update({'_id': self._id}, {'$set': {'bmcsetup': bmcsetup.DBRef}}, multi=False, upsert=False)
+            res = self.set('bmcsetup', bmcsetup.DBRef)
             self.link(bmcsetup.DBRef)
         else:
-            res = self._mongo_collection.update({'_id': self._id}, {'$set': {'bmcsetup': None}}, multi=False, upsert=False)
-        return not res['err']
+            res = self.set('bmcsetup', None)
+        return res
 
     def set_bmcnetwork(self, bmcnet):
         old_bmcnet_dbref = self._get_json()['bmcnetwork']
@@ -260,14 +253,14 @@ EOF"""
         if bool(old_bmcnet_dbref):
             self.log.error("Network is already defined for BMC interface")
             return None
-        res = self._mongo_collection.update({'_id': self._id}, {'$set': {'bmcnetwork': net.DBRef}}, multi=False, upsert=False)
+        res = self.set('bmcnetwork', net.DBRef)
         self.link(net.DBRef)
         for link in reverse_links:
             if link['collection'] != 'node':
                 continue
-            node = Node(id=link['DBRef'].id, mongo_db = self._mongo_db)
+            node = Node(id=link['DBRef'].id, mongo_db=self._mongo_db)
             node.add_ip(bmc=True)
-        return not res['err']
+        return res
 
     def del_bmcnetwork(self):
         old_bmcnet_dbref = self._get_json()['bmcnetwork']
@@ -276,22 +269,21 @@ EOF"""
             for link in reverse_links:
                 if link['collection'] != 'node':
                     continue
-                node = Node(id=link['DBRef'].id, mongo_db = self._mongo_db)
+                node = Node(id=link['DBRef'].id, mongo_db=self._mongo_db)
                 node.del_ip(bmc=True)
             self.unlink(old_bmcnet_dbref)
-        res = self._mongo_collection.update({'_id': self._id}, {'$set': {'bmcnetwork': None}}, multi=False, upsert=False)
-        return not res['err']
+        res = self.set('bmcnetwork', None)
+        return res
 
-
-    def show_bmc_if(self, brief = False):
+    def show_bmc_if(self, brief=False):
         bmcnetwork = self._get_json()['bmcnetwork']
         if not bool(bmcnetwork):
             return ''
         (NETWORK, PREFIX) = ("", "")
         try:
-            net = Network(id = bmcnetwork.id, mongo_db = self._mongo_db)
+            net = Network(id=bmcnetwork.id, mongo_db=self._mongo_db)
             NETWORK = net.get('NETWORK')
-            PREFIX =  str(net.get('PREFIX'))
+            PREFIX = str(net.get('PREFIX'))
         except:
             pass
         if brief:
@@ -350,20 +342,35 @@ EOF"""
             self.log.error("Interface already exists")
             return None
         interfaces[interface] = {'network': None, 'params': ''}
-        res = self._mongo_collection.update({'_id': self._id}, {'$set': {'interfaces': interfaces}}, multi=False, upsert=False)
-        if res['err']:
+        res = self.set('interfaces', interfaces)
+        if not res:
             self.log.error("Error adding interface '{}'".format(interface))
-            return None
-        return True
+        return res
 
-    def get_if_parms(self, interface):
-        interfaces = self._get_json()['interfaces']
-        try:
-            interfaces[interface]
-        except:
+    def get_if_params(self, interface):
+        interfaces = self.get('interfaces')
+
+        if interface in interfaces:
+            return interfaces[interface]['params']
+        else:
             self.log.error("Interface '{}' does not exist".format(interface))
             return None
-        return interfaces[interface]['params']
+
+    def set_if_params(self, interface, params=''):
+        interfaces = self.get('interfaces')
+
+        if interface in interfaces:
+            interfaces[interface]['params'] = params.strip()
+            res = self.set('interfaces', interfaces)
+
+            if not res:
+                self.log.error("Could not configure '{}'".format(interface))
+
+            return res
+
+        else:
+            self.log.error("Interface '{}' does not exist".format(interface))
+            return None
 
     def get_allocated_ips(self, net_id):
         ips = {}
@@ -394,21 +401,6 @@ EOF"""
                                         node.get_ip(nic, format='num'))
         return ips
 
-
-    def set_if_parms(self, interface, parms = ''):
-        interfaces = self._get_json()['interfaces']
-        try:
-            interfaces[interface]
-        except:
-            self.log.error("Interface '{}' does not exist".format(interface))
-            return None
-        interfaces[interface]['params'] = parms.strip()
-        res = self._mongo_collection.update({'_id': self._id}, {'$set': {'interfaces': interfaces}}, multi=False, upsert=False)
-        if res['err']:
-            self.log.error("Error setting network parameters for interface '{}'".format(interface))
-            return None
-        return True
-
     def set_net_to_if(self, interface, network):
         interfaces = self._get_json()['interfaces']
         net = Network(network, mongo_db = self._mongo_db)
@@ -426,8 +418,8 @@ EOF"""
             self.log.error("Network is already defined for this interface '{}'".format(interface))
             return None
         interfaces[interface]['network'] = net.DBRef
-        res = self._mongo_collection.update({'_id': self._id}, {'$set': {'interfaces': interfaces}}, multi=False, upsert=False)
-        if res['err']:
+        res = self.set('interfaces', interfaces)
+        if not res:
             self.log.error("Error adding network for interface '{}'".format(interface))
             return None
         self.link(net.DBRef)
@@ -464,8 +456,8 @@ EOF"""
             node.del_ip(interface)
         self.unlink(net_dbref)
         interfaces[interface]['network'] = None
-        res = self._mongo_collection.update({'_id': self._id}, {'$set': {'interfaces': interfaces}}, multi=False, upsert=False)
-        if res['err']:
+        res = self.set('interfaces', interfaces)
+        if not res:
             self.log.error("Error adding network for interface '{}'".format(interface))
             return None
         return True
@@ -474,8 +466,8 @@ EOF"""
         self.del_net_from_if(interface)
         interfaces = self._get_json()['interfaces']
         interfaces.pop(interface)
-        res = self._mongo_collection.update({'_id': self._id}, {'$set': {'interfaces': interfaces}}, multi=False, upsert=False)
-        if res['err']:
+        res = self.set('interfaces', interfaces)
+        if not res:
             self.log.error("Error deleting interface '{}'".format(interface))
             return None
         return True
