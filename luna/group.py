@@ -55,7 +55,7 @@ class Group(Base):
 
         self.log.debug("function args {}".format(self._debug_function()))
 
-        # Define the schema used to represent node objects
+        # Define the schema used to represent group objects
 
         self._collection_name = 'group'
         self._keylist = {'prescript': type(''), 'partscript': type(''),
@@ -225,125 +225,131 @@ class Group(Base):
 
     def osimage(self, osimage_name):
         osimage = OsImage(osimage_name)
-        old_dbref = self._get_json()['osimage']
-        self.unlink(old_dbref)
+
+        old_image = self.get('osimage')
+        self.unlink(old_image)
+
         res = self.set('osimage', osimage.DBRef)
         self.link(osimage.DBRef)
+
         return res
 
     def bmcsetup(self, bmcsetup_name):
         bmcsetup = None
-        if bool(bmcsetup_name):
+        old_bmc = self.get('bmcsetup')
+
+        if bmcsetup_name:
             bmcsetup = BMCSetup(bmcsetup_name)
-        old_dbref = self._get_json()['bmcsetup']
-        if bool(old_dbref):
-            self.unlink(old_dbref)
-        if bool(bmcsetup):
+
+        if old_bmc:
+            self.unlink(old_bmc)
+
+        if bmcsetup:
             res = self.set('bmcsetup', bmcsetup.DBRef)
             self.link(bmcsetup.DBRef)
         else:
             res = self.set('bmcsetup', None)
+
         return res
 
     def set_bmcnetwork(self, bmcnet):
-        old_bmcnet_dbref = self._get_json()['bmcnetwork']
-        net = Network(bmcnet, mongo_db=self._mongo_db)
-        reverse_links = self.get_back_links()
-        if bool(old_bmcnet_dbref):
+        bmcnet = self.get('bmcnetwork')
+        if bmcnet:
             self.log.error("Network is already defined for BMC interface")
             return None
+
+        net = Network(bmcnet, mongo_db=self._mongo_db)
         res = self.set('bmcnetwork', net.DBRef)
         self.link(net.DBRef)
+
+        reverse_links = self.get_back_links()
         for link in reverse_links:
-            if link['collection'] != 'node':
-                continue
-            node = Node(id=link['DBRef'].id, mongo_db=self._mongo_db)
-            node.add_ip(bmc=True)
+            if link['collection'] == 'node':
+                node = Node(id=link['DBRef'].id, mongo_db=self._mongo_db)
+                node.add_ip(bmc=True)
+
         return res
 
     def del_bmcnetwork(self):
-        old_bmcnet_dbref = self._get_json()['bmcnetwork']
-        if bool(old_bmcnet_dbref):
+        bmcnet = self.get('bmcnetwork')
+
+        if bmcnet:
             reverse_links = self.get_back_links()
             for link in reverse_links:
-                if link['collection'] != 'node':
-                    continue
-                node = Node(id=link['DBRef'].id, mongo_db=self._mongo_db)
-                node.del_ip(bmc=True)
-            self.unlink(old_bmcnet_dbref)
+                if link['collection'] == 'node':
+                    node = Node(id=link['DBRef'].id, mongo_db=self._mongo_db)
+                    node.del_ip(bmc=True)
+
+            self.unlink(bmcnet)
+
         res = self.set('bmcnetwork', None)
         return res
 
     def show_bmc_if(self, brief=False):
-        bmcnetwork = self._get_json()['bmcnetwork']
-        if not bool(bmcnetwork):
-            return ''
-        (NETWORK, PREFIX) = ("", "")
-        try:
+        bmcnetwork = self.get('bmcnetwork')
+
+        if bmcnetwork:
             net = Network(id=bmcnetwork.id, mongo_db=self._mongo_db)
             NETWORK = net.get('NETWORK')
             PREFIX = str(net.get('PREFIX'))
-        except:
-            pass
-        if brief:
-            return "[" + net.name + "]:" + NETWORK + "/" + PREFIX
-        return NETWORK + "/" + PREFIX
 
-    def get_net_name_for_if(self, interface):
-        interfaces = self._get_json()['interfaces']
-        try:
-            params = interfaces[interface]
-        except:
-            self.log.error("Interface '{}' does not exist".format(interface))
-            return ""
-        try:
-            net = Network(id=params['network'].id, mongo_db=self._mongo_db)
-        except:
-            net = None
-        if bool(net):
-            return net.name
-        return ""
-
-    def show_if(self, interface, brief=False):
-        interfaces = self._get_json()['interfaces']
-        try:
-            params = interfaces[interface]
-        except:
-            self.log.error("Interface '{}' does not exist".format(interface))
-            return ""
-        (outstr, NETWORK, PREFIX) = ("", "", "")
-        try:
-            net = Network(id=params['network'].id, mongo_db=self._mongo_db)
-            NETWORK = net.get('NETWORK')
-            PREFIX = str(net.get('PREFIX'))
-        except:
-            pass
-        if NETWORK:
             if brief:
                 return "[" + net.name + "]:" + NETWORK + "/" + PREFIX
+
+            return NETWORK + "/" + PREFIX
+
+        else:
+            return ''
+
+    def get_net_name_for_if(self, interface):
+        interfaces = self.get('interfaces')
+        if interface not in interfaces:
+            self.log.error("Interface '{}' does not exist".format(interface))
+            return ''
+
+        nic = interfaces[interface]
+        if nic['network']:
+            net = Network(id=nic['network'].id, mongo_db=self._mongo_db)
+            return net.name
+        else:
+            return ''
+
+    def show_if(self, interface, brief=False):
+        interfaces = self.get('interfaces')
+        if interface not in interfaces:
+            self.log.error("Interface '{}' does not exist".format(interface))
+            return ''
+
+        outstr = ''
+        nic = interfaces[interface]
+        if nic['network']:
+            net = Network(id=nic['network'].id, mongo_db=self._mongo_db)
+            NETWORK = net.get('NETWORK')
+            PREFIX = str(net.get('PREFIX'))
+
+            if brief:
+                return "[" + net.name + "]:" + NETWORK + "/" + PREFIX
+
             outstr = "NETWORK=" + NETWORK + "\n"
             outstr += "PREFIX=" + PREFIX
-        if params['params'] and not brief:
-            outstr += "\n" + params['params']
+
+        if nic['params'] and not brief:
+            outstr += "\n" + nic['params']
+
         return outstr.rstrip()
 
     def add_interface(self, interface):
-        if not self._id:
-            self.log.error("Was object deleted?")
+        interfaces = self.get('interfaces')
+        if interface in interfaces:
+            self.log.error("Interface '{}' already exists".format(interface))
             return None
-        interfaces = self._get_json()['interfaces']
-        old_parms = None
-        try:
-            old_parms = interfaces[interface]
-        except:
-            pass
-        if bool(old_parms):
-            self.log.error("Interface already exists")
-            return None
+
         interfaces[interface] = {'network': None, 'params': ''}
         res = self.set('interfaces', interfaces)
+
         if not res:
-            self.log.error("Error adding interface '{}'".format(interface))
+            self.log.error("Could not add interface '{}'".format(interface))
+
         return res
 
     def get_if_params(self, interface):
@@ -383,110 +389,100 @@ class Group(Base):
                 ips[key] = val
 
         bmcnet = self.get('bmcnetwork')
-        if bmcnet and bmcnet.id == net_id:
-            if self.get(usedby_key):
-                for node_id in self.get(usedby_key)['node']:
-                    node = Node(id=ObjectId(node_id))
-                    add_to_dict(node.name, node.get_ip(bmc=True, format='num'))
+        if self.get(usedby_key) and bmcnet and bmcnet.id == net_id:
+            for node_id in self.get(usedby_key)['node']:
+                node = Node(id=ObjectId(node_id))
+                add_to_dict(node.name, node.get_ip(bmc=True, format='num'))
 
         ifs = self.get('interfaces')
-        if ifs:
+        if self.get(usedby_key) and ifs:
             for nic in ifs:
                 if 'network' in ifs[nic] and ifs[nic]['network'].id == net_id:
-                    if self.get(usedby_key):
-                        for node_id in self.get(usedby_key)['node']:
-                            node = Node(id=ObjectId(node_id))
-                            add_to_dict(node.name,
-                                        node.get_ip(nic, format='num'))
+                    for node_id in self.get(usedby_key)['node']:
+                        node = Node(id=ObjectId(node_id))
+                        add_to_dict(node.name, node.get_ip(nic, format='num'))
+
         return ips
 
     def set_net_to_if(self, interface, network):
-        interfaces = self._get_json()['interfaces']
-        net = Network(network, mongo_db=self._mongo_db)
-        try:
-            old_parms = interfaces[interface]
-        except:
-            old_parms = None
+        interfaces = self.get('interfaces')
+        if interface not in interfaces:
             self.log.error("Interface '{}' does not exist".format(interface))
-            return None
-        try:
-            old_net = old_parms['network']
-        except:
-            old_net = None
-        if bool(old_net):
-            self.log.error("Network is already defined for this interface '{}'"
+            return False
+
+        if interfaces[interface]['network']:
+            self.log.error("Network is already defined for interface '{}'"
                            .format(interface))
-            return None
+            return False
+
+        net = Network(network, mongo_db=self._mongo_db)
         interfaces[interface]['network'] = net.DBRef
         res = self.set('interfaces', interfaces)
         if not res:
             self.log.error("Error adding network for interface '{}'"
                            .format(interface))
-            return None
+            return False
+
         self.link(net.DBRef)
+
         reverse_links = self.get_back_links()
         for link in reverse_links:
-            if link['collection'] != 'node':
-                continue
-            node = Node(id=link['DBRef'].id, mongo_db=self._mongo_db)
-            node.add_ip(interface)
+            if link['collection'] == 'node':
+                node = Node(id=link['DBRef'].id, mongo_db=self._mongo_db)
+                node.add_ip(interface)
+
         return True
 
     def del_net_from_if(self, interface):
-        interfaces = self._get_json()['interfaces']
-        try:
-            old_parms = interfaces[interface]
-        except:
-            old_parms = None
+        interfaces = self.get('interfaces')
+        if interface not in interfaces:
             self.log.error("Interface '{}' does not exist".format(interface))
-            return None
-        try:
-            net_dbref = old_parms['network']
-        except:
-            net_dbref = None
+            return False
+
+        if not interfaces[interface]['network']:
             self.log.error("Network is not configured for interface '{}'"
                            .format(interface))
-            return None
-        if not bool(net_dbref):
-            self.log.error("Network is not configured for interface '{}'"
-                           .format(interface))
-            return None
+            return False
+
         reverse_links = self.get_back_links()
         for link in reverse_links:
-            if link['collection'] != 'node':
-                continue
-            node = Node(id=link['DBRef'].id, mongo_db=self._mongo_db)
-            node.del_ip(interface)
-        self.unlink(net_dbref)
+            if link['collection'] == 'node':
+                node = Node(id=link['DBRef'].id, mongo_db=self._mongo_db)
+                node.del_ip(interface)
+
+        self.unlink(interfaces[interface]['network'])
         interfaces[interface]['network'] = None
         res = self.set('interfaces', interfaces)
         if not res:
             self.log.error("Error adding network for interface '{}'"
                            .format(interface))
-            return None
+            return False
+
         return True
 
     def del_interface(self, interface):
         self.del_net_from_if(interface)
-        interfaces = self._get_json()['interfaces']
+
+        interfaces = self.get('interfaces')
         interfaces.pop(interface)
         res = self.set('interfaces', interfaces)
         if not res:
             self.log.error("Error deleting interface '{}'".format(interface))
-            return None
+            return False
+
         return True
 
     def _manage_ip(self, interface=None, ip=None, bmc=False, release=False):
         if bmc:
-            net_dbref = self._json['bmcnetwork']
+            net_dbref = self.get('bmcnetwork')
         elif self.get('interfaces') and interface in self.get('interfaces'):
             net_dbref = self.get('interfaces')[interface]['network']
         else:
             net_dbref = None
 
         if not net_dbref:
-            self.log.warning(("Non-existing or unconfigured {} interface"
-                              .format(interface or 'BMC')))
+            self.log.warning("Non-existing or unconfigured {} interface"
+                             .format(interface or 'BMC'))
             return None
 
         net = Network(id=net_dbref.id, mongo_db=self._mongo_db)
@@ -499,24 +495,23 @@ class Group(Base):
 
     def get_ip(self, interface, ip, bmc=False, format='num'):
         if bmc:
-            net_dbref = self._json['bmcnetwork']
+            net_dbref = self.get('bmcnetwork')
         elif self.get('interfaces') and interface in self.get('interfaces'):
             net_dbref = self.get('interfaces')[interface]['network']
         else:
             net_dbref = None
 
         if not net_dbref:
-            self.log.warning(("Non-existing or unconfigured {} interface"
-                              .format(interface or 'BMC')))
+            self.log.warning("Non-existing or unconfigured {} interface"
+                             .format(interface or 'BMC'))
             return None
 
         net = Network(id=net_dbref.id, mongo_db=self._mongo_db)
 
         if ip and format is 'human':
-            return utils.ip.reltoa(net._json['NETWORK'], ip)
+            return utils.ip.reltoa(net.get('NETWORK'), ip)
         elif ip and format is 'num':
-            return utils.ip.atorel(ip, net._json['NETWORK'],
-                                   net._json['PREFIX'])
+            return utils.ip.atorel(ip, net.get('NETWORK'), net.get('PREFIX'))
 
         return None
 
