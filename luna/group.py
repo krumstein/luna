@@ -509,9 +509,9 @@ class Group(Base):
         net = Network(id=net_dbref.id, mongo_db=self._mongo_db)
 
         if ip and format is 'human':
-            return utils.ip.reltoa(net.get('NETWORK'), ip)
+            return utils.ip.reltoa(net._json['NETWORK'], ip)
         elif ip and format is 'num':
-            return utils.ip.atorel(ip, net.get('NETWORK'), net.get('PREFIX'))
+            return utils.ip.atorel(ip, net._json['NETWORK'], net.get('PREFIX'))
 
         return None
 
