@@ -40,9 +40,9 @@ class Group(Base):
     log = logging.getLogger(__name__)
 
     def __init__(self, name=None, mongo_db=None, create=False, id=None,
-                 prescript=None, bmcsetup=None, bmcnetwork=None,
-                 partscript=None, osimage=None, interfaces=None,
-                 postscript=None, boot_if=None, torrent_if=None):
+                 prescript='', bmcsetup=None, bmcnetwork=None,
+                 partscript='', osimage=None, interfaces=[],
+                 postscript='', boot_if=None, torrent_if=None):
         """
         prescript   - preinstall script
         bmcsetup    - bmcsetup options
@@ -78,22 +78,21 @@ class Group(Base):
             if bmcnetwork:
                 bmcnetobj = Network(bmcnetwork, mongo_db=self._mongo_db).DBRef
 
-            if bool(interfaces) and type(interfaces) is not type([]):
+            if interfaces and type(interfaces) is not list:
                 self.log.error("'interfaces' should be list")
                 raise RuntimeError
+
             if_dict = {}
-            if not bool(interfaces):
-                interfaces = []
             for interface in interfaces:
                 if_dict[interface] = {'network': None, 'params': ''}
-            if not bool(partscript):
+
+            if not partscript:
                 partscript = "mount -t tmpfs tmpfs /sysroot"
-            if not bool(prescript):
-                prescript = ""
-            if not bool(postscript):
-                postscript = """cat <<EOF>>/sysroot/etc/fstab
-tmpfs   /       tmpfs    defaults        0 0
-EOF"""
+
+            if not postscript:
+                postscript = ("cat << EOF >> /sysroot/etc/fstab"
+                              "tmpfs   /       tmpfs    defaults        0 0"
+                              "EOF")
 
             # Store the new group in the datastore
 
@@ -173,7 +172,7 @@ EOF"""
             params['torrent_if_net_prefix'] = net.get('PREFIX')
 
         if (params['boot_if'] in interfaces and
-            'network' in interfaces[params['boot_if']]):
+             'network' in interfaces[params['boot_if']]):
 
             net = Network(id=interfaces[params['boot_if']]['network'].id,
                           mongo_db=self._mongo_db)
@@ -248,7 +247,7 @@ EOF"""
 
     def set_bmcnetwork(self, bmcnet):
         old_bmcnet_dbref = self._get_json()['bmcnetwork']
-        net = Network(bmcnet, mongo_db = self._mongo_db)
+        net = Network(bmcnet, mongo_db=self._mongo_db)
         reverse_links = self.get_back_links()
         if bool(old_bmcnet_dbref):
             self.log.error("Network is already defined for BMC interface")
@@ -287,7 +286,7 @@ EOF"""
         except:
             pass
         if brief:
-            return "[" +net.name + "]:"+ NETWORK + "/" + PREFIX
+            return "[" + net.name + "]:" + NETWORK + "/" + PREFIX
         return NETWORK + "/" + PREFIX
 
     def get_net_name_for_if(self, interface):
@@ -298,14 +297,14 @@ EOF"""
             self.log.error("Interface '{}' does not exist".format(interface))
             return ""
         try:
-            net = Network(id = params['network'].id, mongo_db = self._mongo_db)
+            net = Network(id=params['network'].id, mongo_db=self._mongo_db)
         except:
             net = None
         if bool(net):
             return net.name
         return ""
 
-    def show_if(self, interface, brief = False):
+    def show_if(self, interface, brief=False):
         interfaces = self._get_json()['interfaces']
         try:
             params = interfaces[interface]
@@ -314,14 +313,14 @@ EOF"""
             return ""
         (outstr, NETWORK, PREFIX) = ("", "", "")
         try:
-            net = Network(id = params['network'].id, mongo_db = self._mongo_db)
+            net = Network(id=params['network'].id, mongo_db=self._mongo_db)
             NETWORK = net.get('NETWORK')
-            PREFIX =  str(net.get('PREFIX'))
+            PREFIX = str(net.get('PREFIX'))
         except:
             pass
         if NETWORK:
             if brief:
-                return "[" +net.name + "]:" + NETWORK + "/" + PREFIX
+                return "[" + net.name + "]:" + NETWORK + "/" + PREFIX
             outstr = "NETWORK=" + NETWORK + "\n"
             outstr += "PREFIX=" + PREFIX
         if params['params'] and not brief:
@@ -403,7 +402,7 @@ EOF"""
 
     def set_net_to_if(self, interface, network):
         interfaces = self._get_json()['interfaces']
-        net = Network(network, mongo_db = self._mongo_db)
+        net = Network(network, mongo_db=self._mongo_db)
         try:
             old_parms = interfaces[interface]
         except:
@@ -415,19 +414,21 @@ EOF"""
         except:
             old_net = None
         if bool(old_net):
-            self.log.error("Network is already defined for this interface '{}'".format(interface))
+            self.log.error("Network is already defined for this interface '{}'"
+                           .format(interface))
             return None
         interfaces[interface]['network'] = net.DBRef
         res = self.set('interfaces', interfaces)
         if not res:
-            self.log.error("Error adding network for interface '{}'".format(interface))
+            self.log.error("Error adding network for interface '{}'"
+                           .format(interface))
             return None
         self.link(net.DBRef)
         reverse_links = self.get_back_links()
         for link in reverse_links:
             if link['collection'] != 'node':
                 continue
-            node = Node(id=link['DBRef'].id, mongo_db = self._mongo_db)
+            node = Node(id=link['DBRef'].id, mongo_db=self._mongo_db)
             node.add_ip(interface)
         return True
 
@@ -443,22 +444,25 @@ EOF"""
             net_dbref = old_parms['network']
         except:
             net_dbref = None
-            self.log.error("Network is not configured for interface '{}'".format(interface))
+            self.log.error("Network is not configured for interface '{}'"
+                           .format(interface))
             return None
         if not bool(net_dbref):
-            self.log.error("Network is not configured for interface '{}'".format(interface))
+            self.log.error("Network is not configured for interface '{}'"
+                           .format(interface))
             return None
         reverse_links = self.get_back_links()
         for link in reverse_links:
             if link['collection'] != 'node':
                 continue
-            node = Node(id=link['DBRef'].id, mongo_db = self._mongo_db)
+            node = Node(id=link['DBRef'].id, mongo_db=self._mongo_db)
             node.del_ip(interface)
         self.unlink(net_dbref)
         interfaces[interface]['network'] = None
         res = self.set('interfaces', interfaces)
         if not res:
-            self.log.error("Error adding network for interface '{}'".format(interface))
+            self.log.error("Error adding network for interface '{}'"
+                           .format(interface))
             return None
         return True
 
@@ -475,8 +479,8 @@ EOF"""
     def _manage_ip(self, interface=None, ip=None, bmc=False, release=False):
         if bmc:
             net_dbref = self._json['bmcnetwork']
-        elif self._json['interfaces'] and interface in self._json['interfaces']:
-            net_dbref = self._json['interfaces'][interface]['network']
+        elif self.get('interfaces') and interface in self.get('interfaces'):
+            net_dbref = self.get('interfaces')[interface]['network']
         else:
             net_dbref = None
 
@@ -496,8 +500,8 @@ EOF"""
     def get_ip(self, interface, ip, bmc=False, format='num'):
         if bmc:
             net_dbref = self._json['bmcnetwork']
-        elif self._json['interfaces'] and interface in self._json['interfaces']:
-            net_dbref = self._json['interfaces'][interface]['network']
+        elif self.get('interfaces') and interface in self.get('interfaces'):
+            net_dbref = self.get('interfaces')[interface]['network']
         else:
             net_dbref = None
 
