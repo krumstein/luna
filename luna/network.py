@@ -216,7 +216,7 @@ class Network(Base):
             if elem == "group":
                 for gid in rev_links[elem]:
                     group = Group(id=ObjectId(gid), mongo_db=self._mongo_db)
-                    tmp_dict = group.get_rel_ips_for_net(self.id)
+                    tmp_dict = group.get_allocated_ips(self.id)
 
                     for nodename in tmp_dict:
                         add_to_out_dict(nodename, tmp_dict[nodename])

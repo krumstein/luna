@@ -262,60 +262,34 @@ EOF"""
             return None
         return interfaces[interface]['params']
 
-    def list_interfaces(self):
-        json = self._get_json()
-        try:
-            interfaces = json['interfaces']
-        except:
-            self.log.error("No interfaces for group '{}' configured.".format(self.name))
-            interfaces = {}
-        try:
-            bmcnet = json['bmcnetwork']
-        except:
-            self.log.error("No network for BMC interface for group '{}' configured.".format(self.name))
-            bmcnet = None
-        return {'interfaces': interfaces, 'bmcnetwork': bmcnet}
-
-    def get_rel_ips_for_net(self, netobjid):
-        rel_ips = {}
+    def get_allocated_ips(self, net_id):
+        ips = {}
 
         def add_to_dict(key, val):
-            try:
-                rel_ips[key]
-                self.log.error("Duplicate ip detected in '{}'. Can not put '{}'".format(self.name, key))
-            except:
-                rel_ips[key] = val
+            if key in ips:
+                self.log.error(("Duplicate IP detected in the group '{}'."
+                                "Could not process '{}'")
+                               .format(self.name, key))
+            else:
+                ips[key] = val
 
-        json = self._get_json()
-        if_dict = self.list_interfaces()
-        bmcif =  if_dict['bmcnetwork']
-        ifs = if_dict['interfaces']
-        if bool(bmcif):
-            if bmcif.id == netobjid:
-                try:
-                    node_links = json[usedby_key]
-                except KeyError:
-                    node_links = None
-                if bool(node_links):
-                    for node_id in node_links['node']:
-                        node = Node(id = ObjectId(node_id))
-                        add_to_dict(node.name, node.get_ip(bmc=True, format='num'))
+        bmcnet = self.get('bmcnetwork')
+        if bmcnet and bmcnet.id == net_id:
+            if self.get(usedby_key):
+                for node_id in self.get(usedby_key)['node']:
+                    node = Node(id=ObjectId(node_id))
+                    add_to_dict(node.name, node.get_ip(bmc=True, format='num'))
 
-        if bool(if_dict):
-            for interface in ifs:
-                if not bool(ifs[interface]['network']):
-                    continue
-                if ifs[interface]['network'].id == netobjid:
-                    try:
-                        node_links = json[usedby_key]
-                    except KeyError:
-                        node_links = None
-                    if not bool(node_links):
-                        continue
-                    for node_id in node_links['node']:
-                        node = Node(id = ObjectId(node_id))
-                        add_to_dict(node.name, node.get_ip(interface, format='num'))
-        return rel_ips
+        ifs = self.get('interfaces')
+        if ifs:
+            for nic in ifs:
+                if 'network' in ifs[nic] and ifs[nic]['network'].id == net_id:
+                    if self.get(usedby_key):
+                        for node_id in self.get(usedby_key)['node']:
+                            node = Node(id=ObjectId(node_id))
+                            add_to_dict(node.name,
+                                        node.get_ip(nic, format='num'))
+        return ips
 
 
     def set_if_parms(self, interface, parms = ''):
