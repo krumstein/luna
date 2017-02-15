@@ -389,16 +389,20 @@ class Node(Base):
         return bool(res)
 
     def get_ip(self, interface=None, bmc=False, format='human'):
-        group = Group(id=self._json['group'].id, mongo_db=self._mongo_db)
         if bmc and 'bmcnetwork' in self._json:
             ipnum = self._json['bmcnetwork']
         elif interface in self._json['interfaces']:
             ipnum = self._json['interfaces'][interface]
         else:
-            self.log.warning(("{} interface has no IP"
+            self.log.warning(('{} interface has no IP'
                               .format(interface or 'BMC')))
             return None
-        return group.get_ip(interface, ipnum, bmc=bmc, format=format)
+
+        if format == 'num':
+            return ipnum
+        else:
+            group = Group(id=self._json['group'].id, mongo_db=self._mongo_db)
+            return group.get_ip(interface, ipnum, bmc=bmc, format='human')
 
     def get_mac(self):
         try:

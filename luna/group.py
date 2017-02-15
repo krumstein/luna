@@ -424,8 +424,6 @@ EOF"""
         else:
             return net.reserve_ip(ip)
 
-        return True
-
     def get_ip(self, interface, ip, bmc=False, format='num'):
         if bmc:
             net_dbref = self._json['bmcnetwork']
