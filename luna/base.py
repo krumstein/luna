@@ -180,7 +180,8 @@ class Base(object):
             mongo_db = self._mongo_db
             mongo_collection = self._mongo_db[dbref.collection]
             try:
-                name = '[' + mongo_collection.find_one({'_id': dbref.id})['name'] + ']'
+                name = mongo_collection.find_one({'_id': dbref.id})['name']
+                name = '[' + name + ']'
             except:
                 name = '[id_' + str(dbref.id) + ']'
             return name
@@ -306,7 +307,7 @@ class Base(object):
         except:
             pass
 
-        if type(remote_dbref) is not type(self._DBRef):
+        if not isinstance(remote_dbref, DBRef):
             self.log.error("Object to link to is not a DBRef object")
             return None
 
@@ -329,25 +330,25 @@ class Base(object):
         except:
             usedby_doc = {}
         try:
-            link_count = use_doc[remote_dbref.collection][str(remote_dbref.id)]
+            links = use_doc[remote_dbref.collection][str(remote_dbref.id)]
         except:
-            link_count = 0
+            links = 0
         try:
-            back_link_count = usedby_doc[self._DBRef.collection][str(self._DBRef.id)]
+            backlinks = usedby_doc[self._DBRef.collection][str(self._DBRef.id)]
         except:
-            back_link_count = 0
-        link_count += 1
-        back_link_count += 1
+            backlinks = 0
+        links += 1
+        backlinks += 1
         try:
-            use_doc[remote_dbref.collection][str(remote_dbref.id)] = link_count
+            use_doc[remote_dbref.collection][str(remote_dbref.id)] = links
         except:
             use_doc[remote_dbref.collection] = {}
-            use_doc[remote_dbref.collection][str(remote_dbref.id)] = link_count
+            use_doc[remote_dbref.collection][str(remote_dbref.id)] = links
         try:
-            usedby_doc[self._DBRef.collection][str(self._DBRef.id)] = back_link_count
+            usedby_doc[self._DBRef.collection][str(self._DBRef.id)] = backlinks
         except:
             usedby_doc[self._DBRef.collection] = {}
-            usedby_doc[self._DBRef.collection][str(self._DBRef.id)] = back_link_count
+            usedby_doc[self._DBRef.collection][str(self._DBRef.id)] = backlinks
         self._mongo_collection.update({'_id': self._id},
                                       {'$set': {use_key: use_doc}})
         remote_collection.update({'_id': remote_dbref.id},
@@ -362,7 +363,7 @@ class Base(object):
         except:
             pass
 
-        if type(remote_dbref) is not type(self._DBRef):
+        if not isinstance(remote_dbref, DBRef):
             self.log.error("Object to unlink from is not a DBRef object")
             raise RuntimeError
             return None
@@ -385,36 +386,37 @@ class Base(object):
         except:
             usedby_doc = {}
         try:
-            link_count = use_doc[remote_dbref.collection][str(remote_dbref.id)]
+            links = use_doc[remote_dbref.collection][str(remote_dbref.id)]
         except:
-            link_count = 0
+            links = 0
         try:
-            back_link_count = usedby_doc[self._DBRef.collection][str(self._DBRef.id)]
+            backlinks = usedby_doc[self._DBRef.collection][str(self._DBRef.id)]
         except:
-            back_link_count = 0
+            backlinks = 0
 
-        if link_count < 1:
+        if links < 1:
             self.log.error("No links to this object. Cannot unlink.")
             return None
 
-        if back_link_count < 1:
-            self.log.error("Link to this objct exists, but no backlinks to this object. Cannot unlink.")
+        if backlinks < 1:
+            self.log.error(("Link to this objct exists, "
+                            "but no backlinks to this object. Cannot unlink."))
             return None
 
-        link_count -= 1
-        back_link_count -= 1
-        if link_count < 1:
+        links -= 1
+        backlinks -= 1
+        if links < 1:
             use_doc[remote_dbref.collection].pop(str(remote_dbref.id))
             if len(use_doc[remote_dbref.collection]) < 1:
                 use_doc.pop(remote_dbref.collection)
         else:
-            use_doc[remote_dbref.collection][str(remote_dbref.id)] = link_count
-        if back_link_count < 1:
+            use_doc[remote_dbref.collection][str(remote_dbref.id)] = links
+        if backlinks < 1:
             usedby_doc[self._DBRef.collection].pop(str(self._DBRef.id))
             if len(usedby_doc[self._DBRef.collection]) < 1:
                 usedby_doc.pop(self._DBRef.collection)
         else:
-            usedby_doc[self._DBRef.collection][str(self._DBRef.id)] = back_link_count
+            usedby_doc[self._DBRef.collection][str(self._DBRef.id)] = backlinks
         self._mongo_collection.update({'_id': self._id},
                                       {'$set': {use_key: use_doc}})
         remote_collection.update({'_id': remote_dbref.id},
@@ -443,12 +445,12 @@ class Base(object):
         for col_iter in use_doc:
             for uid in use_doc[col_iter]:
                 dbref = DBRef(col_iter, ObjectId(uid))
-                remote_collection = self._mongo_db[dbref.collection]
+                remote_col = self._mongo_db[dbref.collection]
                 if not resolve:
                     name = str(dbref.id)
                 else:
                     try:
-                        name = remote_collection.find_one({'_id': dbref.id})['name']
+                        name = remote_col.find_one({'_id': dbref.id})['name']
                     except:
                         name = str(dbref.id)
                 output.extend([{'collection': dbref.collection,
@@ -478,12 +480,12 @@ class Base(object):
         for col_iter in usedby_doc:
             for uid in usedby_doc[col_iter]:
                 dbref = DBRef(col_iter, ObjectId(uid))
-                remote_collection = self._mongo_db[dbref.collection]
+                remote_col = self._mongo_db[dbref.collection]
                 if not resolve:
                     name = str(dbref.id)
                 else:
                     try:
-                        name = remote_collection.find_one({'_id': dbref.id})['name']
+                        name = remote_col.find_one({'_id': dbref.id})['name']
                     except:
                         name = str(dbref.id)
                 output.extend([{'collection': dbref.collection,
