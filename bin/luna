@@ -288,8 +288,6 @@ def osimage_listkerns(name):
 
 def osimage_add(**args):
     args['create'] = True
-    if not bool(args['kernver']):
-        args['kernver'] = 'ANY'
     osimage = luna.OsImage(**args)
 
 def osimage_delete(name):
