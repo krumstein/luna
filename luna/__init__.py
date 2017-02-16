@@ -1,5 +1,6 @@
 __version__ = '0.0.1a'
-__all__ = ['cluster', 'osimage', 'bmcsetup', 'group', 'node', 'switch', 'network', 'tracker', 'manager', 'utils']
+__all__ = ['cluster', 'osimage', 'bmcsetup', 'group', 'node', 'switch',
+           'network', 'tracker', 'manager', 'mac_updater', 'utils']
 __author__ = 'Dmitry Chirikov'
 
 '''
@@ -32,11 +33,12 @@ from osimage import OsImage
 from bmcsetup import BMCSetup
 from group import Group
 from node import Node
-from switch import Switch, MacUpdater
+from switch import Switch
 from network import Network
 from tracker import *
 from manager import Manager
 from otherdev import OtherDev
+from mac_updater import MacUpdater
 import utils
 
 def list(collection):
