@@ -278,11 +278,11 @@ class Node(Base):
             self.log.error("Group needs to be specified")
             return None
 
-        new_group = Group(new_group, mongo_db=self._mongo_db)
+        new_group = Group(new_group_name, mongo_db=self._mongo_db)
         group = Group(id=self._json['group'].id, mongo_db=self._mongo_db)
         group_interfaces = group._json['interfaces']
 
-        if 'bmcnetwork' in group._json:
+        if 'bmcnetwork' in group._json and group._json['bmcnetwork']:
             bmc_net_id = group._json['bmcnetwork'].id
             bmc_ip = self.get_ip(bmc=True)
         else:
@@ -293,7 +293,8 @@ class Node(Base):
 
         ips = {}
         for interface in group_interfaces:
-            if 'network' in group_interfaces[interface]:
+            if ('network' in group_interfaces[interface] and
+                    group_interfaces[interface]['network']):
                 net_id = group_interfaces[interface]['network'].id
                 ip = self.get_ip(interface)
                 ips[net_id] = {'interface': interface, 'ip': ip}
@@ -306,7 +307,7 @@ class Node(Base):
         res = self.set('group', new_group.DBRef)
         self.link(new_group)
 
-        if 'bmcnetwork' in new_group._json:
+        if 'bmcnetwork' in new_group._json and new_group._json['bmcnetwork']:
             newbmc_net_id = new_group._json['bmcnetwork'].id
         else:
             newbmc_net_id = None
@@ -318,7 +319,8 @@ class Node(Base):
 
         new_group_interfaces = new_group._json['interfaces']
         for interface in new_group_interfaces:
-            if 'network' in new_group_interfaces[interface]:
+            if ('network' in new_group_interfaces[interface] and
+                    new_group_interfaces[interface]['network']):
                 net_id = new_group_interfaces[interface]['network'].id
 
                 if net_id in ips:
