@@ -750,11 +750,11 @@ def node_change(**args):
         node = luna.Node(nodename)
 
         for attr in ['group', 'mac', 'switch']:
-            if args[attr]:
+            if args[attr] is not None:
                 getattr(node, "set_%s" % attr)(args[attr])
 
         for attr in ['localboot', 'setupbmc', 'service']:
-            if args[attr]:
+            if args[attr] is not None:
                 flag = True if args[attr] in ['y', 'yes'] else False
                 node.set(attr, flag)
 
