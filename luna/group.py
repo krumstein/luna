@@ -266,7 +266,7 @@ class Group(Base):
         for link in reverse_links:
             if link['collection'] == 'node':
                 node = Node(id=link['DBRef'].id, mongo_db=self._mongo_db)
-                node.add_ip(bmc=True)
+                node._add_ip(bmc=True)
 
         return res
 
@@ -278,7 +278,7 @@ class Group(Base):
             for link in reverse_links:
                 if link['collection'] == 'node':
                     node = Node(id=link['DBRef'].id, mongo_db=self._mongo_db)
-                    node.del_ip(bmc=True)
+                    node._del_ip(bmc=True)
 
             self.unlink(bmcnet)
 
@@ -429,7 +429,7 @@ class Group(Base):
         for link in reverse_links:
             if link['collection'] == 'node':
                 node = Node(id=link['DBRef'].id, mongo_db=self._mongo_db)
-                node.add_ip(interface)
+                node._add_ip(interface)
 
         return True
 
@@ -448,7 +448,7 @@ class Group(Base):
         for link in reverse_links:
             if link['collection'] == 'node':
                 node = Node(id=link['DBRef'].id, mongo_db=self._mongo_db)
-                node.del_ip(interface)
+                node._del_ip(interface)
 
         self.unlink(interfaces[interface]['network'])
         interfaces[interface]['network'] = None
