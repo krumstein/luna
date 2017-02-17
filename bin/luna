@@ -1353,5 +1353,7 @@ if __name__ == '__main__':
 
             call_fun(**args)
 
+        except RuntimeError:
+           exit(255)
         except:
             raise
