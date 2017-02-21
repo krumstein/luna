@@ -981,7 +981,7 @@ cmd = osimage_a.add_parser('list', help='List OSImages')
 
 # show
 cmd = osimage_a.add_parser('show', help='Show OSImage')
-cmd.add_argument('--name', '-n', required=True, help='Name of the OsImage')
+cmd.add_argument('name', help='Name of the OsImage')
 cmd_group = cmd.add_mutually_exclusive_group()
 cmd_group.add_argument('--raw', '-R', action='store_true', help='JSON output')
 cmd_group.add_argument('--path', '-p', action='store_true',
@@ -998,7 +998,7 @@ cmd_group.add_argument('--grab_filesystems', '-f', action='store_true',
 # listkerns
 #cmd = osimage_a.add_parser('listkerns',
 #                           help='List installed kernels in OsImage')
-#cmd.add_argument('--name', '-n', required=True, help='Name of the OsImage')
+#cmd.add_argument('name', help='Name of the OsImage')
 
 # add
 cmd = osimage_a.add_parser('add', help='Add osimage')
@@ -1009,7 +1009,7 @@ cmd.add_argument('--kernopts', '-o', help='Kernel options')
 
 # change
 cmd = osimage_a.add_parser('change', help='Change OsImage')
-cmd.add_argument('--name', '-n', required=True, help='Name of the OsImage')
+cmd.add_argument('name', help='Name of the OsImage')
 cmd_group = cmd.add_mutually_exclusive_group()
 cmd_group.add_argument('--kernver', '-k', help='Kernel version')
 cmd_group.add_argument('--kernopts', '-o', help='Kernel options')
@@ -1023,7 +1023,7 @@ cmd_group.add_argument('--grab_filesystems', '-f',
 
 # pack
 cmd = osimage_a.add_parser('pack', help='Pack OsImage')
-cmd.add_argument('--name', '-n', required=True, help='Name of the OsImage')
+cmd.add_argument('name', help='Name of the OsImage')
 cmd_group = cmd.add_mutually_exclusive_group(required=False)
 cmd_group.add_argument('--image', '-i', action='store_true',
                        help='Pack image only')
@@ -1034,7 +1034,7 @@ cmd.add_argument('--copy_boot', '-c', action='store_true',
 
 # grab
 cmd = osimage_a.add_parser('grab', help='Grab host to OsImage')
-cmd.add_argument('--name', '-n', required=True, help='Name of the OsImage')
+cmd.add_argument('name', help='Name of the OsImage')
 cmd.add_argument('--host', '-H', required=True,
                  help='Hostname of the source node')
 cmd.add_argument('--dry_run', '-d', action='store_true',
@@ -1044,23 +1044,23 @@ cmd.add_argument('--verbose', '-v', action='store_true',
 
 # sync
 cmd = osimage_a.add_parser('sync', help='Sync OsImage')
-cmd.add_argument('--name', '-n', required=True, help='Name of the OsImage')
+cmd.add_argument('name', help='Name of the OsImage')
 
 # clone
 cmd = osimage_a.add_parser('clone', help='Clone OsImage')
-cmd.add_argument('--name', '-n', required=True, help='Name of image to clone')
+cmd.add_argument('name', help='Name of image to clone')
 cmd.add_argument('--to', '-t', required=True, help='Name of the clone image')
 cmd.add_argument('--path', '-p', required=True,
                  help='Path of the Osimage to create.')
 
 # rename
 cmd = osimage_a.add_parser('rename', help='Rename OsImage')
-cmd.add_argument('--name', '-n', required=True, help='Name of the OsImage')
+cmd.add_argument('name', help='Name of the OsImage')
 cmd.add_argument('--newname', '--nn', required=True, help='New name')
 
 # delete
 cmd = osimage_a.add_parser('delete', help='Delete OsImage')
-cmd.add_argument('--name', '-n', required=True, help='Name of the OsImage')
+cmd.add_argument('name', help='Name of the OsImage')
 
 #
 # BMCSetup commands
@@ -1071,7 +1071,7 @@ cmd = bmcsetup_a.add_parser('list', help='List BMCSetup instances.')
 
 # show
 cmd = bmcsetup_a.add_parser('show', help='Show BMCSetup instance.')
-cmd.add_argument('--name', '-n', required=True, help='Name of the BMCSetup')
+cmd.add_argument('name', help='Name of the BMCSetup')
 cmd.add_argument('--raw', '-R', action='store_true', help='Raw JSON output')
 
 # add
@@ -1086,7 +1086,7 @@ cmd.add_argument('--mgmtchannel', '-M', default=1, type=int,
 
 # change
 cmd = bmcsetup_a.add_parser('change', help='Change BMCSetup')
-cmd.add_argument('--name', '-n', required=True, help='Name of the BMCSetup')
+cmd.add_argument('name', help='Name of the BMCSetup')
 cmd.add_argument('--user', '-u', help='User name')
 cmd.add_argument('--password', '-p', help='Password')
 cmd.add_argument('--userid', '-I', type=int, help='UserID')
@@ -1095,13 +1095,13 @@ cmd.add_argument('--mgmtchannel', '-M', type=int, help='Mgmtchannel')
 
 # rename
 cmd = bmcsetup_a.add_parser('rename', help='Rename BMCSetup instance')
-cmd.add_argument('--name', '-n', required=True, help='Name of the BMCSetup')
+cmd.add_argument('name', help='Name of the BMCSetup')
 cmd.add_argument('--newname', '--nn', required=True,
                  help='New name of the BMCSetup')
 
 # delete
 cmd = bmcsetup_a.add_parser('delete', help='Delete osimage')
-cmd.add_argument('--name', '-n', required=True, help='Name of the BMCSetup')
+cmd.add_argument('name', help='Name of the BMCSetup')
 
 #
 # Network commands
@@ -1112,7 +1112,7 @@ cmd = network_a.add_parser('list', help='List Networks')
 
 # show
 cmd = network_a.add_parser('show', help='Show Network')
-cmd.add_argument('--name', '-n', required=True, help='Name of the Network')
+cmd.add_argument('name', help='Name of the Network')
 cmd.add_argument('--raw', '-R', action='store_true', help='Raw JSON output')
 cmd.add_argument('--reservedips', '-r', action='store_true',
                  help='List reserved IPs')
@@ -1128,7 +1128,7 @@ cmd.add_argument('--ns_ip', metavar='N.N.N.N',
                  help='Name server\'s IP for zone file')
 # change
 cmd = network_a.add_parser('change', help='Change Network')
-cmd.add_argument('--name', '-n', required=True, help='Name of the Network')
+cmd.add_argument('name', help='Name of the Network')
 cmd.add_argument('--network', '-N', metavar='N.N.N.N', help='Network')
 cmd.add_argument('--prefix', '-P', metavar='PP', type=int, help='Prefix')
 cmd.add_argument('--reserve', '-R', metavar='X.X.X.X', help='Reserve IP')
@@ -1138,12 +1138,12 @@ cmd.add_argument('--ns_ip', metavar='N.N.N.N',
                  help='Name server\'s IP for zone file')
 # rename
 cmd = network_a.add_parser('rename', help='Rename Network')
-cmd.add_argument('--name', '-n', required=True, help='Name of the Network')
+cmd.add_argument('name', help='Name of the Network')
 cmd.add_argument('--newname', '--nn', required=True,
                  help='New name of the Network')
 # delete
 cmd = network_a.add_parser('delete', help='Delete Network')
-cmd.add_argument('--name', '-n', required=True, help='Name of the Network')
+cmd.add_argument('name', help='Name of the Network')
 
 #
 # Group commands
@@ -1154,7 +1154,7 @@ cmd = group_a.add_parser('list', help='List Groups')
 
 # show
 cmd = group_a.add_parser('show', help='Show Group')
-cmd.add_argument('--name', '-n', required=True, help='Name of the Group')
+cmd.add_argument('name', help='Name of the Group')
 cmd_group = cmd.add_mutually_exclusive_group()
 cmd_group.add_argument('--raw', '-R', action='store_true', help='JSON output')
 cmd_group.add_argument('--osimage', '-o', action='store_true',
@@ -1182,7 +1182,7 @@ cmd.add_argument('--interface', '-i', action='append', required=True,
 
 # change
 cmd = group_a.add_parser('change', help='Change Group')
-cmd.add_argument('--name', '-n', required=True, help='Name of the Group')
+cmd.add_argument('name', help='Name of the Group')
 cmd.add_argument('--osimage', '-o', help='Osimage assigned to Group')
 cmd.add_argument('--prescript', '--pre', action='store_true',
                  help='Set prescript')
@@ -1210,12 +1210,12 @@ cmd.add_argument('--edit', '-e', action='store_true',
 
 # rename
 cmd = group_a.add_parser('rename', help='Rename Group.')
-cmd.add_argument('--name', '-n', required=True, help='Name of the Group')
+cmd.add_argument('name', help='Name of the Group')
 cmd.add_argument('--newname', '--nn', required=True, help='New name')
 
 # delete
 cmd = group_a.add_parser('delete', help='Delete Group')
-cmd.add_argument('--name', '-n', required=True, help='Name of the Group')
+cmd.add_argument('name', help='Name of the Group')
 
 #
 # Node commands
@@ -1226,7 +1226,7 @@ cmd = node_a.add_parser('list', help='List Nodes')
 
 # show
 cmd = node_a.add_parser('show', help='Show Node')
-cmd.add_argument('--name', '-n', required=True, help='Name of the Node')
+cmd.add_argument('name', help='Name of the Node')
 cmd.add_argument('--raw', '-R', action='store_true', help='Raw JSON output')
 
 # add
@@ -1236,7 +1236,7 @@ cmd.add_argument('--group', '-g', required=True, help='Group')
 
 # change
 cmd = node_a.add_parser('change', help='Change Node')
-cmd.add_argument('--name', '-n', required=True, help='Name of the Node')
+cmd.add_argument('name', help='Name of the Node')
 cmd_group = cmd.add_mutually_exclusive_group(required=False)
 cmd_group.add_argument('--group', '-g', help='Group')
 cmd_group.add_argument('--interface', '-i', nargs=2, metavar=('IF', 'X.X.X.X'),
@@ -1256,12 +1256,12 @@ cmd.add_argument('--service', '--sv', choices=['y', 'yes', 'n', 'no'],
 
 # rename
 cmd = node_a.add_parser('rename', help='Rename Node')
-cmd.add_argument('--name', '-n', required=True, help='Name of the Node')
+cmd.add_argument('name', help='Name of the Node')
 cmd.add_argument('--newname', '--nn', required=True, help='New name')
 
 # delete
 cmd = node_a.add_parser('delete', help='Delete Node')
-cmd.add_argument('--name', '-n', required=True, help='Name of the Node')
+cmd.add_argument('name', help='Name of the Node')
 
 #
 # Switch commands
@@ -1272,7 +1272,7 @@ cmd = switch_a.add_parser('list', help='List Switches')
 
 # show
 cmd = switch_a.add_parser('show', help='Show Switch')
-cmd.add_argument('--name', '-n', required=True, help='Name of the Switch')
+cmd.add_argument('name', help='Name of the Switch')
 cmd.add_argument('--raw', '-R', action='store_true', help='Raw JSON output')
 
 # add
@@ -1288,7 +1288,7 @@ cmd.add_argument('--oid', '-o', default = '.1.3.6.1.2.1.17.7.1.2.2.1.2',
 
 # change
 cmd = switch_a.add_parser('change', help='Change Switch')
-cmd.add_argument('--name', '-n', required=True, help='Name of the Switch')
+cmd.add_argument('name', help='Name of the Switch')
 cmd.add_argument('--network', '-N', help='Network Switch belongs to')
 cmd.add_argument('--ip', '-i', help='IP of the Switch')
 cmd.add_argument('--read', '-r', help='Read community')
@@ -1297,12 +1297,12 @@ cmd.add_argument('--oid', '-o', help='OID of the Switch')
 
 # rename
 cmd = switch_a.add_parser('rename', help='Rename Switch')
-cmd.add_argument('--name', '-n', required=True, help='Name of the Switch')
+cmd.add_argument('name', help='Name of the Switch')
 cmd.add_argument('--newname', '--nn', required=True, help='New name')
 
 # delete
 cmd = switch_a.add_parser('delete', help='Delete Switch')
-cmd.add_argument('--name', '-n', required=True, help='Name of the Switch')
+cmd.add_argument('name', help='Name of the Switch')
 
 #
 # Otherdev commands
@@ -1313,7 +1313,7 @@ cmd = otherdev_a.add_parser('list', help='List other devices')
 
 # show
 cmd = otherdev_a.add_parser('show', help='Show device')
-cmd.add_argument('--name', '-n', required=True, help='Name of the device')
+cmd.add_argument('name', help='Name of the device')
 cmd.add_argument('--raw', '-R', action='store_true', help='Raw JSON output')
 
 # add
@@ -1325,19 +1325,19 @@ cmd.add_argument('--ip', '-i', help='IP of the device')
 
 # change
 cmd = otherdev_a.add_parser('change', help='Change device')
-cmd.add_argument('--name', '-n', required=True, help='Name of the device')
+cmd.add_argument('name', help='Name of the device')
 cmd.add_argument('--network', '-N', help='Network device belongs to')
 cmd.add_argument('--ip', '-i',
                  help='IP of the device. Specify empty string to delete')
 
 # rename
 cmd = otherdev_a.add_parser('rename', help='Rename device')
-cmd.add_argument('--name', '-n', required=True, help='Name of the device')
+cmd.add_argument('name', help='Name of the device')
 cmd.add_argument('--newname', '--nn', required=True, help='New name')
 
 # delete
 cmd = otherdev_a.add_parser('delete', help='Delete device')
-cmd.add_argument('--name', '-n', required=True, help='Name of the device')
+cmd.add_argument('name', help='Name of the device')
 
 
 if __name__ == '__main__':
