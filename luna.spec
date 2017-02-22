@@ -6,7 +6,7 @@ Summary: Luna is a baremetal provisioning tool uses image-based approach
 Packager: ClusterVision
 License: GNU GPLv3
 
-Source: https://github.com/dchirikov/%{name}/archive/v%{version}.tar.gz
+Source: https://github.com/clustervision/%{name}/archive/v%{version}.tar.gz
 URL: https://github.com/clustervision/luna
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}
 
@@ -188,17 +188,16 @@ rm -rf %{buildroot}
 case "$1" in
     # This is an initial install.
     1)
-        # Stop some services
-        /usr/bin/systemctl stop dhcpd xinetd nginx 2>/dev/null || /usr/bin/true
+        # Stop services
         /usr/bin/systemctl stop lweb ltorrent 2>/dev/null || /usr/bin/true
+        # Remove user
         /usr/sbin/groupadd -r %{luna_group} 2>/dev/null || /usr/bin/true
         /usr/sbin/useradd -r -g %{luna_group} -d %{luna_home} %{luna_user} 2>/dev/null || /usr/bin/true
     ;;
 
     # This is an upgrade.
     2)
-        # Stop some services
-        /usr/bin/systemctl stop dhcpd xinetd nginx 2>/dev/null || /usr/bin/true
+        # Stop services
         /usr/bin/systemctl stop lweb ltorrent 2>/dev/null || /usr/bin/true
     ;;
 esac
