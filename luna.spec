@@ -264,7 +264,7 @@ exit 0
 
 %files client
 %defattr(-,root,root)
-%{dracut_dir}/95luna
+%attr(0755, root, root) %{dracut_dir}/95luna
 
 # ///////////////////////////////////////////////
 # CHANGELOG
