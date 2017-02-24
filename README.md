@@ -32,7 +32,7 @@ Let's assume you have a server using the IP address `10.30.255.254` to provision
 ```
 yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 yum -y install wget python-docutils gcc-c++ rb_libtorrent-devel boost-devel make rpm-build redhat-rpm-config
-wget https://github.com/dchirikov/luna/archive/v1.1.tar.gz
+wget https://github.com/clustervision/luna/archive/v1.1.tar.gz
 rpmbuild -ta v1.1.tar.gz
 ```
 ### Install hostlist
