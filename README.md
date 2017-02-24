@@ -28,26 +28,26 @@ Let's assume you have a server using the IP address `10.30.255.254` to provision
 
 ## Server preparation
 
-TODO: Will be raplaced by RPM scripts
-
-#### Install dependencies and clone the repository
+### Build RPM
 ```
 yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
-yum -y install git python-pip
-yum -y install mongodb-server python-pymongo mongodb
-yum -y install nginx
-yum -y install python-tornado
-yum -y install ipxe-bootimgs tftp-server tftp xinetd dhcp wget
-yum -y install rb_libtorrent-python net-snmp-python
-yum -y install bind-utils bind-chroot
-
-yum -y install luna/hostlist/python-hostlist
-
-cd /
-git clone https://github.com/clustervision/luna
+yum -y install wget python-docutils gcc-c++ rb_libtorrent-devel boost-devel make rpm-build redhat-rpm-config
+wget https://github.com/clustervision/luna/archive/v1.1.tar.gz
+rpmbuild -ta v1.1.tar.gz
+```
+### Install hostlist
+Source code is available [here](https://www.nsc.liu.se/~kent/python-hostlist/)
+```
+wget https://www.nsc.liu.se/~kent/python-hostlist/python-hostlist-1.17.tar.gz
+rpmbuild -ta python-hostlist-1.17.tar.gz
+yum -y install python-hostlist-1.17-1.noarch.rpm
+```
+### Install Luna
+```
+yum -y install luna-1.1-2.el7.centos.x86_64.rpm
 ```
 
-#### Setup environment
+### Setup environment
 
 ```
 [ -f /root/.ssh/id_rsa ] || ssh-keygen -t rsa -f /root/.ssh/id_rsa -N ''
@@ -56,14 +56,6 @@ git clone https://github.com/clustervision/luna
 
 sed -i -e 's/SELINUX=enforcing/SELINUX=disabled/' /etc/selinux/config
 setenforce 0
-
-# Create user and directories
-
-useradd -d /opt/luna luna
-
-mkdir /{run,var/log}/luna /opt/luna/{boot,torrents}
-chown luna: /{opt,run,var/log}/luna /opt/luna/{boot,torrents}
-chmod ag+rx /opt/luna
 
 # Configure xinetd
 
@@ -74,58 +66,38 @@ cp /usr/share/ipxe/undionly.kpxe /tftpboot/luna_undionly.kpxe
 
 # Configure nginx and named
 
-cp /luna/contrib/nginx/luna.conf /etc/nginx/conf.d/
+cp /usr/share/luna/nginx-luna.conf /etc/nginx/conf.d/luna.conf
 
-echo "include "/etc/named.luna.zones";" >> /etc/named.conf
+echo 'include "/etc/named.luna.zones";' >> /etc/named.conf
 touch /etc/named.luna.zones
 
 # Enable and start services
 
 systemctl enable nginx
 systemctl enable mongod
-systemctl enable dhcpd
 systemctl enable named
 systemctl enable xinetd
 
 systemctl restart xinetd
 systemctl restart mongod
 systemctl restart nginx
-systemctl restart dhcpd
 systemctl restart named
 ```
 
-#### Install luna (Creating links)
-
-```
-cd /usr/lib64/python2.7
-ln -s ../../../luna/luna
-
-cd /usr/sbin
-ln -s ../../luna/bin/luna
-ln -s ../../luna/bin/lpower
-ln -s ../../luna/bin/lweb
-ln -s ../../luna/bin/ltorrent
-ln -s ../../luna/bin/lchroot
-
-cd /opt/luna
-ln -s ../../luna/templates
-cd ~
-```
-
-## Generate a CentOS image
+### Generate a CentOS image
 
 ```
 mkdir -p /opt/luna/os/compute/var/lib/rpm
 rpm --root /opt/luna/os/compute --initdb
+yum -y install yum-utils
 yumdownloader centos-release
 rpm --root /opt/luna/os/compute -ivh centos-release\*.rpm
 yum --installroot=/opt/luna/os/compute -y groupinstall Base
-yum --installroot=/opt/luna/os/compute -y install kernel rootfiles openssh-server openssh openssh-clients tar nc wget curl rsync gawk sed gzip parted e2fsprogs ipmitool vim-enhanced vim-minimal grub2
 yum --installroot=/opt/luna/os/compute -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
-yum --installroot=/opt/luna/os/compute -y install rb_libtorrent
+yum --installroot=/opt/luna/os/compute -y install luna-client-1.1-2.el7.centos.x86_64.rpm
 ```
 
-##### Setup sshd and a password for the root user
+#### Setup sshd, paswordless access and password for the root user in osimage
 
 ```
 mkdir /opt/luna/os/compute/root/.ssh
@@ -138,21 +110,24 @@ ssh-keygen -f /etc/ssh/ssh_host_ecdsa_key -N '' -t ecdsa
 abrt-auto-reporting enabled
 passwd
 exit
+umount /opt/luna/os/compute/dev/
 
 cat /root/.ssh/id_rsa.pub >> /opt/luna/os/compute/root/.ssh/authorized_keys
 chmod 600 /opt/luna/os/compute/root/.ssh/authorized_keys
-cp -pr /luna/src/dracut/95luna /opt/luna/os/compute/usr/lib/dracut/modules.d/
 ```
 
-## Configure a new luna cluster
+### Configure a new luna cluster
 
 ```
 luna cluster init
 luna cluster change --frontend_address 10.30.255.254
+luna network add -n cluster -N 10.30.0.0 -P 16
+luna cluster makedhcp --network cluster --start_ip 10.30.128.1 --end_ip 10.30.140.255
+systemctl start lweb ltorrent
+systemctl enable lweb ltorrent
 luna osimage add -n compute -p /opt/luna/os/compute
 luna osimage pack -n compute
 luna bmcsetup add -n base
-luna network add -n cluster -N 10.30.0.0 -P 16
 luna network add -n ipmi -N 10.31.0.0 -P 16
 luna switch add -n switch01 --oid .1.3.6.1.2.1.17.7.1.2.2.1.2 --network ipmi --ip 10.31.253.21
 luna group add -n compute -i eth0 -o compute
@@ -161,12 +136,16 @@ luna group change -n compute --boot_if eth0
 luna group change -n compute --interface eth0 --setnet cluster
 echo -e "DEVICE=eth0\nONBOOT=yes" | luna group change  --name compute --interface eth0 -e
 luna group change -n compute --bmcnetwork --setnet ipmi
+luna node add -g compute
+luna cluster makedns
 ```
 
 Please note that in this case we assume that the nodes can reach the cluster using an interface called `eth0`.
 To figure out the proper name of the interface you can specify any interface name (e.g. eth0) then boot a node in service mode using:
 
-`luna node change -n node001 --service y`
+```
+luna node change -n node001 --service y
+```
 
 In service mode you can perform an inventory of the interfaces, local disks, BMC features
 
