@@ -136,7 +136,7 @@ class Node(Base):
 
         group = Group(id=self._json['group'].id, mongo_db=self._mongo_db)
 
-        if bmc and self._json['bmcnetwork']:
+        if bmc and self.get('bmcnetwork'):
             self.log.error(("Node already has a BMC IP address"
                             .format(interface)))
             return None

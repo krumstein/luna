@@ -253,8 +253,8 @@ class Group(Base):
         return res
 
     def set_bmcnetwork(self, bmcnet):
-        bmcnet = self.get('bmcnetwork')
-        if bmcnet:
+        net = self.get('bmcnetwork')
+        if net:
             self.log.error("Network is already defined for BMC interface")
             return None
 
