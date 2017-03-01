@@ -54,8 +54,7 @@ class Switch(Base):
         # Define the schema used to represent switch objects
 
         self._collection_name = 'switch'
-        self._keylist = {'ip': type(''), 'read': type(''), 'rw': type(''),
-                         'oid': type(''), 'network': type('')}
+        self._keylist = {'read': type(''), 'rw': type(''), 'oid': type('')}
 
         # Check if this switch is already present in the datastore
         # Read it if that is the case
@@ -110,12 +109,11 @@ class Switch(Base):
 
     def set(self, key, value):
         if key == 'ip':
-            net_dbref = self.get('network')
+            net = Network(id=self.get('network').id, mongo_db=self._mongo_db)
 
             if self._json['ip']:
                 net.release_ip(self._json['ip'])
 
-            net = Network(id=net_dbref.id, mongo_db=self._mongo_db)
             ip = net.reserve_ip(value)
             ret = super(Switch, self).set('ip', ip)
 
