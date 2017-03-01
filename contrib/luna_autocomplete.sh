@@ -12,18 +12,17 @@ function _luna_autocomplete() {
         COMPREPLY=($(compgen -W "${LUNA_OPERATIONS}" -- ${CUR}))
         return 0
     fi
+    if [ ${COMP_CWORD} -eq 3 ]; then
+        local LUNA_OBJECT=${COMP_WORDS[COMP_CWORD-2]}
+        if ! [ ${COMP_WORDS[2]} = "add" -o ${COMP_WORDS[2]} = "list" ]; then
+            OBJECTS=$(python -c "import luna; print \" \".join(luna.list(\"${LUNA_OBJECT}\"))" 2>/dev/null)
+            COMPREPLY=($(compgen -W "${OBJECTS}" -- ${CUR}))
+            return 0
+        fi
+    fi
     local LUNA_OBJECT=${COMP_WORDS[1]}
     local LUNA_OPERATION=${COMP_WORDS[2]}
     local PREV=${COMP_WORDS[COMP_CWORD-1]}
-    if [ ${LUNA_OPERATION} != "add" ]; then
-        case "${PREV}" in
-            -n|--name)
-                OBJECTS=$(python -c "import luna; print \" \".join(luna.list(\"${LUNA_OBJECT}\"))" 2>/dev/null)
-                COMPREPLY=($(compgen -W "${OBJECTS}" -- ${CUR}))
-                return 0
-                ;;
-        esac
-    fi
     if [ ${LUNA_OBJECT} = "node" -a ${LUNA_OPERATION} = "add" -o ${LUNA_OPERATION} = "change" ]; then
         case "${PREV}" in
             --group|-g)

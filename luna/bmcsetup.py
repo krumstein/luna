@@ -24,8 +24,6 @@ from config import *
 
 import logging
 
-from bson.dbref import DBRef
-
 from luna.base import Base
 from luna.cluster import Cluster
 
@@ -62,7 +60,7 @@ class BMCSetup(Base):
         # Check if this BMC config is already present in the datastore
         # Read it if that is the case
 
-        bmc = self._check_name(name, mongo_db, create, id)
+        bmc = self._get_object(name, mongo_db, create, id)
 
         if create:
             cluster = Cluster(mongo_db=self._mongo_db)
@@ -78,27 +76,18 @@ class BMCSetup(Base):
                                     .format(key, self._keylist[key])))
                     raise RuntimeError
 
-            # Define a new mongo document
+            # Store the new BMC config in the datastore
 
             bmc = {'name': name, 'userid': userid, 'user': user,
                    'password': password, 'netchannel': netchannel,
                    'mgmtchannel': mgmtchannel}
 
-            # Store the new BMC config in the datastore
-
             self.log.debug("Saving BMC conf '{}' to the datastore".format(bmc))
 
-            self._name = name
-            self._id = self._mongo_collection.insert(bmc)
-            self._DBRef = DBRef(self._collection_name, self._id)
+            self.store(bmc)
 
             # Link this BMC config to the current cluster
 
             self.link(cluster)
-
-        else:
-            self._name = bmc['name']
-            self._id = bmc['_id']
-            self._DBRef = DBRef(self._collection_name, self._id)
 
         self.log = logging.getLogger(__name__ + '.' + self._name)

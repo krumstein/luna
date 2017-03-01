@@ -24,7 +24,6 @@ from config import *
 
 import logging
 
-from bson.dbref import DBRef
 from bson.objectid import ObjectId
 
 from luna import utils
@@ -50,13 +49,13 @@ class Network(Base):
         # Define the schema used to represent network objects
 
         self._collection_name = 'network'
-        self._keylist = {'NETWORK': long, 'PREFIX': type(''),
-                         'ns_hostname': type(''), 'ns_ip': type('')}
+        self._keylist = {'NETWORK': long, 'PREFIX': int,
+                         'ns_hostname': type(''), 'ns_ip': long}
 
         # Check if this network is already present in the datastore
         # Read it if that is the case
 
-        net = self._check_name(name, mongo_db, create, id)
+        net = self._get_object(name, mongo_db, create, id)
 
         if create:
             cluster = Cluster(mongo_db=self._mongo_db)
@@ -68,19 +67,15 @@ class Network(Base):
             if not ns_hostname:
                 ns_hostname = utils.ip.guess_ns_hostname()
 
-            # Define a new mongo document
+            # Store the new network in the datastore
 
             net = {'name': name, 'NETWORK': num_subnet, 'PREFIX': PREFIX,
                    'freelist': flist, 'ns_hostname': ns_hostname,
                    'ns_ip': None}
 
-            # Store the new network in the datastore
-
             self.log.debug("Saving net '{}' to the datastore".format(net))
 
-            self._name = name
-            self._id = self._mongo_collection.insert(net)
-            self._DBRef = DBRef(self._collection_name, self._id)
+            self.store(net)
 
             # Link this network to the current cluster
 
@@ -94,105 +89,65 @@ class Network(Base):
 
             self.set('ns_ip', ns_ip)
 
-        else:
-            self._name = net['name']
-            self._id = net['_id']
-            self._DBRef = DBRef(self._collection_name, self._id)
-
         self.log = logging.getLogger(__name__ + '.' + self._name)
 
     def set(self, key, value):
-        if not bool(key) or type(key) is not str:
-            self.log.error("Field should be specified")
-            return None
-
-        if key not in self._keylist:
-            self.log.error("Cannot change '{}' field".format(key))
-            return None
-
-        net = self._get_json()
+        net = self._json
 
         if key == 'ns_ip':
             rel_ns_ip = utils.ip.atorel(value, net['NETWORK'], net['PREFIX'])
-            old_ip = None
+            old_ip = net['ns_ip']
 
-            try:
-                old_ip = self.get('ns_ip')
-            except:
-                pass
-
-            if bool(old_ip):
+            if old_ip:
                 self.release_ip(old_ip)
 
             self.reserve_ip(rel_ns_ip)
-            net = self._get_json()
-            net['ns_ip'] = rel_ns_ip
-
-        elif key == 'ns_hostname':
-            net['ns_hostname'] = value
+            ret = super(Network, self).set('ns_ip', rel_ns_ip)
 
         elif key == 'NETWORK':
             prefix = net['PREFIX']
             num_subnet = utils.ip.get_num_subnet(value, prefix)
 
-            net['NETWORK'] = num_subnet
+            ret = super(Network, self).set('NETWORK', num_subnet)
 
         elif key == 'PREFIX':
             num_subnet = net['NETWORK']
             new_num_subnet = utils.ip.get_num_subnet(num_subnet, value)
 
             limit = (1 << (32 - value)) - 1
-            net['freelist'] = utils.freelist.set_upper_limit(net['freelist'],
-                                                             limit)
-            net['NETWORK'] = new_num_subnet
-            net['PREFIX'] = value
+            flist = utils.freelist.set_upper_limit(net['freelist'], limit)
 
-        ret = self._mongo_collection.update({'_id': self._id},
-                                            {'$set': net},
-                                            multi=False, upsert=False)
-        return not ret['err']
+            ret = super(Network, self).set('freelist', flist)
+            ret &= super(Network, self).set('NETWORK', new_num_subnet)
+            ret &= super(Network, self).set('PREFIX', value)
+
+        else:
+            ret = super(Network, self).set(key, value)
+
+        return ret
 
     def get(self, key):
-        if not key or type(key) is not str:
-            return None
-
-        net = self._get_json()
+        net = self._json
 
         if key == 'NETWORK':
-            return utils.ip.ntoa(net[key])
+            value = utils.ip.ntoa(net[key])
 
-        if key == 'NETMASK':
+        elif key == 'NETMASK':
             prefix = int(net['PREFIX'])
             num_mask = ((1 << 32) - 1) ^ ((1 << (33 - prefix) - 1) - 1)
 
-            return utils.ip.ntoa(num_mask)
+            value = utils.ip.ntoa(num_mask)
 
-        if key == 'PREFIX':
-            return net['PREFIX']
+        elif key == 'ns_ip':
+            value = utils.ip.reltoa(net['NETWORK'], net['ns_ip'])
 
-        if key == 'ns_ip':
-            return utils.ip.reltoa(net['NETWORK'], net['ns_ip'])
+        else:
+            value = super(Network, self).get(key)
 
-        return super(Network, self).get(key)
-
-    def _save_free_list(self, flist):
-        self.log.debug("function args '{}'".format(self._debug_function()))
-
-        if not self._id:
-            self.log.error("Couldn't update network. Was it deleted?")
-            return None
-
-        res = self._mongo_collection.update({'_id': self._id},
-                                            {'$set': {'freelist': flist}},
-                                            multi=False, upsert=False)
-
-        if res['err']:
-            self.log.error("Error updating freelist '{}'".format(flist))
-
-        return not res['err']
+        return value
 
     def reserve_ip(self, ip1=None, ip2=None, ignore_errors=True):
-        net = self._get_json()
+        net = self._json
 
         if type(ip1) is str:
             ip1 = utils.ip.atorel(ip1, net['NETWORK'], net['PREFIX'])
@@ -211,12 +166,12 @@ class Network(Base):
         elif ignore_errors:
             flist, unfreed = utils.freelist.next_free(net['freelist'])
 
-        self._save_free_list(flist)
+        self.set('freelist', flist)
 
         return unfreed
 
     def release_ip(self, ip1, ip2=None):
-        net = self._get_json()
+        net = self._json
 
         if type(ip1) is str:
             ip1 = utils.ip.atorel(ip1, net['NETWORK'], net['PREFIX'])
@@ -229,7 +184,7 @@ class Network(Base):
             return None
 
         flist, freed = utils.freelist.free_range(net['freelist'], ip1, ip2)
-        self._save_free_list(flist)
+        self.set('freelist', flist)
 
         return True
 
@@ -238,7 +193,7 @@ class Network(Base):
         from luna.otherdev import OtherDev
         from luna.node import Group
 
-        net = self._get_json()
+        net = self._json
 
         try:
             rev_links = net[usedby_key]
@@ -261,7 +216,7 @@ class Network(Base):
             if elem == "group":
                 for gid in rev_links[elem]:
                     group = Group(id=ObjectId(gid), mongo_db=self._mongo_db)
-                    tmp_dict = group.get_rel_ips_for_net(self.id)
+                    tmp_dict = group.get_allocated_ips(self.id)
 
                     for nodename in tmp_dict:
                         add_to_out_dict(nodename, tmp_dict[nodename])
