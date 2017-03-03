@@ -27,7 +27,7 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}
 # ///////////////////////////////////////////////
 # BUILD REQUIREMENTS
 # ///////////////////////////////////////////////
-BuildRequires: bash  
+BuildRequires: bash
 BuildRequires: sed
 BuildRequires: python
 BuildRequires: python-docutils
@@ -42,7 +42,7 @@ Requires: nginx
 Requires: mongodb-server >= 2.6, mongodb-server < 3.0
 Requires: python-pymongo >= 2.5, python-pymongo < 3.0
 Requires: mongodb >= 2.6, mongodb < 3.0
-Requires: python-tornado >= 2.2, python-tornado < 3.0 
+Requires: python-tornado >= 2.2, python-tornado < 3.0
 Requires: ipxe-bootimgs
 Requires: tftp-server
 Requires: xinetd
@@ -51,6 +51,8 @@ Requires: rb_libtorrent-python
 Requires: net-snmp-python
 Requires: python-hostlist
 Requires: bind-chroot
+Requires: python2-llfuse
+Requires: python-requests
 
 Requires(pre):   /usr/sbin/useradd,/usr/sbin/userdel
 Requires(pre):  /usr/bin/systemctl
@@ -64,7 +66,7 @@ Requires(post):  /usr/bin/getent,/usr/bin/id
 Requires(preun): /usr/bin/systemctl
 
 # ///////////////////////////////////////////////
-# DESCRIPTION 
+# DESCRIPTION
 # ///////////////////////////////////////////////
 %description
 Luna is a baremetal provisioning tool uses image-based-approach. It delivers image of operating systems, but not the 'recipe' how to configure OS, as competotors do. It dramatically speeds up imstallation time, and reduce administrative efforts.
@@ -119,7 +121,7 @@ popd
 # INSTALL SECTION
 # ///////////////////////////////////////////////
 %install
-# Install files for main package 
+# Install files for main package
 # Main module
 %{__install} -m 755 -d luna                                     %{buildroot}%{python_sitelib}/luna
 %{__install} -m 755 -d luna/utils                               %{buildroot}%{python_sitelib}/luna/utils
