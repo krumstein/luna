@@ -542,7 +542,7 @@ def group_list():
         # dirty and ugly, but pyton-ish
         bmcnet = group.show_bmc_if(brief = True)
         interfaces = "BMC:" + str(bmcnet if bmcnet else None)
-        for k in group.show()['interfaces'].keys():
+        for k in group.list_ifs().keys():
             brief_if = group.show_if(k, brief = True)
             if bool(brief_if):
                 interfaces += ", %s:%s" % (k, brief_if)
@@ -584,7 +584,7 @@ def group_show(out_format = '%20s%60s\n', **args):
     bmcnet = group.show_bmc_if(brief = True)
 
     interfaces = "BMC:" + str(bmcnet if bmcnet else None) + ", "
-    interfaces += ", ".join(["%s:%s" % (k, group.show_if(k, brief = True) if group.show_if(k) else None) for k in group.show()['interfaces'].keys()])
+    interfaces += ", ".join(["%s:%s" % (k, group.show_if(k, brief = True) if group.show_if(k) else None) for k in group.list_ifs().keys()])
     out_json['interfaces'] = interfaces
     header = ['Parameter', 'Value']
     content = []
@@ -625,6 +625,8 @@ def group_change(**args):
             group.set_net_to_if(args['interface'], args['setnet'])
         elif bool(args['delnet']):
             group.del_net_from_if(args['interface'])
+        elif bool(args['rename']):
+            group.rename_interface(args['interface'], args['rename'])
         elif args['edit']:
             group.set_if_params(args['interface'], _edit_script(group.get_if_params(args['interface'])))
         else:
@@ -698,7 +700,8 @@ def node_list():
         ips = ''
         node = luna.Node(elem)
         out_json = node.show()
-        interfaces = node.get('interfaces').keys()
+        interfaces = node.list_ifs().keys()
+        interfaces.sort()
         bmcip = node.get_ip(bmc=True)
         group = out_json['group']
         mac = node.get_mac()
@@ -710,12 +713,19 @@ def node_list():
         content.append([elem, group, mac, if_str])
     print_table(header, content)
 
-def node_show(name, raw, out_format='%20s%60s\n'):
+def node_show(out_format='%20s%60s\n', **args):
+    name = args['name']
+    raw = args['raw']
+    script = args['script']
     for nodename in hostlist.expand_hostlist(name):
+
         node = luna.Node(name=nodename)
         if raw:
             print(node.nice_json)
-            return None
+            continue
+        if script:
+            print(node.render_script(script))
+            continue
         out_json = node.show()
         curent_node_name = out_json.pop('name')
         status = node.get_status()
@@ -723,10 +733,12 @@ def node_show(name, raw, out_format='%20s%60s\n'):
             out_json['status'] = "%s - %s" % (status['status'], status['time'])
         bmcip = node.get_ip(bmc=True)
         if_str = ''
-        interfaces = node.get('interfaces').keys()
-        for interface in interfaces:
-            ip = node.get_ip(interface)
-            if_str += '%s:%s, ' % (interface, ip)
+        interface_dict = node.list_ifs()
+        interface_names = interface_dict.keys()
+        interface_names.sort()
+        for interface_name in interface_names:
+            ip = node.get_ip(interface_name)
+            if_str += '%s:%s, ' % (interface_name, ip)
         out_json['interfaces'] = if_str.rstrip(', ')
         out_json['bmcnetwork'] = bmcip
         out_json['mac'] = node.get_mac()
@@ -1207,6 +1219,8 @@ cmd.add_argument('--delnet', '--dn', action='store_true',
                  help='Delete Network for interface or for BMC')
 cmd.add_argument('--edit', '-e', action='store_true',
                  help='Edit interface parameters or edit scripts')
+cmd.add_argument('--rename', '--nn', metavar='NEW_NAME',
+                 help='Rename interface')
 
 # rename
 cmd = group_a.add_parser('rename', help='Rename Group.')
@@ -1228,6 +1242,7 @@ cmd = node_a.add_parser('list', help='List Nodes')
 cmd = node_a.add_parser('show', help='Show Node')
 cmd.add_argument('name', help='Name of the Node')
 cmd.add_argument('--raw', '-R', action='store_true', help='Raw JSON output')
+cmd.add_argument('--script', '-s', choices=['boot', 'install'], help='Show script for node')
 
 # add
 cmd = node_a.add_parser('add', help='Add Node')
