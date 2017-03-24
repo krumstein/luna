@@ -6,6 +6,7 @@ import test_bmcsetup as bmcsetup
 import test_utils_ip as utils_ip
 import test_utils_freelist as utils_freelist
 import test_osimage as osimage
+import test_group as group
 
 from optparse import OptionParser
 
@@ -26,6 +27,7 @@ suite.addTests(loader.loadTestsFromModule(cluster))
 suite.addTests(loader.loadTestsFromModule(network))
 suite.addTests(loader.loadTestsFromModule(bmcsetup))
 suite.addTests(loader.loadTestsFromModule(osimage))
+suite.addTests(loader.loadTestsFromModule(group))
 
 if __name__ == '__main__':
     runner = unittest.TextTestRunner(verbosity=options.verbose)
