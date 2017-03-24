@@ -70,11 +70,11 @@ class Group(Base):
 
         if create:
             cluster = Cluster(mongo_db=self._mongo_db)
-            osimageobj = OsImage(osimage)
+            osimageobj = OsImage(osimage, mongo_db=self._mongo_db)
 
             (bmcobj, bmcnetobj) = (None, None)
             if bmcsetup:
-                bmcobj = BMCSetup(bmcsetup).DBRef
+                bmcobj = BMCSetup(bmcsetup, mongo_db=self._mongo_db).DBRef
 
             if bmcnetwork:
                 bmcnetobj = Network(bmcnetwork, mongo_db=self._mongo_db).DBRef
@@ -145,7 +145,7 @@ class Group(Base):
             self.log.error(("Unknown boot interface '{}'. Must be one of '{}'"
                             .format(params['boot_if'], if_list.keys())))
             return params
-        
+
         if_uuid = if_list[params['boot_if']]
         interfaces = self.get('interfaces')
 
@@ -177,7 +177,7 @@ class Group(Base):
 
         if not params['boot_if'] in if_list.keys():
             params['boot_if'] = ""
-        
+
         torrent_if_uuid = None
         boot_if_uuid = None
 
@@ -243,7 +243,7 @@ class Group(Base):
         return params
 
     def osimage(self, osimage_name):
-        osimage = OsImage(osimage_name)
+        osimage = OsImage(osimage_name, mongo_db=self._mongo_db)
 
         old_image = self.get('osimage')
         self.unlink(old_image)
@@ -253,12 +253,12 @@ class Group(Base):
 
         return res
 
-    def bmcsetup(self, bmcsetup_name):
+    def bmcsetup(self, bmcsetup_name = None):
         bmcsetup = None
         old_bmc = self.get('bmcsetup')
 
         if bmcsetup_name:
-            bmcsetup = BMCSetup(bmcsetup_name)
+            bmcsetup = BMCSetup(bmcsetup_name, mongo_db=self._mongo_db)
 
         if old_bmc:
             self.unlink(old_bmc)
@@ -320,13 +320,15 @@ class Group(Base):
         else:
             return ''
 
-    def get_net_name_for_if(self, interface):
-        interfaces = self.get('interfaces')
-        if interface not in interfaces:
-            self.log.error("Interface '{}' does not exist".format(interface))
+    def get_net_name_for_if(self, interface_name):
+        interfaces_dict = self.get('interfaces')
+        if_list = self.list_ifs()
+        if interface_name not in if_list:
+            self.log.error("Interface '{}' does not exist".format(interface_name))
             return ''
-
-        nic = interfaces[interface]
+        
+        nic_uuid = if_list[interface_name]
+        nic = interfaces_dict[nic_uuid]
         if nic['network']:
             net = Network(id=nic['network'].id, mongo_db=self._mongo_db)
             return net.name
@@ -343,7 +345,7 @@ class Group(Base):
         for elem in interfaces:
             if_list[interfaces[elem][u'name']] = elem
         return if_list
-    
+
     def rename_interface(self, interface_name, interface_new_name):
         interfaces = self.get('interfaces')
         if_list = self.list_ifs()
