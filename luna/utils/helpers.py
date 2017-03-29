@@ -27,7 +27,7 @@ import ConfigParser
 import urllib
 import sys
 import os
-import errno 
+import errno
 import subprocess
 
 def set_mac_node(mac, node, mongo_db = None):
@@ -116,7 +116,7 @@ def clone_dirs(path1 = None, path2 = None):
     pid = os.getppid()
     pf.write("%s\n" % pid)
     pf.close()
-    
+
     # create target dir if needed
     try:
         os.makedirs(path2)
@@ -230,7 +230,7 @@ def format_output(out):
     lengths=[0] * num_col
     header_tmp = [[]] * (num_col + 1)
     content_tmp = [[[] for x in range(num_col + 1)] for y in range(len_content)]
-    
+
     # last element of the array will contain the maximum number of the new lines
     header_tmp[-1] = 1
     for i in range(len(out['header'])):
@@ -261,7 +261,7 @@ def format_output(out):
                     content_tmp[content_line][-1] = newlines
         total_num_of_new_lines += content_tmp[content_line][-1] - 1
         content_line += 1
-    
+
     # need to have transponded matrix to ease output
     header_array = [['' for x in range(num_col)] for y in range(header_tmp[-1] - 1)]
     content_array = [['' for x in range(num_col)] for y in range(total_num_of_new_lines - 1)]
