@@ -1,27 +1,20 @@
-from ming import create_datastore
 import unittest
 
 import os
+import sys
 import luna
 import getpass
-from helper_utils import create_luna_homedir, mock_osimage_tree
+from helper_utils import Sandbox
 
 
 class GroupCreateTests(unittest.TestCase):
 
     def setUp(self):
-        self.bind = create_datastore('mim:///luna')
-        self.db = self.bind.db.luna
-        self.path = '/tmp/luna'
 
-        if not os.path.exists(self.path):
-            os.makedirs(self.path)
-
-        osimage_path = self.path + '/osimage'
-
-        create_luna_homedir(self.path)
-
-        mock_osimage_tree(osimage_path)
+        self.sandbox = Sandbox(dbtype='ming')
+        self.db = self.sandbox.db
+        self.path = self.sandbox.path
+        osimage_path = self.sandbox.create_osimage()
 
         self.cluster = luna.Cluster(
             mongo_db=self.db,
@@ -37,8 +30,9 @@ class GroupCreateTests(unittest.TestCase):
             create=True
         )
 
-    def tearDown(self):
-        self.bind.conn.drop_all()
+#    def tearDown(self):
+#       self.sandbox.cleanup()
+        
 
     def test_create_group_with_defaults(self):
 
@@ -92,6 +86,10 @@ class GroupCreateTests(unittest.TestCase):
         )
 
     def test_delete_group(self):
+        if self.sandbox.dbtype != 'mongo':
+            out = "WARNING: Backend database is incomatible. Skipping '{}'"
+            print out.format(sys._getframe().f_code.co_name)
+            return True
         group = luna.Group(
             name='testgroup',
             osimage=str(self.osimage.name),
@@ -168,18 +166,11 @@ class GroupCreateTests(unittest.TestCase):
 class GroupConfigTests(unittest.TestCase):
 
     def setUp(self):
-        self.bind = create_datastore('mim:///luna1')
-        self.db = self.bind.db.luna
-        self.path = '/tmp/luna'
 
-        if not os.path.exists(self.path):
-            os.makedirs(self.path)
-
-        osimage_path = self.path + '/osimage'
-
-        create_luna_homedir(self.path)
-
-        mock_osimage_tree(osimage_path)
+        self.sandbox = Sandbox(dbtype='ming')
+        self.db = self.sandbox.db
+        self.path = self.sandbox.path
+        osimage_path = self.sandbox.create_osimage()
 
         self.cluster = luna.Cluster(
             mongo_db=self.db,
@@ -243,8 +234,8 @@ class GroupConfigTests(unittest.TestCase):
             interfaces=['eth0'],
             create=True)
 
-    def tearDown(self):
-        self.bind.conn.drop_all()
+#    def tearDown(self):
+#        self.sandbox.cleanup()
 
     def test_add_remove_net_to_if(self):
         start_dict = self.db['group'].find_one({'_id': self.group._id})
@@ -272,8 +263,7 @@ class GroupConfigTests(unittest.TestCase):
         start_dict = self.db['group'].find_one({'_id': self.group._id})
 
         osimage_name = 'osimage2'
-        osimage_path = self.path + '/' + osimage_name
-        mock_osimage_tree(osimage_path)
+        osimage_path = self.sandbox.create_osimage()
 
         osimage = luna.OsImage(
             name=osimage_name,
@@ -394,7 +384,6 @@ class GroupConfigTests(unittest.TestCase):
 
         end_dict = self.db['group'].find_one({'_id': self.group._id})
         self.assertEqual(start_dict, end_dict)
-
 
 if __name__ == '__main__':
     unittest.main()
