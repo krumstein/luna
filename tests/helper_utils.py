@@ -1,7 +1,11 @@
 import rpm
 import os
 import shutil
-from subprocess import call
+import socket
+import time
+import tempfile
+import pymongo
+import subprocess
 
 
 specfile_template = """
@@ -22,7 +26,7 @@ Provides:               kernel
 %files
 """
 def mock_osimage_tree(osimage_path, kern_versions = ['1.0.0']):
-   
+
     rpmtsCallback_fd = None
 
     def runCallback(reason, amount, total, key, client_data):
@@ -32,7 +36,7 @@ def mock_osimage_tree(osimage_path, kern_versions = ['1.0.0']):
             return rpmtsCallback_fd
         elif reason == rpm.RPMCALLBACK_INST_START:
             os.close(rpmtsCallback_fd)
- 
+
     # create rpmdb tree
     rpmdb_path = osimage_path + '/var/lib/rpm'
     if not os.path.exists(rpmdb_path):
@@ -50,7 +54,7 @@ def mock_osimage_tree(osimage_path, kern_versions = ['1.0.0']):
             d = rpmbuild_path + '/' + subdir
             if not os.path.exists(d):
                 os.makedirs(d)
-    
+
     # build and install fake kernel packages
     for kern_ver in kern_versions:
 
@@ -73,23 +77,23 @@ def mock_osimage_tree(osimage_path, kern_versions = ['1.0.0']):
 
         # Suppressing all outputs. Those are annoing, when running it million times.
         devnull = open(os.devnull, 'w')
-        res = call(" ".join(rpmbuild_cmd), shell=True, stdout=devnull, stderr=devnull)
+        res = subprocess.call(" ".join(rpmbuild_cmd), shell=True, stdout=devnull, stderr=devnull)
         if res:
             print "ERROR: Unable to build rpm"
             raise RuntimeError
         #
         # 'install' rpms
         #
-        
+
         ts = rpm.TransactionSet()
         # do dot verify DSA signatures
         ts.setVSFlags(-1)
         # rpm --justdb
         ts.setFlags(rpm.RPMTRANS_FLAG_JUSTDB)
 
-        rpm_file_name = (rpmbuild_path 
-                + '/RPMS/x86_64/kernel-' 
-                + kern_ver + '-' + kern_release 
+        rpm_file_name = (rpmbuild_path
+                + '/RPMS/x86_64/kernel-'
+                + kern_ver + '-' + kern_release
                 + '.x86_64.rpm'
             )
         rpm_header = None
@@ -118,3 +122,84 @@ def create_luna_homedir(path):
     source_template_path = virtual_env_path + '/usr/share/luna/templates'
     if not os.path.exists(path + '/templates'):
         shutil.copytree(source_template_path, path + '/templates')
+
+class sandbox(object):
+
+    def __init__(self, path = None):
+
+        if not path:
+            self.path = tempfile.mkdtemp()
+        else:
+            # can cause race condition, but ok
+            if not os.path.exists(path):
+                os.makedirs(path)
+            self.path = path
+        self._dbconn = None
+        # TODO
+        # check if mongod binary exists
+        self._mongopath = self.path + "/mongo"
+        if not os.path.exists(self._mongopath):
+            os.makedirs(self._mongopath)
+        self._mongoprocess = None
+        try:
+            self._start_mongo(
+            self.dbtype = 'mongo'
+        except OSError:
+            import ming
+            self._mingdatastore = ming.create_datastore('mim:///luna')
+            self._dbconn = self._mingdatastore.db.luna
+            self.dbtype = 'ming'
+            
+    def _start_mongo(self):
+        self._mongoprocess = None
+        # will try 5 times
+        for t in range(5):
+            s = socket.socket()
+            res = s.bind(('127.0.0.1', 0))
+            dbport = s.getsockname()[1]
+            s.close()
+            s = None
+            self._mongoprocess = subprocess.Popen(['mongod', '--bind_ip', 'localhost',
+                '--port', str(dbport),
+                '--dbpath', self._mongopath,
+                '--nojournal', '--nohttpinterface',
+                '--noauth', '--smallfiles',
+                '--syncdelay', '0',
+                '--maxConns', '10',
+                '--nssize', '1', ],
+                stdout=open(os.devnull, 'wb'),
+                stderr=subprocess.STDOUT
+
+            )
+            print dbport
+
+            for i in range(3):
+                time.sleep(1)
+                try:
+                    self._dbconn = pymongo.MongoClient('localhost:'+ str(dbport))['luna']
+                except pymongo.errors.ConnectionFailure:
+                    print "+++"
+                    continue
+                else:
+                    break
+            if self._dbconn:
+                break
+        if not self._dbconn:
+            self.cleanup()
+            assert False, 'Cannot connect to the mongodb test instance'
+
+    @property
+    def db(self):
+        return self._dbconn
+
+    def __del__(self):
+        self.cleanup()
+
+    def cleanup(self):
+        if self._mongoprocess:
+            self._mongoprocess.terminate()
+            self._mongoprocess.wait()
+            self._mongoprocess = None
+        else:
+            self._mingdatastore.conn.drop_all()
+        shutil.rmtree(self.path, ignore_errors=True)
