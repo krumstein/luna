@@ -1,19 +1,16 @@
 import unittest
 
-import sys
 import luna
 import getpass
 import copy
 from helper_utils import Sandbox
-
-dbtype = 'auto'
 
 
 class NodeCreateTests(unittest.TestCase):
 
     def setUp(self):
 
-        self.sandbox = Sandbox(dbtype=dbtype)
+        self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
         osimage_path = self.sandbox.create_osimage()
@@ -86,11 +83,10 @@ class NodeCreateTests(unittest.TestCase):
             self.assertEqual(doc[attr], expected[attr])
 
     def test_delete_node(self):
-
         if self.sandbox.dbtype != 'mongo':
-            out = "WARNING: Backend database is incomatible. Skipping '{}'"
-            print out.format(sys._getframe().f_code.co_name)
-            return True
+            raise unittest.SkipTest(
+                'This test can be run only with MondoDB as a backend.'
+            )
 
         node = luna.Node(
             name='n02',
@@ -110,7 +106,7 @@ class NodeChangeTests(unittest.TestCase):
 
     def setUp(self):
 
-        self.sandbox = Sandbox(dbtype=dbtype)
+        self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
         osimage_path = self.sandbox.create_osimage()
@@ -178,9 +174,9 @@ class NodeChangeTests(unittest.TestCase):
 
     def test_change_mac(self):
         if self.sandbox.dbtype != 'mongo':
-            out = "WARNING: Backend database is incompatible. Skipping '{}'"
-            print out.format(sys._getframe().f_code.co_name)
-            return True
+            raise unittest.SkipTest(
+                'This test can be run only with MondoDB as a backend.'
+            )
 
         self.node.set_mac('00:01:02:aa:bb:cc')
         node2 = luna.Node(
@@ -195,10 +191,87 @@ class NodeChangeTests(unittest.TestCase):
             self.assertEqual(node2.DBRef, e['node'])
 
     def test_clear_mac(self):
+        if self.sandbox.dbtype != 'mongo':
+            raise unittest.SkipTest(
+                'This test can be run only with MondoDB as a backend.'
+            )
         self.node.set_mac('00:01:02:aa:bb:cc')
         self.node.set_mac('')
         d = self.db['mac'].find()
         self.assertEqual(d.count(), 0)
+
+    def test_get_mac(self):
+        if self.sandbox.dbtype != 'mongo':
+            raise unittest.SkipTest(
+                'This test can be run only with MondoDB as a backend.'
+            )
+        mac = '00:01:02:aa:bb:cc'
+        self.node.set_mac(mac)
+        self.assertEqual(self.node.get_mac(), mac)
+
+    def test_set_switch(self):
+        if self.sandbox.dbtype != 'mongo':
+            raise unittest.SkipTest(
+                'This test can be run only with MondoDB as a backend.'
+            )
+        net = luna.Network(
+            'testnet',
+            mongo_db=self.db,
+            create=True,
+            NETWORK='10.50.0.0',
+            PREFIX=16,
+        )
+
+        switch = luna.Switch(
+            'test1',
+            network=net.name,
+            mongo_db=self.db,
+            create=True,
+        )
+
+        self.node.set_switch(switch.name)
+        d1 = self.db['node'].find_one({'name': self.node.name})
+        d2 = self.db['switch'].find_one({'name': switch.name})
+        self.assertEqual(d1['switch'], switch.DBRef)
+        self.assertEqual(len(d2['_usedby_']['node']), 1)
+        self.assertEqual(d2['_usedby_']['node'][str(self.node._id)], 1)
+
+    def test_change_switch(self):
+        if self.sandbox.dbtype != 'mongo':
+            raise unittest.SkipTest(
+                'This test can be run only with MondoDB as a backend.'
+            )
+        net = luna.Network(
+            'testnet',
+            mongo_db=self.db,
+            create=True,
+            NETWORK='10.50.0.0',
+            PREFIX=16,
+        )
+
+        switch1 = luna.Switch(
+            'test1',
+            network=net.name,
+            mongo_db=self.db,
+            create=True,
+        )
+
+        switch2 = luna.Switch(
+            'test2',
+            network=net.name,
+            mongo_db=self.db,
+            create=True,
+        )
+
+        self.node.set_switch(switch1.name)
+        self.node.set_switch(switch2.name)
+        d1 = self.db['node'].find_one({'name': self.node.name})
+        d2 = self.db['switch'].find_one({'name': switch1.name})
+        d3 = self.db['switch'].find_one({'name': switch2.name})
+        self.assertEqual(d1['switch'], switch2.DBRef)
+        self.assertEqual(len(d2['_usedby_']), 0)
+        self.assertEqual(len(d3['_usedby_']['node']), 1)
+        self.assertEqual(d1['switch'], switch2.DBRef)
 
 if __name__ == '__main__':
     unittest.main()
