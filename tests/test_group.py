@@ -11,7 +11,7 @@ class GroupCreateTests(unittest.TestCase):
 
     def setUp(self):
 
-        self.sandbox = Sandbox(dbtype='ming')
+        self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
         osimage_path = self.sandbox.create_osimage()
@@ -87,9 +87,10 @@ class GroupCreateTests(unittest.TestCase):
 
     def test_delete_group(self):
         if self.sandbox.dbtype != 'mongo':
-            out = "WARNING: Backend database is incomatible. Skipping '{}'"
-            print out.format(sys._getframe().f_code.co_name)
-            return True
+            raise unittest.SkipTest(
+                'This test can be run only with MondoDB as a backend.'
+            )
+
         group = luna.Group(
             name='testgroup',
             osimage=str(self.osimage.name),
@@ -167,7 +168,7 @@ class GroupConfigTests(unittest.TestCase):
 
     def setUp(self):
 
-        self.sandbox = Sandbox(dbtype='ming')
+        self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
         osimage_path = self.sandbox.create_osimage()
