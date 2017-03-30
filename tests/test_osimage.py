@@ -10,7 +10,7 @@ class OsimageCreateTests(unittest.TestCase):
 
     def setUp(self):
 
-        self.sandbox = Sandbox(dbtype='ming')
+        self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
         self.kern_versions = ['1.0.0', '2.0.0']
