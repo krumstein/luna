@@ -20,7 +20,12 @@ class Sandbox(object):
     """
 
     def __init__(self, path = None, dbtype = 'auto'):
-
+        """
+        path   - Path to store sandbox files. 
+        dbtype - Type of the dabatabse. [auto|mongo|ming]
+        """
+        if 'LUNA_TEST_DBTYPE' in os.environ:
+            dbtype = os.environ['LUNA_TEST_DBTYPE']
         if not path:
             self.path = tempfile.mkdtemp(prefix='luna')
         else:
