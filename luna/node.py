@@ -407,7 +407,7 @@ class Node(Base):
     def set_switch(self, value):
         if value:
             switch = self._json['switch']
-            new_switch = Switch(value).DBRef
+            new_switch = Switch(value, mongo_db=self._mongo_db).DBRef
 
         elif self._json['switch'] is None:
             return True
@@ -422,7 +422,7 @@ class Node(Base):
             self.link(new_switch)
 
         if res and switch:
-            self.unlink(Switch(id=switch.id).DBRef)
+            self.unlink(Switch(id=switch.id, mongo_db=self._mongo_db).DBRef)
 
         return bool(res)
 
