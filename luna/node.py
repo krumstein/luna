@@ -163,11 +163,10 @@ class Node(Base):
         if (interface_name
                 and interface_uuid in self._json['interfaces']
                 and self._json['interfaces'][interface_uuid]):
-            print interface_name, interface_uuid, self._json['interfaces']
             self.log.error(("Interface '{}' has IP address already"
                             .format(interface_name)))
             return None
-           
+
         ip = self.group.manage_ip(interface_uuid, new_ip, bmc=bmc)
 
         if not ip:
@@ -194,7 +193,7 @@ class Node(Base):
 
         interfaces = self._json['interfaces']
         bmcip = self._json['bmcnetwork']
-        
+
         if bmc and not bmcip:
             return True
         elif interfaces:
@@ -431,7 +430,7 @@ class Node(Base):
         if interface_name:
             interface_dict = self.list_ifs()
             interface_uuid = interface_dict[interface_name]
-        
+
         if not interface_uuid and not bmc:
             self.log.error('Unable to find UUID for interface {}'
                     .format(interface_name))
