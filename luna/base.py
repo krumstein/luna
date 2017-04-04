@@ -244,6 +244,7 @@ class Base(object):
         return value
 
     def store(self, obj):
+        obj[usedby_key] = {}
         self._id = self._mongo_collection.insert(obj)
 
         self._DBRef = DBRef(self._collection_name, self._id)
