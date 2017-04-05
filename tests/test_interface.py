@@ -6,7 +6,7 @@ import copy
 from helper_utils import Sandbox
 
 
-class InterfaceTests(unittest.TestCase):
+class InterfaceBasicTests(unittest.TestCase):
     """
     Test for group without nodes
     """
@@ -236,6 +236,328 @@ class InterfaceTests(unittest.TestCase):
 
         self.assertEqual(len(network_json['freelist']), 1)
         self.assertEqual(network_json['freelist'][0]['start'], 2)
+
+
+class BMCTests(unittest.TestCase):
+    """
+    Test for group without nodes
+    """
+
+    def setUp(self):
+
+        self.sandbox = Sandbox()
+        self.db = self.sandbox.db
+        self.path = self.sandbox.path
+        osimage_path = self.sandbox.create_osimage()
+
+        self.cluster = luna.Cluster(
+            mongo_db=self.db,
+            create=True,
+            path=self.path,
+            user=getpass.getuser()
+        )
+
+        self.osimage = luna.OsImage(
+            name='testosimage',
+            path=osimage_path,
+            mongo_db=self.db,
+            create=True
+        )
+
+        self.group = luna.Group(
+            name='testgroup',
+            osimage=self.osimage.name,
+            mongo_db=self.db,
+            interfaces=['eth0'],
+            create=True,
+        )
+
+        self.node = luna.Node(
+            group=self.group.name,
+            mongo_db=self.db,
+            create=True,
+        )
+
+        self.network = luna.Network(
+            name="testnet",
+            mongo_db=self.db,
+            create=True,
+    NETWORK='10.50.0.0',
+            PREFIX=16,
+        )
+
+    def test_add_del_bmcnet_to_group(self):
+
+        start_array, end_array = [], []
+
+        for obj_class in ['network', 'group', 'node']:
+            start_array.append(
+                self.db[obj_class].find_one()
+            )
+        self.group.set_bmcnetwork(self.network.name)
+        self.group.del_bmcnetwork()
+        
+        for obj_class in ['network', 'group', 'node']:
+            end_array.append(
+                self.db[obj_class].find_one()
+            )
+        self.assertEqual(start_array, end_array)
+
+    def test_add_bmcnet_to_group_mistaken(self):
+
+        net2 = luna.Network(
+            name="testnet2",
+            NETWORK="10.51.0.0",
+            PREFIX=24,
+            mongo_db=self.db,
+            create=True,
+        )
+
+        self.group.set_bmcnetwork(self.network.name)
+    
+        start_array, end_array = [], []
+
+        for obj_class in ['network', 'group', 'node']:
+            start_array.append(
+                self.db[obj_class].find_one()
+            )
+        
+        self.group.set_bmcnetwork(net2.name)
+        for obj_class in ['network', 'group', 'node']:
+            end_array.append(
+                self.db[obj_class].find_one()
+            )
+        self.assertEqual(start_array, end_array)
+
+    def test_add_node_with_bmcnet_configured(self):
+        
+        self.group.set_bmcnetwork(self.network.name)
+
+        node2 = luna.Node(
+            group=self.group.name,
+            mongo_db=self.db,
+            create=True,
+        )
+
+        net_json = self.db['network'].find_one({'_id': self.network._id})
+        node1_json = self.db['node'].find_one({'_id': self.node._id})
+        node2_json = self.db['node'].find_one({'_id': node2._id})
+        
+        self.assertEqual(len(net_json['freelist']), 1)
+        self.assertEqual(net_json['freelist'][0]['start'], 3)
+        self.assertEqual(node1_json['bmcnetwork'], 1)
+        self.assertEqual(node2_json['bmcnetwork'], 2)
+
+
+    def test_del_bmc_ip(self):
+
+        self.group.set_bmcnetwork(self.network.name)
+
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+        self.node.del_ip(bmc=True)
+
+        net_json = self.db['network'].find_one({'_id': self.network._id})
+        node_json = self.db['node'].find_one({'_id': self.node._id})
+
+        self.assertEqual(len(net_json['freelist']), 1)
+        self.assertEqual(net_json['freelist'][0]['start'], 1)
+
+        self.assertEqual(node_json['bmcnetwork'], None)
+
+    def test_add_bmc_ip(self):
+
+        self.group.set_bmcnetwork(self.network.name)
+
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+        self.node.del_ip(bmc=True)
+        self.node.add_ip(new_ip=2, bmc=True)
+
+        net_json = self.db['network'].find_one({'_id': self.network._id})
+        node_json = self.db['node'].find_one({'_id': self.node._id})
+
+        self.assertEqual(len(net_json['freelist']), 2)
+        self.assertEqual(net_json['freelist'][0]['start'], 1)
+        self.assertEqual(net_json['freelist'][0]['end'], 1)
+        self.assertEqual(net_json['freelist'][1]['start'], 3)
+
+        self.assertEqual(node_json['bmcnetwork'], 2)
+
+    def test_set_bmc_ip_same(self):
+
+        self.group.set_bmcnetwork(self.network.name)
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+        self.node.set_ip(ip="10.50.0.1", bmc=True)
+
+        net_json = self.db['network'].find_one({'_id': self.network._id})
+        node_json = self.db['node'].find_one({'_id': self.node._id})
+
+        self.assertEqual(len(net_json['freelist']), 1)
+        self.assertEqual(net_json['freelist'][0]['start'], 2)
+
+        self.assertEqual(node_json['bmcnetwork'], 1)
+
+    def test_set_bmc_ip_other(self):
+
+        self.group.set_bmcnetwork(self.network.name)
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+        self.node.set_ip(ip="10.50.0.10", bmc=True)
+
+
+        net_json = self.db['network'].find_one({'_id': self.network._id})
+        node_json = self.db['node'].find_one({'_id': self.node._id})
+
+        self.assertEqual(len(net_json['freelist']), 2)
+        self.assertEqual(net_json['freelist'][0]['start'], 1)
+        self.assertEqual(net_json['freelist'][0]['end'], 9)
+        self.assertEqual(net_json['freelist'][1]['start'], 11)
+
+        self.assertEqual(node_json['bmcnetwork'], 10)
+
+    def test_set_bmc_ip_if_prev_ip_is_none(self):
+
+        self.group.set_bmcnetwork(self.network.name)
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+
+        self.node.del_ip(bmc=True)
+
+        self.node.set_ip(ip="10.50.0.10", bmc=True)
+
+        net_json = self.db['network'].find_one({'_id': self.network._id})
+        node_json = self.db['node'].find_one({'_id': self.node._id})
+
+        self.assertEqual(len(net_json['freelist']), 2)
+        self.assertEqual(net_json['freelist'][0]['start'], 1)
+        self.assertEqual(net_json['freelist'][0]['end'], 9)
+        self.assertEqual(net_json['freelist'][1]['start'], 11)
+
+        self.assertEqual(node_json['bmcnetwork'], 10)
+
+    def test_set_bmc_ip_garbage(self):
+
+        self.group.set_bmcnetwork(self.network.name)
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+
+        self.assertRaises(
+            RuntimeError, self.node.set_ip, ip="garbage", bmc=True
+        )
+
+        net_json = self.db['network'].find_one({'_id': self.network._id})
+        node_json = self.db['node'].find_one({'_id': self.node._id})
+
+        self.assertEqual(len(net_json['freelist']), 1)
+        self.assertEqual(net_json['freelist'][0]['start'], 2)
+
+        self.assertEqual(node_json['bmcnetwork'], 1)
+
+    def test_set_bmc_ip_wrong_ip(self):
+
+        self.group.set_bmcnetwork(self.network.name)
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+
+        self.assertRaises(
+            RuntimeError, self.node.set_ip, ip="192.168.1.1", bmc=True
+        )
+
+        net_json = self.db['network'].find_one({'_id': self.network._id})
+        node_json = self.db['node'].find_one({'_id': self.node._id})
+
+        self.assertEqual(len(net_json['freelist']), 1)
+        self.assertEqual(net_json['freelist'][0]['start'], 2)
+
+        self.assertEqual(node_json['bmcnetwork'], 1)
+
+    def test_add_nodes_w_bmcnet_configured(self):
+        
+        self.group.set_bmcnetwork(self.network.name)
+
+        nodes = []
+        for i in range(10):
+            nodes.append(
+                luna.Node(
+                    group=self.group.name,
+                    mongo_db=self.db,
+                    create=True,
+                )
+            )
+
+        node_jsons = self.db['node'].find()
+
+        net_json = self.db['network'].find_one({'_id': self.network._id})
+
+        self.assertEqual(len(net_json['freelist']), 1)
+        self.assertEqual(net_json['freelist'][0]['start'], 12)
+        
+        reserved_ips = []
+        for node_json in node_jsons:
+            reserved_ips.append(node_json['bmcnetwork'])
+
+        self.assertEqual(len(set(reserved_ips)), 11)
+
+
+
+    def test_delete_node_w_bmcnet_configured(self):
+        if self.sandbox.dbtype != 'mongo': 
+            raise unittest.SkipTest( 
+                'This test can be run only with MondoDB as a backend.' 
+            )
+
+        self.group.set_bmcnetwork(self.network.name)
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+
+        nodes = []
+        for i in range(10):
+            nodes.append(
+                luna.Node(
+                    group=self.group.name,
+                    mongo_db=self.db,
+                    create=True,
+                )
+            )
+
+        self.node.delete()
+
+        node_jsons = self.db['node'].find()
+
+
+        net_json = self.db['network'].find_one({'_id': self.network._id})
+
+        self.assertEqual(len(net_json['freelist']), 2)
+        self.assertEqual(net_json['freelist'][0]['start'], 1)
+        self.assertEqual(net_json['freelist'][0]['end'], 1)
+        self.assertEqual(net_json['freelist'][1]['start'], 12)
+
+        reserved_ips = []
+        for node_json in node_jsons:
+            reserved_ips.append(node_json['bmcnetwork'])
+
+        self.assertEqual(len(set(reserved_ips)), 10)
+
+    def test_delete_bmcnet_if_nodes_are_configured(self):
+
+        self.group.set_bmcnetwork(self.network.name)
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+
+        nodes = []
+        for i in range(10):
+            nodes.append(
+                luna.Node(
+                    group=self.group.name,
+                    mongo_db=self.db,
+                    create=True,
+                )
+            )
+
+        self.group.del_bmcnetwork()
+
+        net_json = self.db['network'].find_one({'_id': self.network._id})
+
+        self.assertEqual(len(net_json['freelist']), 1)
+        self.assertEqual(net_json['freelist'][0]['start'], 1)
+
+        node_jsons = self.db['node'].find()
+
+        for node_json in node_jsons:
+            self.assertEqual(node_json['bmcnetwork'], None)
 
 if __name__ == '__main__':
     unittest.main()
