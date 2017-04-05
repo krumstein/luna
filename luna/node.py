@@ -184,44 +184,57 @@ class Node(Base):
 
     def del_ip(self, interface_name=None, bmc=False):
 
-        interface_uuid = None
         self._get_group()
+
+        # first work with BMC
+
+        bmcip = self._json['bmcnetwork']
+
+        if bmc and not bmcip:
+            self.log.error("Node has no BMC interface configured")
+            return None
+
+        if bmc:
+            self.group.manage_ip(ip=bmcip, bmc=bmc, release=True)
+            res = self.set('bmcnetwork', None)
+            return res
+
+        # regutlar interfaces
+
+        interface_uuid = None
 
         if interface_name:
             interface_dict = self.list_ifs()
             interface_uuid = interface_dict[interface_name]
 
         interfaces = self._json['interfaces']
-        bmcip = self._json['bmcnetwork']
 
-        if bmc and not bmcip:
-            return True
-        elif interfaces:
-            new_interfaces = interfaces.copy()
-        else:
+        if not interfaces:
             self.log.error("Node has no interfaces configured")
             return None
 
-        if bmc:
-            self.group.manage_ip(ip=bmcip, bmc=bmc, release=True)
-            res = self.set('bmcnetwork', None)
-        elif not interface_name:
+        new_interfaces = interfaces.copy()
+        
+        
+        if not interface_name:
             for if_uuid in interfaces:
                 if_ip_assigned = interfaces[if_uuid]
                 self.group.manage_ip(if_uuid, ip=if_ip_assigned, release=True)
                 new_interfaces.pop(if_uuid)
             res = self.set('interfaces', new_interfaces)
-        elif interface_uuid in interfaces:
+            return res
+
+        if interface_uuid in interfaces:
             if_ip_assigned = interfaces[interface_uuid]
             self.group.manage_ip(interface_uuid, if_ip_assigned, release=True)
             new_interfaces.pop(interface_uuid)
             res = self.set('interfaces', new_interfaces)
-        else:
-            self.log.warning(("Node does not have an '{}' interface"
-                    .format(interface)))
-            return None
+            return res
 
-        return res
+        self.log.warning(("Node does not have an '{}' interface"
+            .format(interface)))
+        return None
+
 
     @property
     def boot_params(self):
