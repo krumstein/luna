@@ -192,14 +192,14 @@ class Node(Base):
 
         if bmc and not bmcip:
             self.log.error("Node has no BMC interface configured")
-            return None
+            return True
 
         if bmc:
             self.group.manage_ip(ip=bmcip, bmc=bmc, release=True)
             res = self.set('bmcnetwork', None)
             return res
 
-        # regutlar interfaces
+        # regular interfaces
 
         interface_uuid = None
 
@@ -378,6 +378,7 @@ class Node(Base):
         return True
 
     def set_ip(self, interface_name=None, ip=None, bmc=False):
+
         if not ip:
             self.log.error("IP address should be provided")
             return None
@@ -390,9 +391,10 @@ class Node(Base):
 
         if bmc:
             self._get_group()
-
+        
         if not bool(self.group.get_ip(interface_uuid, ip, bmc=bmc, format='num')):
             return None
+
         res = self.del_ip(interface_name, bmc=bmc)
 
         if res:
