@@ -90,6 +90,7 @@ Provides:               kernel
             prefix = 'os',
             dir = self.path + '/os/'
         )
+
         # create rpmdb tree
         rpmdb_path = osimage_path + '/var/lib/rpm'
         if not os.path.exists(rpmdb_path):
@@ -158,7 +159,21 @@ Provides:               kernel
             # finally perform install
             ts.run(runCallback, 1)
 
-            return osimage_path
+            # create fake /boot/initramfs- and /boot/vmlinuz- files
+            if not os.path.exists(osimage_path + '/boot'):
+                os.makedirs(osimage_path + '/boot')
+            vmlinuz_path = (osimage_path
+                + "/boot/vmlinuz-"
+                + kern_ver + '-' + kern_release + '.x86_64')
+            initramfs_path = (osimage_path
+                + "/boot/initramfs-"
+                + kern_ver + '-' + kern_release + '.x86_64.img')
+            with open(vmlinuz_path, 'a') as f:
+                f.write('lunafakekernel')
+            with open(initramfs_path, 'a') as f:
+                f.write('lunafakeinitrd')
+
+        return osimage_path
 
     def _create_luna_homedir(self):
         """
