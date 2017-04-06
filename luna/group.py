@@ -148,8 +148,8 @@ class Group(Base):
 
         if_uuid = if_list[params['boot_if']]
         interfaces = self.get('interfaces')
-
-        if 'network' in interfaces[if_uuid]:
+        
+        if 'network' in interfaces[if_uuid] and interfaces[if_uuid]['network']:
             net = Network(id=interfaces[if_uuid]['network'].id,
                           mongo_db=self._mongo_db)
 
@@ -158,6 +158,7 @@ class Group(Base):
         else:
             self.log.error(("Boot interface '{}' has no network configured"
                             .format(params['boot_if'])))
+            params['boot_if'] = ""
         return params
 
     @property
@@ -579,10 +580,16 @@ class Group(Base):
         else:
             return net_obj.reserve_ip(ip)
 
-    def get_ip(self, interface_uuid, ip, bmc=False, format='num'):
+    def get_ip(self, interface_uuid=None, ip=None, bmc=False, format='num'):
         """
         Convert from relative numbers to human-readable IPs and back
         """
+        if not interface_uuid and not bmc:
+            self.log.error("Interface should be specified")
+            return None
+        if not ip:
+            self.log.error("IP should be specified")
+            return None
         if bmc:
             net_dbref = self.get('bmcnetwork')
         elif self.get('interfaces') and interface_uuid in self.get('interfaces'):
