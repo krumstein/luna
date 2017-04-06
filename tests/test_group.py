@@ -180,6 +180,8 @@ class GroupConfigTests(unittest.TestCase):
             user=getpass.getuser()
         )
 
+        self.cluster.set("frontend_address", "127.0.0.1")
+
         self.osimage = luna.OsImage(
             name='testosimage',
             path=osimage_path,
@@ -476,6 +478,81 @@ class GroupConfigTests(unittest.TestCase):
             }
         )
 
+
+    def test_install_params(self):
+
+        # mocking osimage install stuff
+        self.osimage.copy_boot()
+        self.osimage.create_tarball()
+        self.osimage.create_torrent()
+
+        group_json = self.db['group'].find_one({'_id': self.group._id})
+        osimage_json = self.db['osimage'].find_one({'_id': self.osimage._id})
+
+        expected_dict = {
+            'torrent_if': '',
+            'partscript': group_json['partscript'],
+            'torrent_if_net_prefix': '',
+            'tarball': osimage_json['tarball'] + '.tgz',
+            'bmcsetup': {},
+            'interfaces': {'eth0': '\n'},
+            'prescript': '',
+            'domain': '',
+            'postscript': group_json['postscript'],
+            'boot_if': '',
+            'kernopts': '',
+            'kernver': '1.0.0-1.el7.x86_64',
+            'torrent': osimage_json['torrent'] + '.torrent'
+        }
+
+        self.maxDiff = None
+
+        self.assertEqual(self.group.install_params, expected_dict)
+       
+        # check boot_if
+        self.group.set('boot_if', 'eth0')
+
+        self.assertEqual(self.group.install_params, expected_dict)
+
+        # check torrent_if
+        self.group.set('torrent_if', 'eth0')
+
+        self.assertEqual(self.group.install_params, expected_dict)
+
+        # assign neto to interface
+        self.group.set_net_to_if('eth0', self.net1.name)
+
+        expected_dict['boot_if'] = 'eth0'
+        expected_dict['torrent_if'] = 'eth0'
+        expected_dict['torrent_if_net_prefix'] = self.net1.get('PREFIX')
+        expected_dict['interfaces']['eth0'] = "\nPREFIX=" + str(self.net1.get('PREFIX'))
+        expected_dict['domain'] = self.net1.name
+        self.assertEqual(self.group.install_params, expected_dict)
+
+        # add bmcconfig
+        bmc = luna.BMCSetup(
+            name="testbmc",
+            mongo_db=self.db,
+            create=True
+        )
+
+        self.group.bmcsetup(bmc.name)
+        expected_dict['bmcsetup'] = {
+            'mgmtchannel': 1,
+            'netchannel': 1,
+            'netmask': '',
+            'password': 'ladmin',
+            'user': 'ladmin',
+            'userid': 3,
+        }
+
+        self.assertEqual(self.group.install_params, expected_dict)
+
+        # add bmcnet
+        self.group.set_bmcnetwork(self.net2.name)
+        expected_dict['bmcsetup']['netmask'] = "255.255.0.0"
+        
+        self.assertEqual(self.group.install_params, expected_dict)
 
 
 if __name__ == '__main__':
