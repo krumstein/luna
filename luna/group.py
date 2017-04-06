@@ -188,17 +188,31 @@ class Group(Base):
         if params['boot_if']:
             boot_if_uuid = if_list[params['boot_if']]
 
-        if torrent_if_uuid and 'network' in interfaces[torrent_if_uuid]:
+        if (torrent_if_uuid 
+                and 'network' in interfaces[torrent_if_uuid]
+                and interfaces[torrent_if_uuid]['network']):
             net = Network(id=interfaces[torrent_if_uuid]['network'].id,
-                          mongo_db=self._mongo_db)
+                mongo_db=self._mongo_db)
             params['torrent_if_net_prefix'] = net.get('PREFIX')
+        
+        # unable to find net params for torrent_if,
+        # drop it
+        if not params['torrent_if_net_prefix']:
+            params['torrent_if'] = ""
 
-        if (boot_if_uuid and 'network' in interfaces[boot_if_uuid]):
+        if (boot_if_uuid
+                and 'network' in interfaces[boot_if_uuid]
+                and interfaces[boot_if_uuid]['network']):
             net = Network(id=interfaces[boot_if_uuid]['network'].id,
                           mongo_db=self._mongo_db)
             params['domain'] = net.name
         else:
             params['domain'] = ""
+
+        # unable to find net params for boot_if,
+        # drop it
+        if not params['domain']:
+            params['boot_if'] = ""
 
         params['interfaces'] = {}
         interfaces = self.get('interfaces')
