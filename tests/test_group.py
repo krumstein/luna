@@ -386,5 +386,97 @@ class GroupConfigTests(unittest.TestCase):
         end_dict = self.db['group'].find_one({'_id': self.group._id})
         self.assertEqual(start_dict, end_dict)
 
+    def test_get_ip(self):
+
+        self.group.set_bmcnetwork(self.bmcnet.name)
+        self.group.set_net_to_if('eth0', self.net1.name)
+
+        group_json = self.db['group'].find_one({'_id': self.group._id})
+
+        if_uuid = ""
+        for k in group_json['interfaces']:
+            if_uuid = k
+
+        self.assertEqual(len(if_uuid), 32)
+        
+        human_eth0_ip = self.group.get_ip(
+            interface_uuid=if_uuid,
+            ip=500,
+            bmc=False,
+            format='human'
+        )
+
+        num_eth0_ip = self.group.get_ip(
+            interface_uuid=if_uuid,
+            ip="10.11.1.244",
+            bmc=False,
+            format='num'
+        )
+
+        self.assertEqual(human_eth0_ip, "10.11.1.244")
+        self.assertEqual(num_eth0_ip, 500)
+
+        human_bmc_ip = self.group.get_ip(
+            ip=600,
+            bmc=True,
+            format='human'
+        )
+
+        num_bmc_ip = self.group.get_ip(
+            ip="10.10.2.88",
+            bmc=True,
+            format='num'
+        )
+
+        self.assertEqual(human_bmc_ip, "10.10.2.88")
+        self.assertEqual(num_bmc_ip, 600)
+
+        out = self.group.get_ip()
+        self.assertIsNone(out)
+
+        out = self.group.get_ip(interface_uuid=if_uuid)
+        self.assertIsNone(out)
+
+        out = self.group.get_ip(bmc=True)
+        self.assertIsNone(out)
+
+    def test_boot_params(self):
+
+        # mocking osimage boot stuff
+        self.osimage.copy_boot()
+
+        self.assertEqual(self.group.boot_params,
+                {'net_prefix': '',
+                'kernel_file': self.osimage.name + '-vmlinuz-1.0.0-1.el7.x86_64',
+                'kern_opts': '',
+                'boot_if': '',
+                'initrd_file': self.osimage.name + '-initramfs-1.0.0-1.el7.x86_64',
+            }
+        )
+
+        self.group.set('boot_if', 'eth0')
+
+        self.assertEqual(self.group.boot_params,
+                {'net_prefix': '',
+                'kernel_file': self.osimage.name + '-vmlinuz-1.0.0-1.el7.x86_64',
+                'kern_opts': '',
+                'boot_if': '',
+                'initrd_file': self.osimage.name + '-initramfs-1.0.0-1.el7.x86_64',
+            }
+        )
+
+        self.group.set_net_to_if('eth0', self.net1.name)
+
+        self.assertEqual(self.group.boot_params,
+                {'net_prefix': 16,
+                'kernel_file': self.osimage.name + '-vmlinuz-1.0.0-1.el7.x86_64',
+                'kern_opts': '',
+                'boot_if': 'eth0',
+                'initrd_file': self.osimage.name + '-initramfs-1.0.0-1.el7.x86_64',
+            }
+        )
+
+
+
 if __name__ == '__main__':
     unittest.main()
