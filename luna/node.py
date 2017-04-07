@@ -621,7 +621,7 @@ class Node(Base):
                     .format(name, scripts)
                     )
             return None
-        cluster = Cluster()
+        cluster = Cluster(mongo_db=self._mongo_db)
         self._get_group()
         path = cluster.get('path')
         server_ip = cluster.get('frontend_address')
