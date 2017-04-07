@@ -22,7 +22,7 @@ to run tests:
 parser = OptionParser('usage: %prog [options] -- [testsuite options]')
 
 parser.add_option('-v', '--verbose',
-                  action='count', dest='verbose', default=1,
+                  action='count', dest='verbose', default=2,
                   help='increase verbosity')
 
 parser.add_option('-p', '--pattern',
@@ -45,6 +45,8 @@ os.environ["LUNA_TEST_DBTYPE"] = options.dbtype
 # prepend log messages with tab
 log_format = "\t%(levelname)s:%(name)s:%(message)s"
 logging.basicConfig(format=log_format)
+if options.verbose < 3:
+    logging.disable(logging.CRITICAL)
 
 if args:
     for elem in args:
