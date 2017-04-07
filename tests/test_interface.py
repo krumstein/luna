@@ -12,6 +12,8 @@ class InterfaceBasicTests(unittest.TestCase):
 
     def setUp(self):
 
+        print
+
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
@@ -239,6 +241,8 @@ class BMCTests(unittest.TestCase):
     """
 
     def setUp(self):
+
+        print
 
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
@@ -556,6 +560,8 @@ class InterfaceOperations(unittest.TestCase):
     """
 
     def setUp(self):
+
+        print
 
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
