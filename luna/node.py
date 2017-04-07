@@ -66,9 +66,18 @@ class Node(Base):
 
         node = self._get_object(name, mongo_db, create, id)
         self.group = None
+        if group:
+            if type(group) == Group:
+                self.group = group
+            if type(group) == str:
+                self.group = Group(group, mongo_db=self._mongo_db)
 
         if create:
-            self.group = Group(group, mongo_db=self._mongo_db)
+
+            if not group:
+                self.log.error("Group needs to be specified when creating node.")
+                raise RuntimeError
+
             cluster = Cluster(mongo_db=self._mongo_db)
 
             # If a name is not provided, generate one
@@ -96,6 +105,11 @@ class Node(Base):
 
             self.link(self.group)
             self.link(cluster)
+
+        if group:
+            # check if group specified is the group node belongs to
+            if self.group.DBRef != self._json['group']:
+                raise RuntimeError
 
         self.log = logging.getLogger(__name__ + '.' + self._json['name'])
 
@@ -214,8 +228,8 @@ class Node(Base):
             return None
 
         new_interfaces = interfaces.copy()
-        
-        
+
+
         if not interface_name:
             for if_uuid in interfaces:
                 if_ip_assigned = interfaces[if_uuid]
@@ -391,7 +405,7 @@ class Node(Base):
 
         if bmc:
             self._get_group()
-        
+
         if not bool(self.group.get_ip(interface_uuid, ip, bmc=bmc, format='num')):
             return None
 
