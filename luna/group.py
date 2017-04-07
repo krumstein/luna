@@ -148,7 +148,7 @@ class Group(Base):
 
         if_uuid = if_list[params['boot_if']]
         interfaces = self.get('interfaces')
-        
+
         if 'network' in interfaces[if_uuid] and interfaces[if_uuid]['network']:
             net = Network(id=interfaces[if_uuid]['network'].id,
                           mongo_db=self._mongo_db)
@@ -188,13 +188,13 @@ class Group(Base):
         if params['boot_if']:
             boot_if_uuid = if_list[params['boot_if']]
 
-        if (torrent_if_uuid 
+        if (torrent_if_uuid
                 and 'network' in interfaces[torrent_if_uuid]
                 and interfaces[torrent_if_uuid]['network']):
             net = Network(id=interfaces[torrent_if_uuid]['network'].id,
                 mongo_db=self._mongo_db)
             params['torrent_if_net_prefix'] = net.get('PREFIX')
-        
+
         # unable to find net params for torrent_if,
         # drop it
         if not params['torrent_if_net_prefix']:
@@ -341,7 +341,7 @@ class Group(Base):
         if interface_name not in if_list:
             self.log.error("Interface '{}' does not exist".format(interface_name))
             return ''
-        
+
         nic_uuid = if_list[interface_name]
         nic = interfaces_dict[nic_uuid]
         if nic['network']:
@@ -466,16 +466,31 @@ class Group(Base):
         bmcnet = self.get('bmcnetwork')
         if self.get(usedby_key) and bmcnet and bmcnet.id == net_id:
             for node_id in self.get(usedby_key)['node']:
-                node = Node(id=ObjectId(node_id))
+                node = Node(
+                    id=ObjectId(node_id),
+                    group=self,
+                    mongo_db=self._mongo_db,
+                )
                 add_to_dict(node.name, node.get_ip(bmc=True, format='num'))
 
         ifs = self.get('interfaces')
         if self.get(usedby_key) and ifs:
-            for nic in ifs:
-                if 'network' in ifs[nic] and ifs[nic]['network'].id == net_id:
+            for if_uuid in ifs:
+                if_name = ifs[if_uuid]['name']
+                if ('network' in ifs[if_uuid]
+                        and ifs[if_uuid]['network']
+                        and ifs[if_uuid]['network'].id == net_id):
                     for node_id in self.get(usedby_key)['node']:
-                        node = Node(id=ObjectId(node_id))
-                        add_to_dict(node.name, node.get_ip(nic, format='num'))
+                        node_id = ObjectId(node_id)
+                        node = Node(
+                            id=node_id,
+                            group=self,
+                            mongo_db=self._mongo_db,
+                        )
+                        add_to_dict(
+                            node.name,
+                            node.get_ip(if_name, format='num')
+                        )
 
         return ips
 
