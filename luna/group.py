@@ -236,8 +236,15 @@ class Group(Base):
         params['torrent'] = osimage.get('torrent')
         params['tarball'] = osimage.get('tarball')
 
-        params['torrent'] += ".torrent" if params['torrent'] else ''
-        params['tarball'] += ".tgz" if params['tarball'] else ''
+        if params['torrent']:
+            params['torrent'] += ".torrent"
+        else:
+            params['torrent'] = ''
+
+        if params['tarball']:
+            params['tarball'] += ".tgz"
+        else:
+            params['tarball'] = ''
 
         params['bmcsetup'] = {}
         if self.get('bmcsetup'):
