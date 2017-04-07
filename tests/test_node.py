@@ -10,6 +10,8 @@ class NodeCreateTests(unittest.TestCase):
 
     def setUp(self):
 
+        print
+
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
@@ -106,6 +108,8 @@ class NodeChangeTests(unittest.TestCase):
 
     def setUp(self):
 
+        print
+
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
@@ -117,6 +121,7 @@ class NodeChangeTests(unittest.TestCase):
             path=self.path,
             user=getpass.getuser()
         )
+        self.cluster.set('path', self.path)
 
         self.osimage = luna.OsImage(
             name='testosimage',
@@ -124,6 +129,7 @@ class NodeChangeTests(unittest.TestCase):
             mongo_db=self.db,
             create=True
         )
+
         self.group = luna.Group(
             name='testgroup',
             osimage=self.osimage.name,
@@ -272,6 +278,259 @@ class NodeChangeTests(unittest.TestCase):
         self.assertEqual(len(d2['_usedby_']), 0)
         self.assertEqual(len(d3['_usedby_']['node']), 1)
         self.assertEqual(d1['switch'], switch2.DBRef)
+
+    def test_node_change_group(self):
+
+        # create 3 groups
+
+        group1 = self.group
+
+        group2 = luna.Group(
+            name='testgroup2',
+            osimage=self.osimage.name,
+            mongo_db=self.db,
+            interfaces=['eth0'],
+            create=True,
+        )
+
+        group3 = luna.Group(
+            name='testgroup3',
+            osimage=self.osimage.name,
+            mongo_db=self.db,
+            interfaces=['eth1'],
+            create=True,
+        )
+
+        group4 = luna.Group(
+            name='testgroup4',
+            osimage=self.osimage.name,
+            mongo_db=self.db,
+            interfaces=['eth3'],
+            create=True,
+        )
+
+        # create 3 networks
+
+        net1 = luna.Network(
+            'testnet1',
+            mongo_db=self.db,
+            create=True,
+            NETWORK='10.50.0.0',
+            PREFIX=16,
+        )
+
+        net2 = luna.Network(
+            'testnet2',
+            mongo_db=self.db,
+            create=True,
+            NETWORK='10.51.0.0',
+            PREFIX=16,
+        )
+
+        net3 = luna.Network(
+            'testnet3',
+            mongo_db=self.db,
+            create=True,
+            NETWORK='10.52.0.0',
+            PREFIX=16,
+        )
+
+        ipminet = luna.Network(
+            'ipminet1',
+            mongo_db=self.db,
+            create=True,
+            NETWORK='10.53.0.0',
+            PREFIX=16,
+        )
+
+        ipminet2 = luna.Network(
+            'ipminet2',
+            mongo_db=self.db,
+            create=True,
+            NETWORK='10.54.0.0',
+            PREFIX=16,
+        )
+
+        # assign 2 networks to interfaces
+        # and one to bmc interface
+        # group1: {'eth0': net1}
+        # group2  {'eth0': net1, 'em1':  net2}
+        # group3  {'em1':  net1, 'eth1': net2}
+        # group4  {'eth3': net3}
+
+        group2.add_interface('em1')
+        group3.add_interface('em1')
+
+        group1.set_bmcnetwork(ipminet.name)
+        group2.set_bmcnetwork(ipminet.name)
+        group3.set_bmcnetwork(ipminet.name)
+        group4.set_bmcnetwork(ipminet2.name)
+
+        group1.set_net_to_if('eth0', net1.name)
+        group2.set_net_to_if('eth0', net1.name)
+        group3.set_net_to_if('eth1', net2.name)
+        group4.set_net_to_if('eth3', net3.name)
+
+        group2.set_net_to_if('em1', net2.name)
+        group3.set_net_to_if('em1', net1.name)
+
+        self.node = luna.Node(
+            name=self.node.name,
+            mongo_db=self.db,
+        )
+
+        # create 9 more nodes
+
+        nodes = []
+        for i in range(10):
+            nodes.append(luna.Node(
+                group=self.group,
+                create=True,
+                mongo_db=self.db,
+            ))
+
+        # will do tests with node005
+
+        node005 = luna.Node(
+            'node005',
+            mongo_db=self.db,
+            group=self.group
+        )
+
+        # check did we get desired config
+        node_json = self.db['node'].find_one({'name': node005.name})
+        net1_json = self.db['network'].find_one({'name': net1.name})
+
+        self.assertEqual(node_json['group'], group1.DBRef)
+        for k in node_json['interfaces']:
+            self.assertEqual(node_json['interfaces'][k], 5)
+        self.assertEqual(len(net1_json['freelist']), 1)
+        self.assertEqual(net1_json['freelist'][0]['start'], 12)
+        #node_json['interfaces'], net1_json['freelist']
+
+        #
+        # change group first time:
+        #
+        self.assertEqual(node005.set_group(group2.name), True)
+        # updating group objects
+        group1 = luna.Group(
+            name=group1.name,
+            mongo_db=self.db,
+        )
+        group2 = luna.Group(
+            name=group2.name,
+            mongo_db=self.db,
+        )
+
+        node_json = self.db['node'].find_one({'name': node005.name})
+        group2_json = self.db['group'].find_one({'name': group2.name})
+        net1_json = self.db['network'].find_one({'name': net1.name})
+        net2_json = self.db['network'].find_one({'name': net2.name})
+        ipminet_json = self.db['network'].find_one({'name': ipminet.name})
+
+        # should be 2 interfaces now
+        self.assertEqual(len(node_json['interfaces']), 2)
+        #  those interfaces should be the ones from group2
+        for uid in node_json['interfaces']:
+            self.assertIn(uid, group2_json['interfaces'].keys())
+        # check if eth0 has the same IP adress:
+        eth0_uuid = ''
+        em1_uuid = ''
+        for if_uid in group2_json['interfaces']:
+            if group2_json['interfaces'][if_uid]['name'] == 'eth0':
+                eth0_uuid = if_uid
+            if group2_json['interfaces'][if_uid]['name'] == 'em1':
+                em1_uuid = if_uid
+        # check if we found
+        self.assertIsNot(eth0_uuid, '')
+        self.assertIsNot(em1_uuid, '')
+        # should be 5
+        self.assertEqual(node_json['interfaces'][eth0_uuid], 5)
+        # another should be 1
+        self.assertEqual(node_json['interfaces'][em1_uuid], 1)
+
+        # check network
+        self.assertEqual(net1_json['freelist'], [{'start': 12, 'end': 65533}])
+        self.assertEqual(net2_json['freelist'], [{'start': 2, 'end': 65533}])
+        self.assertEqual(
+            ipminet_json['freelist'], [{'start': 12, 'end': 65533}]
+        )
+
+        # check using get_allocated_ips
+        self.assertNotIn(
+            node005.name,
+            group1.get_allocated_ips(net1._id).keys()
+        )
+        self.assertIn(
+            node005.name,
+            group2.get_allocated_ips(net1._id).keys()
+        )
+        # check ipminet
+        self.assertNotIn(
+            node005.name,
+            group1.get_allocated_ips(ipminet._id).keys()
+        )
+        self.assertIn(
+            node005.name,
+            group2.get_allocated_ips(ipminet._id).keys()
+        )
+
+        #
+        # change group second time
+        #
+        self.assertEqual(node005.set_group(group3.name), True)
+        # fetch the data from DB
+        node_json = self.db['node'].find_one({'name': node005.name})
+        group3_json = self.db['group'].find_one({'name': group3.name})
+        net1_json = self.db['network'].find_one({'name': net1.name})
+        net2_json = self.db['network'].find_one({'name': net2.name})
+        ipminet_json = self.db['network'].find_one({'name': ipminet.name})
+        # try to find uuids of the interfaces
+        eth1_uuid = ''
+        em1_uuid = ''
+        for if_uid in group3_json['interfaces']:
+            if group3_json['interfaces'][if_uid]['name'] == 'eth1':
+                eth1_uuid = if_uid
+            if group3_json['interfaces'][if_uid]['name'] == 'em1':
+                em1_uuid = if_uid
+        # check if we found
+        self.assertIsNot(eth1_uuid, '')
+        self.assertIsNot(em1_uuid, '')
+        # should be 1
+        self.assertEqual(node_json['interfaces'][eth1_uuid], 1)
+        # another should be 5
+        self.assertEqual(node_json['interfaces'][em1_uuid], 5)
+
+        #
+        # change group third time
+        #
+        self.assertEqual(node005.set_group(group4.name), True)
+        node_json = self.db['node'].find_one({'name': node005.name})
+        net1_json = self.db['network'].find_one({'name': net1.name})
+        net2_json = self.db['network'].find_one({'name': net2.name})
+        net3_json = self.db['network'].find_one({'name': net3.name})
+        ipminet_json = self.db['network'].find_one({'name': ipminet.name})
+        ipminet2_json = self.db['network'].find_one({'name': ipminet2.name})
+        self.assertEqual(
+            net1_json['freelist'],
+            [{'start': 5, u'end': 5}, {'start': 12, 'end': 65533}]
+        )
+        self.assertEqual(
+            net2_json['freelist'],
+            [{'start': 1, 'end': 65533}]
+        )
+        self.assertEqual(
+            net3_json['freelist'],
+            [{'start': 2, 'end': 65533}]
+        )
+        self.assertEqual(
+            ipminet_json['freelist'],
+            [{'start': 5, u'end': 5}, {'start': 12, 'end': 65533}]
+        )
+        self.assertEqual(
+            ipminet2_json['freelist'],
+            [{'start': 2, 'end': 65533}]
+        )
 
 if __name__ == '__main__':
     unittest.main()
