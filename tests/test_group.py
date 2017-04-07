@@ -11,6 +11,8 @@ class GroupCreateTests(unittest.TestCase):
 
     def setUp(self):
 
+        print
+
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
@@ -32,7 +34,7 @@ class GroupCreateTests(unittest.TestCase):
 
 #    def tearDown(self):
 #       self.sandbox.cleanup()
-        
+
 
     def test_create_group_with_defaults(self):
 
@@ -167,6 +169,8 @@ class GroupCreateTests(unittest.TestCase):
 class GroupConfigTests(unittest.TestCase):
 
     def setUp(self):
+
+        print
 
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
@@ -400,7 +404,7 @@ class GroupConfigTests(unittest.TestCase):
             if_uuid = k
 
         self.assertEqual(len(if_uuid), 32)
-        
+
         human_eth0_ip = self.group.get_ip(
             interface_uuid=if_uuid,
             ip=500,
@@ -508,7 +512,7 @@ class GroupConfigTests(unittest.TestCase):
         self.maxDiff = None
 
         self.assertEqual(self.group.install_params, expected_dict)
-       
+
         # check boot_if
         self.group.set('boot_if', 'eth0')
 
@@ -519,7 +523,7 @@ class GroupConfigTests(unittest.TestCase):
 
         self.assertEqual(self.group.install_params, expected_dict)
 
-        # assign neto to interface
+        # assign net to interface
         self.group.set_net_to_if('eth0', self.net1.name)
 
         expected_dict['boot_if'] = 'eth0'
@@ -551,9 +555,68 @@ class GroupConfigTests(unittest.TestCase):
         # add bmcnet
         self.group.set_bmcnetwork(self.net2.name)
         expected_dict['bmcsetup']['netmask'] = "255.255.0.0"
-        
+
         self.assertEqual(self.group.install_params, expected_dict)
 
+    def test_get_allocated_ips(self):
+
+        nodes = []
+        for i in range(10):
+            nodes.append(luna.Node(
+                group=self.group,
+                mongo_db=self.db,
+                create=True,
+            ))
+
+        self.group = luna.Group(
+            name=self.group.name,
+            mongo_db=self.db,
+        )
+
+        self.group.set_net_to_if('eth0', self.net1.name)
+
+        net_json = self.db['network'].find_one({'_id': self.net1._id})
+
+        alloc_ips = self.group.get_allocated_ips(self.net1._id)
+
+        self.assertEqual(len(net_json['freelist']), 1)
+
+        tmp_dict = range(net_json['freelist'][0]['start'])[1:]
+
+        for e in alloc_ips:
+            tmp_dict.remove(alloc_ips[e])
+
+        self.assertEqual(tmp_dict, [])
+
+    def test_get_allocated_bmc_ips(self):
+
+        nodes = []
+        for i in range(10):
+            nodes.append(luna.Node(
+                group=self.group,
+                mongo_db=self.db,
+                create=True,
+            ))
+
+        self.group = luna.Group(
+            name=self.group.name,
+            mongo_db=self.db,
+        )
+
+        self.group.set_bmcnetwork(self.net1.name)
+
+        net_json = self.db['network'].find_one({'_id': self.net1._id})
+
+        alloc_ips = self.group.get_allocated_ips(self.net1._id)
+
+        self.assertEqual(len(net_json['freelist']), 1)
+
+        tmp_dict = range(net_json['freelist'][0]['start'])[1:]
+
+        for e in alloc_ips:
+            tmp_dict.remove(alloc_ips[e])
+
+        self.assertEqual(tmp_dict, [])
 
 if __name__ == '__main__':
     unittest.main()
