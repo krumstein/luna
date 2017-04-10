@@ -132,6 +132,68 @@ class InterfaceBasicTests(unittest.TestCase):
 
         self.assertEqual(start_array, end_array)
 
+    def test_node_get_ip(self):
+        self.assertIsNone(self.node.get_ip('eth0'))
+
+        self.assertIsNone(
+            self.node.get_ip(interface_uuid="non-exist")
+        )
+
+        ipminet = luna.Network(
+            name="ipminet",
+            mongo_db=self.db,
+            create=True,
+            NETWORK='10.51.0.0',
+            PREFIX=16,
+        )
+
+        self.group.set_net_to_if('eth0', self.network.name)
+
+        self.group.set_bmcnetwork(ipminet.name)
+
+        self.node = luna.Node(
+            name=self.node.name,
+            mongo_db=self.db,
+        )
+
+        # interface by name
+
+        self.assertEqual(
+            self.node.get_ip('eth0'),
+            "10.50.0.1",
+        )
+
+        self.assertEqual(
+            self.node.get_ip('eth0', format="num"),
+            1,
+        )
+
+        # bmc
+
+        self.assertEqual(
+            self.node.get_ip(bmc=True),
+            "10.51.0.1",
+        )
+
+        self.assertEqual(
+            self.node.get_ip(bmc=True, format="num"),
+            1,
+        )
+
+        # interface by uuid
+
+        node_json = self.db['node'].find_one({'_id': self.node._id})
+
+        for if_uuid in node_json['interfaces']:
+            self.assertEqual(
+                self.node.get_ip(interface_uuid=if_uuid),
+                "10.50.0.1",
+            )
+
+            self.assertEqual(
+                self.node.get_ip(interface_uuid=if_uuid, format="num"),
+                1,
+            )
     def test_node_add_ip(self):
         start_array, end_array = [], []
 
