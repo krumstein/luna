@@ -266,6 +266,8 @@ class Node(Base):
         params['boot_if'] = group_params['boot_if']
         params['net_prefix'] = group_params['net_prefix']
         params['name'] = self.name
+        # FIXME 'service' and 'localboot' should be int or bool
+        # not mix, please
         params['service'] = int(self.get('service'))
         params['localboot'] = self.get('localboot')
 
