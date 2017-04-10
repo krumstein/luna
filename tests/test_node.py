@@ -712,11 +712,10 @@ class NodeChangeTests(unittest.TestCase):
         )
 
     def test_get_status_tracker(self):
-        tor_time = datetime.datetime(1, 1, 1)
         name = "%20s" % self.node.name
         peerid = ''.join(["{:02x}".format(ord(l)) for l in name])
         self.assertTrue(self.node.update_status('install.download'))
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.today()
         doc2insert = {
             'peer_id': peerid,
             'updated': now,
@@ -724,8 +723,10 @@ class NodeChangeTests(unittest.TestCase):
             'left': 1
         }
         self.db['tracker'].insert(doc2insert)
-        print self.db['tracker'].find_one()
-        print self.node.get_status()
+        self.assertEqual(
+            self.node.get_status()['status'][:39],
+            'install.download (66.67% / last update '
+        )
 
 if __name__ == '__main__':
-    unitelf.node.nameest.main()
+    unittest.main()
