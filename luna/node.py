@@ -256,7 +256,7 @@ class Node(Base):
            kernel, initrd, kernel opts, ip, net, prefix"""
 
         params = {}
-        self._get_group
+        self._get_group()
         group_params = self.group.boot_params
 
         params['boot_if'] = group_params['boot_if']
