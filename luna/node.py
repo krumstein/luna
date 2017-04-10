@@ -547,7 +547,6 @@ class Node(Base):
         if bool(perc) and (tor_time > time):
             status = ("%s (%.2f%% / last update %isec)"
                       % (step, perc, (now - tor_time).seconds))
-            print status
         else:
             status = step
 
