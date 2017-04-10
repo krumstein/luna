@@ -676,7 +676,40 @@ class NodeChangeTests(unittest.TestCase):
     def test_install_scripts(self):
         self.assertIsNone(self.node.render_script('non_exist'))
         self.assertEqual(self.node.render_script('boot').split()[0], '#!ipxe')
-        self.assertEqual(self.node.render_script('install').split()[0], '#!/bin/bash')
+        self.assertEqual(
+            self.node.render_script('install').split()[0],
+            '#!/bin/bash'
+        )
+
+    def test_update_status(self):
+        self.assertIsNone(self.node.update_status())
+        self.assertIsNone(self.node.update_status('#$#%'))
+        self.assertTrue(self.node.update_status('status1'))
+
+        doc = self.db['node'].find_one({'_id': self.node._id})
+
+        self.assertEqual(doc['status']['step'], 'status1')
+        # ugly, but don't want to import dattime just for single check
+        self.assertEqual(
+            str(type(doc['status']['time'])),
+            "<type 'datetime.datetime'>"
+        )
+
+    def test_get_status(self):
+        self.assertIsNone(self.node.get_status())
+        self.assertTrue(self.node.update_status('status1'))
+
+        self.assertEqual(self.node.get_status()['status'], 'status1')
+        self.assertTrue(self.node.get_status()['time'])
+
+        self.assertEqual(
+            self.node.get_status(relative=False)['status'],
+            'status1',
+        )
+
+        self.assertTrue(
+            self.node.get_status(relative=False)['time']
+        )
 
 if __name__ == '__main__':
     unittest.main()
