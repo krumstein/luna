@@ -503,7 +503,7 @@ class Node(Base):
             return None
 
         status = {'step': step, 'time': datetime.datetime.utcnow()}
-        self.set('status', status)
+        return self.set('status', status)
 
     def get_status(self, relative=True):
         try:
@@ -538,6 +538,7 @@ class Node(Base):
         if bool(tracker_record):
             try:
                 left = tracker_record['left']
+                downloaded = tracker_record['downloaded']
                 perc = 100.0*downloaded/(downloaded+left)
             except:
                 tor_time = datetime.datetime(1, 1, 1)
@@ -546,6 +547,7 @@ class Node(Base):
         if bool(perc) and (tor_time > time):
             status = ("%s (%.2f%% / last update %isec)"
                       % (step, perc, (now - tor_time).seconds))
+            print status
         else:
             status = step
 
