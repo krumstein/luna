@@ -279,7 +279,7 @@ class Node(Base):
     @property
     def install_params(self):
         params = {}
-        self._get_group
+        self._get_group()
         params = self.group.install_params
 
         params['name'] = self.name
