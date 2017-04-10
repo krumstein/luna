@@ -3,6 +3,7 @@ import unittest
 import luna
 import getpass
 import copy
+import datetime
 from helper_utils import Sandbox
 
 
@@ -689,10 +690,9 @@ class NodeChangeTests(unittest.TestCase):
         doc = self.db['node'].find_one({'_id': self.node._id})
 
         self.assertEqual(doc['status']['step'], 'status1')
-        # ugly, but don't want to import dattime just for single check
         self.assertEqual(
-            str(type(doc['status']['time'])),
-            "<type 'datetime.datetime'>"
+            type(doc['status']['time']),
+            datetime.datetime
         )
 
     def test_get_status(self):
@@ -711,5 +711,21 @@ class NodeChangeTests(unittest.TestCase):
             self.node.get_status(relative=False)['time']
         )
 
+    def test_get_status_tracker(self):
+        tor_time = datetime.datetime(1, 1, 1)
+        name = "%20s" % self.node.name
+        peerid = ''.join(["{:02x}".format(ord(l)) for l in name])
+        self.assertTrue(self.node.update_status('install.download'))
+        now = datetime.datetime.utcnow()
+        doc2insert = {
+            'peer_id': peerid,
+            'updated': now,
+            'downloaded': 2,
+            'left': 1
+        }
+        self.db['tracker'].insert(doc2insert)
+        print self.db['tracker'].find_one()
+        print self.node.get_status()
+
 if __name__ == '__main__':
-    unittest.main()
+    unitelf.node.nameest.main()
