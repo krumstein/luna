@@ -532,5 +532,151 @@ class NodeChangeTests(unittest.TestCase):
             [{'start': 2, 'end': 65533}]
         )
 
+    def test_boot_params(self):
+
+        expected_dict = {
+            'net_prefix': '',
+            'kernel_file': None,
+            'localboot': False,
+            'name': 'node001',
+            'service': 0,
+            'kern_opts': '',
+            'initrd_file': None,
+            'boot_if': '',
+        }
+
+        self.assertEqual(
+            self.node.boot_params,
+            expected_dict,
+        )
+
+        net1 = luna.Network(
+            'testnet1',
+            mongo_db=self.db,
+            create=True,
+            NETWORK='10.50.0.0',
+            PREFIX=16,
+        )
+
+        self.group.set_net_to_if('eth0', net1.name)
+
+        self.group.set('boot_if', 'eth0')
+
+        self.node = luna.Node(
+            name=self.node.name,
+            mongo_db=self.db,
+        )
+
+        expected_dict['net_prefix'] = 16
+        expected_dict['ip'] = '10.50.0.1'
+        expected_dict['boot_if'] = 'eth0'
+
+        self.assertEqual(
+            self.node.boot_params,
+            expected_dict,
+        )
+
+    def test_install_params(self):
+
+        expected_dict = {
+            'torrent_if': '',
+            'setupbmc': True,
+            'partscript': 'mount -t tmpfs tmpfs /sysroot',
+            'name': 'node001',
+            'torrent_if_net_prefix': '',
+            'tarball': '',
+            'bmcsetup': {},
+            'interfaces': {
+                u'eth0': u'\n'
+            },
+            'prescript': '',
+            'domain': '',
+            'hostname': 'node001',
+            'postscript': (
+                'cat << EOF >> /sysroot/etc/fstab\n'
+                + 'tmpfs   /       tmpfs    defaults        0 0\n'
+                + 'EOF'
+            ),
+            'boot_if': '',
+            'kernopts': '',
+            'kernver': '1.0.0-1.el7.x86_64',
+            'torrent': ''
+        }
+
+        self.assertEqual(
+            self.node.install_params,
+            expected_dict,
+        )
+
+        net1 = luna.Network(
+            'testnet1',
+            mongo_db=self.db,
+            create=True,
+            NETWORK='10.50.0.0',
+            PREFIX=16,
+        )
+
+        self.group.set_net_to_if('eth0', net1.name)
+
+        self.group.set('boot_if', 'eth0')
+
+        self.node = luna.Node(
+            name=self.node.name,
+            mongo_db=self.db,
+        )
+
+        expected_dict['boot_if'] = 'eth0'
+        expected_dict['domain'] = net1.name
+        expected_dict['hostname'] = self.node.name + '.' + net1.name
+        expected_dict['interfaces']['eth0'] = '\nPREFIX=16\nIPADDR=10.50.0.1'
+
+        self.assertEqual(
+            self.node.install_params,
+            expected_dict,
+        )
+
+        net2 = luna.Network(
+            'testnet2',
+            mongo_db=self.db,
+            create=True,
+            NETWORK='10.51.0.0',
+            PREFIX=16,
+        )
+
+        self.group.set_bmcnetwork(net2.name)
+
+        self.node = luna.Node(
+            name=self.node.name,
+            mongo_db=self.db,
+        )
+
+        bmcsetup = luna.BMCSetup(
+            name='bmcsetup1',
+            mongo_db=self.db,
+            create=True,
+        )
+
+        self.group.bmcsetup(bmcsetup.name)
+
+        expected_dict['bmcsetup'] = {
+            'netchannel': 1,
+            'mgmtchannel': 1,
+            'userid': 3,
+            'netmask': '255.255.0.0',
+            'user': 'ladmin',
+            'ip': '10.51.0.1',
+            'password': 'ladmin'
+        }
+
+        self.assertEqual(
+            self.node.install_params,
+            expected_dict,
+        )
+
+    def test_install_scripts(self):
+        self.assertIsNone(self.node.render_script('non_exist'))
+        self.assertEqual(self.node.render_script('boot').split()[0], '#!ipxe')
+        self.assertEqual(self.node.render_script('install').split()[0], '#!/bin/bash')
+
 if __name__ == '__main__':
     unittest.main()
