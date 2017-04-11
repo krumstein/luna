@@ -630,6 +630,9 @@ OBJECTS, ACTIONS AND OPTIONS
         **--delete**, **-D**
             Deletes interface.
 
+        **--rename**, **--nn**
+            Change name of the interface.
+
         **--setnet**, **--sn**
             Assigns network to interface. IP addresses will be added to all nodes in corresponding group.
 
