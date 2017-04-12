@@ -127,7 +127,7 @@ class Base(object):
         elif not create and self._json:
             self._id = self._json['_id']
             self._name = self._json['name']
-            self._DBRef = DBRef(self._collection_name, self._id)
+            self._DBRef = DBRef(u'' + self._collection_name, self._id)
 
         elif create and self._json:
             self.log.error(("'{}' is already created"
@@ -244,6 +244,7 @@ class Base(object):
         return value
 
     def store(self, obj):
+        obj[usedby_key] = {}
         self._id = self._mongo_collection.insert(obj)
 
         self._DBRef = DBRef(self._collection_name, self._id)

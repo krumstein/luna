@@ -51,8 +51,8 @@ if [ "x${OSIMAGE}" = "x" ]; then
     echo "Type 'luna osimage list' to get the list."
     exit 7
 fi
-FAKE_KERN=$(luna osimage show -n $OSIMAGE --kernver | awk '$2~/<=/{print $1}')
-CHROOT_PATH=$(luna osimage show -n $OSIMAGE --path)
+FAKE_KERN=$(luna osimage show $OSIMAGE --kernver | awk '$2~/<=/{print $1}')
+CHROOT_PATH=$(luna osimage show $OSIMAGE --path)
 
 mount_d
 compile
