@@ -5,23 +5,24 @@ import unittest
 import os
 import luna
 import getpass
+from helper_utils import Sandbox
 
 
 class BMCSetupCreateTests(unittest.TestCase):
 
     def setUp(self):
-        self.bind = create_datastore('mim:///luna')
-        self.db = self.bind.db.luna
-        self.path = '/tmp/luna'
 
-        if not os.path.exists(self.path):
-            os.makedirs(self.path)
+        print
+
+        self.sandbox = Sandbox()
+        self.db = self.sandbox.db
+        self.path = self.sandbox.path
 
         cluster = luna.Cluster(mongo_db=self.db, create=True,
                                path=self.path, user=getpass.getuser())
 
     def tearDown(self):
-        self.bind.conn.drop_all()
+        self.sandbox.cleanup()
 
     def test_create_bmcsetup_with_defaults(self):
         bmc = luna.BMCSetup(name='testbmc', mongo_db=self.db, create=True)
@@ -42,19 +43,19 @@ class BMCSetupCreateTests(unittest.TestCase):
 class BMCSetupReadTests(unittest.TestCase):
 
     def setUp(self):
-        self.bind = create_datastore('mim:///luna')
-        self.db = self.bind.db.luna
-        self.path = '/tmp/luna'
 
-        if not os.path.exists(self.path):
-            os.makedirs(self.path)
+        print
+
+        self.sandbox = Sandbox()
+        self.db = self.sandbox.db
+        self.path = self.sandbox.path
 
         cluster = luna.Cluster(mongo_db=self.db, create=True,
                                path=self.path, user=getpass.getuser())
         self.bmc = luna.BMCSetup(name='testbmc', mongo_db=self.db, create=True)
 
     def tearDown(self):
-        self.bind.conn.drop_all()
+        self.sandbox.cleanup()
 
     def test_read_non_existing_bmcsetup(self):
         self.assertRaises(RuntimeError, luna.BMCSetup, mongo_db=self.db,
