@@ -104,6 +104,8 @@ class NodeCreateTests(unittest.TestCase):
         doc = self.db['node'].find_one({'_id': nodeid})
         self.assertIsNone(doc)
 
+    def tearDown(self):
+        self.sandbox.cleanup()
 
 class NodeChangeTests(unittest.TestCase):
 
@@ -152,6 +154,9 @@ class NodeChangeTests(unittest.TestCase):
             mongo_db=self.db,
             create=True,
         )
+
+    def tearDown(self):
+        self.sandbox.cleanup()
 
     def test_change_group(self):
         start_dict = self.db['node'].find_one({'_id': self.node._id})
@@ -336,24 +341,7 @@ class NodeChangeTests(unittest.TestCase):
             PREFIX=16,
         )
 
-        ipminet = luna.Network(
-            'ipminet1',
-            mongo_db=self.db,
-            create=True,
-            NETWORK='10.53.0.0',
-            PREFIX=16,
-        )
-
-        ipminet2 = luna.Network(
-            'ipminet2',
-            mongo_db=self.db,
-            create=True,
-            NETWORK='10.54.0.0',
-            PREFIX=16,
-        )
-
         # assign 2 networks to interfaces
-        # and one to bmc interface
         # group1: {'eth0': net1}
         # group2  {'eth0': net1, 'em1':  net2}
         # group3  {'em1':  net1, 'eth1': net2}
@@ -361,11 +349,6 @@ class NodeChangeTests(unittest.TestCase):
 
         group2.add_interface('em1')
         group3.add_interface('em1')
-
-        group1.set_bmcnetwork(ipminet.name)
-        group2.set_bmcnetwork(ipminet.name)
-        group3.set_bmcnetwork(ipminet.name)
-        group4.set_bmcnetwork(ipminet2.name)
 
         group1.set_net_to_if('eth0', net1.name)
         group2.set_net_to_if('eth0', net1.name)
@@ -427,7 +410,6 @@ class NodeChangeTests(unittest.TestCase):
         group2_json = self.db['group'].find_one({'name': group2.name})
         net1_json = self.db['network'].find_one({'name': net1.name})
         net2_json = self.db['network'].find_one({'name': net2.name})
-        ipminet_json = self.db['network'].find_one({'name': ipminet.name})
 
         # should be 2 interfaces now
         self.assertEqual(len(node_json['interfaces']), 2)
@@ -453,9 +435,6 @@ class NodeChangeTests(unittest.TestCase):
         # check network
         self.assertEqual(net1_json['freelist'], [{'start': 12, 'end': 65533}])
         self.assertEqual(net2_json['freelist'], [{'start': 2, 'end': 65533}])
-        self.assertEqual(
-            ipminet_json['freelist'], [{'start': 12, 'end': 65533}]
-        )
 
         # check using get_allocated_ips
         self.assertNotIn(
@@ -466,16 +445,6 @@ class NodeChangeTests(unittest.TestCase):
             node005.name,
             group2.get_allocated_ips(net1._id).keys()
         )
-        # check ipminet
-        self.assertNotIn(
-            node005.name,
-            group1.get_allocated_ips(ipminet._id).keys()
-        )
-        self.assertIn(
-            node005.name,
-            group2.get_allocated_ips(ipminet._id).keys()
-        )
-
         #
         # change group second time
         #
@@ -485,7 +454,6 @@ class NodeChangeTests(unittest.TestCase):
         group3_json = self.db['group'].find_one({'name': group3.name})
         net1_json = self.db['network'].find_one({'name': net1.name})
         net2_json = self.db['network'].find_one({'name': net2.name})
-        ipminet_json = self.db['network'].find_one({'name': ipminet.name})
         # try to find uuids of the interfaces
         eth1_uuid = ''
         em1_uuid = ''
@@ -510,8 +478,6 @@ class NodeChangeTests(unittest.TestCase):
         net1_json = self.db['network'].find_one({'name': net1.name})
         net2_json = self.db['network'].find_one({'name': net2.name})
         net3_json = self.db['network'].find_one({'name': net3.name})
-        ipminet_json = self.db['network'].find_one({'name': ipminet.name})
-        ipminet2_json = self.db['network'].find_one({'name': ipminet2.name})
         self.assertEqual(
             net1_json['freelist'],
             [{'start': 5, u'end': 5}, {'start': 12, 'end': 65533}]
@@ -523,163 +489,6 @@ class NodeChangeTests(unittest.TestCase):
         self.assertEqual(
             net3_json['freelist'],
             [{'start': 2, 'end': 65533}]
-        )
-        self.assertEqual(
-            ipminet_json['freelist'],
-            [{'start': 5, u'end': 5}, {'start': 12, 'end': 65533}]
-        )
-        self.assertEqual(
-            ipminet2_json['freelist'],
-            [{'start': 2, 'end': 65533}]
-        )
-
-    def test_boot_params(self):
-
-        expected_dict = {
-            'net_prefix': '',
-            'kernel_file': None,
-            'localboot': False,
-            'name': 'node001',
-            'service': 0,
-            'kern_opts': '',
-            'initrd_file': None,
-            'boot_if': '',
-        }
-
-        self.assertEqual(
-            self.node.boot_params,
-            expected_dict,
-        )
-
-        net1 = luna.Network(
-            'testnet1',
-            mongo_db=self.db,
-            create=True,
-            NETWORK='10.50.0.0',
-            PREFIX=16,
-        )
-
-        self.group.set_net_to_if('eth0', net1.name)
-
-        self.group.set('boot_if', 'eth0')
-
-        self.node = luna.Node(
-            name=self.node.name,
-            mongo_db=self.db,
-        )
-
-        expected_dict['net_prefix'] = 16
-        expected_dict['ip'] = '10.50.0.1'
-        expected_dict['boot_if'] = 'eth0'
-
-        self.assertEqual(
-            self.node.boot_params,
-            expected_dict,
-        )
-
-    def test_install_params(self):
-
-        expected_dict = {
-            'torrent_if': '',
-            'setupbmc': True,
-            'partscript': 'mount -t tmpfs tmpfs /sysroot',
-            'name': 'node001',
-            'torrent_if_net_prefix': '',
-            'tarball': '',
-            'bmcsetup': {},
-            'interfaces': {
-                u'eth0': u'\n'
-            },
-            'prescript': '',
-            'domain': '',
-            'hostname': 'node001',
-            'postscript': (
-                'cat << EOF >> /sysroot/etc/fstab\n'
-                + 'tmpfs   /       tmpfs    defaults        0 0\n'
-                + 'EOF'
-            ),
-            'boot_if': '',
-            'kernopts': '',
-            'kernver': '1.0.0-1.el7.x86_64',
-            'torrent': ''
-        }
-
-        self.assertEqual(
-            self.node.install_params,
-            expected_dict,
-        )
-
-        net1 = luna.Network(
-            'testnet1',
-            mongo_db=self.db,
-            create=True,
-            NETWORK='10.50.0.0',
-            PREFIX=16,
-        )
-
-        self.group.set_net_to_if('eth0', net1.name)
-
-        self.group.set('boot_if', 'eth0')
-
-        self.node = luna.Node(
-            name=self.node.name,
-            mongo_db=self.db,
-        )
-
-        expected_dict['boot_if'] = 'eth0'
-        expected_dict['domain'] = net1.name
-        expected_dict['hostname'] = self.node.name + '.' + net1.name
-        expected_dict['interfaces']['eth0'] = '\nPREFIX=16\nIPADDR=10.50.0.1'
-
-        self.assertEqual(
-            self.node.install_params,
-            expected_dict,
-        )
-
-        net2 = luna.Network(
-            'testnet2',
-            mongo_db=self.db,
-            create=True,
-            NETWORK='10.51.0.0',
-            PREFIX=16,
-        )
-
-        self.group.set_bmcnetwork(net2.name)
-
-        self.node = luna.Node(
-            name=self.node.name,
-            mongo_db=self.db,
-        )
-
-        bmcsetup = luna.BMCSetup(
-            name='bmcsetup1',
-            mongo_db=self.db,
-            create=True,
-        )
-
-        self.group.bmcsetup(bmcsetup.name)
-
-        expected_dict['bmcsetup'] = {
-            'netchannel': 1,
-            'mgmtchannel': 1,
-            'userid': 3,
-            'netmask': '255.255.0.0',
-            'user': 'ladmin',
-            'ip': '10.51.0.1',
-            'password': 'ladmin'
-        }
-
-        self.assertEqual(
-            self.node.install_params,
-            expected_dict,
-        )
-
-    def test_install_scripts(self):
-        self.assertIsNone(self.node.render_script('non_exist'))
-        self.assertEqual(self.node.render_script('boot').split()[0], '#!ipxe')
-        self.assertEqual(
-            self.node.render_script('install').split()[0],
-            '#!/bin/bash'
         )
 
     def test_update_status(self):
@@ -726,6 +535,245 @@ class NodeChangeTests(unittest.TestCase):
         self.assertEqual(
             self.node.get_status()['status'][:39],
             'install.download (66.67% / last update '
+        )
+
+
+class NodeBootInstallTests(unittest.TestCase):
+
+    def setUp(self):
+
+        print
+
+        self.sandbox = Sandbox()
+        self.db = self.sandbox.db
+        self.path = self.sandbox.path
+        osimage_path = self.sandbox.create_osimage()
+
+        self.cluster = luna.Cluster(
+            mongo_db=self.db,
+            create=True,
+            path=self.path,
+            user=getpass.getuser()
+        )
+        self.cluster.set('path', self.path)
+        self.cluster.set('frontend_address', '127.0.0.1')
+
+        self.osimage = luna.OsImage(
+            name='testosimage',
+            path=osimage_path,
+            mongo_db=self.db,
+            create=True
+        )
+
+        self.net1 = luna.Network(
+            'testnet1',
+            mongo_db=self.db,
+            create=True,
+            NETWORK='10.50.0.0',
+            PREFIX=16,
+        )
+
+        self.net2 = luna.Network(
+            'testnet2',
+            mongo_db=self.db,
+            create=True,
+            NETWORK='10.51.0.0',
+            PREFIX=16,
+        )
+
+        self.group = luna.Group(
+            name='testgroup',
+            osimage=self.osimage.name,
+            mongo_db=self.db,
+            interfaces=['eth0'],
+            create=True,
+        )
+
+        self.group_new = luna.Group(
+            name='testgroup_new',
+            osimage=self.osimage.name,
+            mongo_db=self.db,
+            interfaces=['eth0'],
+            create=True,
+        )
+
+        self.node = luna.Node(
+            group=self.group.name,
+            mongo_db=self.db,
+            create=True,
+        )
+
+        self.boot_expected_dict = {
+            'domain': '',
+            'net_mask': '',
+            'initrd_file': None,
+            'mac': None,
+            'net_prefix': '',
+            'kernel_file': None,
+            'localboot': False,
+            'name': 'node001',
+            'service': 0,
+            'ip': '',
+            'hostname': 'node001',
+            'kern_opts': '',
+            'bootproto': 'dhcp'
+        }
+
+        self.install_expected_dict = {
+            'torrent_if': '',
+            'setupbmc': True,
+            'partscript': 'mount -t tmpfs tmpfs /sysroot',
+            'name': 'node001',
+            'tarball': '',
+            'bmcsetup': {},
+            'interfaces': {
+                'eth0': {'netmask': '', 'options': '', 'prefix': ''}
+            },
+            'prescript': '',
+            'domain': '',
+            'hostname': 'node001',
+            'postscript': (
+                'cat << EOF >> /sysroot/etc/fstab\n'
+                + 'tmpfs   /       tmpfs    defaults        0 0\n'
+                + 'EOF'
+            ),
+            'kernopts': '',
+            'kernver': '1.0.0-1.el7.x86_64',
+            'torrent': '',
+            'mac': '',
+        }
+
+
+    def tearDown(self):
+        self.sandbox.cleanup()
+
+    def test_boot_params_default(self):
+
+        self.assertEqual(
+            self.node.boot_params,
+            self.boot_expected_dict,
+        )
+
+    def test_boot_params_w_net_assigned(self):
+
+        self.group.set_net_to_if('eth0', self.net1.name)
+        self.group.add_interface('BOOTIF')
+        self.group.set_net_to_if('BOOTIF', self.net2.name)
+
+        self.node = luna.Node(
+            name=self.node.name,
+            mongo_db=self.db,
+        )
+
+        self.boot_expected_dict['net_prefix'] = '16'
+        self.boot_expected_dict['net_mask'] = '255.255.0.0'
+        self.boot_expected_dict['ip'] = '10.51.0.1'
+
+        self.assertEqual(
+            self.node.boot_params,
+            self.boot_expected_dict,
+        )
+
+    def test_boot_params_w_mac_net_assigned(self):
+
+        mac = '00:11:22:33:44:55'
+
+        self.group.set_net_to_if('eth0', self.net1.name)
+        self.group.add_interface('BOOTIF')
+        self.group.set_net_to_if('BOOTIF', self.net2.name)
+        self.node.set_mac(mac)
+
+        self.boot_expected_dict['bootproto'] = 'static'
+        self.boot_expected_dict['mac'] = mac
+        self.boot_expected_dict['net_prefix'] = '16'
+        self.boot_expected_dict['net_mask'] = '255.255.0.0'
+        self.boot_expected_dict['ip'] = '10.51.0.1'
+
+        self.node = luna.Node(
+            name=self.node.name,
+            mongo_db=self.db,
+        )
+
+        self.assertEqual(
+            self.node.boot_params,
+            self.boot_expected_dict,
+        )
+
+    def test_install_params_default(self):
+
+        self.maxDiff = None
+        self.assertEqual(
+            self.node.install_params,
+            self.install_expected_dict,
+        )
+
+    def test_install_params_w_nets(self):
+
+        self.group.set_net_to_if('eth0', self.net1.name)
+        self.group.add_interface('BOOTIF')
+        self.group.set_net_to_if('BOOTIF', self.net2.name)
+
+        self.node = luna.Node(
+            name=self.node.name,
+            mongo_db=self.db,
+        )
+
+        self.install_expected_dict['interfaces'] = {
+            'BOOTIF': {
+                'ip': '10.51.0.1',
+                'netmask': '255.255.0.0',
+                'options': '',
+                'prefix': '16',
+            },
+            'eth0': {
+                'ip': '10.50.0.1',
+                'netmask': '255.255.0.0',
+                'options': '',
+                'prefix': '16',
+            }
+        }
+
+        self.assertEqual(
+            self.node.install_params,
+            self.install_expected_dict,
+        )
+
+    def test_install_params_w_nets(self):
+
+        self.maxDiff = None
+
+        bmcsetup = luna.BMCSetup(
+            name='bmcsetup1',
+            mongo_db=self.db,
+            create=True,
+        )
+
+        self.group.bmcsetup(bmcsetup.name)
+
+        self.install_expected_dict['bmcsetup'] = {
+            'netchannel': 1,
+            'mgmtchannel': 1,
+            'userid': 3,
+            'user': 'ladmin',
+            'password': 'ladmin'
+        }
+
+        self.node = luna.Node(
+            name=self.node.name,
+            mongo_db=self.db,
+        )
+
+        self.assertEqual(
+            self.node.install_params,
+            self.install_expected_dict,
+        )
+
+    def ktest_install_scripts(self):
+        self.assertIsNone(self.node.render_script('non_exist'))
+        self.assertEqual(self.node.render_script('boot').split()[0], '#!ipxe')
+        self.assertEqual(
+            self.node.render_script('install').split()[0],
+            '#!/bin/bash'
         )
 
 if __name__ == '__main__':

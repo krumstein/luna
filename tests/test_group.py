@@ -32,8 +32,8 @@ class GroupCreateTests(unittest.TestCase):
             create=True
         )
 
-#    def tearDown(self):
-#       self.sandbox.cleanup()
+    def tearDown(self):
+       self.sandbox.cleanup()
 
 
     def test_create_group_with_defaults(self):
@@ -42,7 +42,7 @@ class GroupCreateTests(unittest.TestCase):
             name='testgroup1',
             osimage=str(self.osimage.name),
             mongo_db=self.db,
-            interfaces=['eth0'],
+            interfaces=['BOOTIF'],
             create=True
         )
 
@@ -56,9 +56,8 @@ class GroupCreateTests(unittest.TestCase):
                 'EOF'
             ),
             'name': 'testgroup1',
-            'bmcnetwork': None,
             'bmcsetup': None,
-            'boot_if': None,
+            'domain': None,
             '_use_': {
                 'cluster': {str(self.cluster._id): 1},
                 'osimage': {str(self.osimage._id): 1}
@@ -72,7 +71,7 @@ class GroupCreateTests(unittest.TestCase):
         if_dict = doc['interfaces']
         self.assertEqual(len(if_dict), 1)
         for uuid in if_dict:
-            self.assertEqual(if_dict[uuid]['name'], 'eth0')
+            self.assertEqual(if_dict[uuid]['name'], 'BOOTIF')
             self.assertEqual(if_dict[uuid]['params'], '')
             self.assertEqual(if_dict[uuid]['network'], None)
 
@@ -112,9 +111,9 @@ class GroupCreateTests(unittest.TestCase):
             mongo_db=self.db,
             create=True
         )
-        bmcnet = luna.Network(
-            name='ipmi',
-            NETWORK='10.10.0.0',
+        net = luna.Network(
+            name='cluster',
+            NETWORK='10.11.0.0',
             PREFIX=16,
             mongo_db=self.db,
             create=True
@@ -123,11 +122,10 @@ class GroupCreateTests(unittest.TestCase):
         group = luna.Group(
             name='testgroup2',
             osimage=self.osimage.name,
-            bmcnetwork=bmcnet.name,
             bmcsetup=bmcsetup.name,
             mongo_db=self.db,
             interfaces=nics,
-            boot_if=nics[0],
+            domain=net.name,
             torrent_if=nics[1],
             create=True
         )
@@ -142,13 +140,14 @@ class GroupCreateTests(unittest.TestCase):
                 'EOF'
             ),
             'name': 'testgroup2',
-            'bmcnetwork': bmcnet.DBRef,
             'bmcsetup': bmcsetup.DBRef,
-            'boot_if': nics[0],
+            'domain': net.DBRef,
             '_use_': {
                 'cluster': {str(self.cluster._id): 1},
                 'osimage': {str(self.osimage._id): 1},
-                'network': {str(bmcnet._id): 1},
+                'network': {
+                    str(net._id): 1,
+                },
                 'bmcsetup': {str(bmcsetup._id): 1},
             },
             'osimage': self.osimage.DBRef
@@ -199,14 +198,6 @@ class GroupConfigTests(unittest.TestCase):
             create=True
         )
 
-        self.bmcnet = luna.Network(
-            name='ipmi',
-            NETWORK='10.10.0.0',
-            PREFIX=16,
-            mongo_db=self.db,
-            create=True
-        )
-
         self.net1 = luna.Network(
             name='cluster',
             NETWORK='10.11.0.0',
@@ -241,8 +232,8 @@ class GroupConfigTests(unittest.TestCase):
             interfaces=['eth0'],
             create=True)
 
-#    def tearDown(self):
-#        self.sandbox.cleanup()
+    def tearDown(self):
+        self.sandbox.cleanup()
 
     def test_add_remove_net_to_if(self):
         start_dict = self.db['group'].find_one({'_id': self.group._id})
@@ -312,35 +303,6 @@ class GroupConfigTests(unittest.TestCase):
         end_dict = self.db['group'].find_one({'_id': self.group._id})
         self.assertEqual(start_dict, end_dict)
 
-    def test_add_remove_bmcnet(self):
-        start_dict = self.db['group'].find_one({'_id': self.group._id})
-
-        self.group.set_bmcnetwork(self.bmcnet.name)
-        self.assertEqual(
-            self.group.show()['bmcnetwork'],
-            '[' + self.bmcnet.name + ']'
-        )
-        self.group.set_bmcnetwork(self.bmcnet.name)
-        self.assertEqual(
-            self.group.show()['bmcnetwork'],
-            '[' + self.bmcnet.name + ']'
-        )
-        self.group.del_bmcnetwork()
-        self.assertIsNone(self.group.show()['bmcnetwork'])
-
-        end_dict = self.db['group'].find_one({'_id': self.group._id})
-        self.assertEqual(start_dict, end_dict)
-
-    def test_show_bmc_if(self):
-        self.group.set_bmcnetwork(self.bmcnet.name)
-        self.assertEqual(self.group.show_bmc_if(), '10.10.0.0/16')
-        self.assertEqual(
-            self.group.show_bmc_if(brief=True),
-            '[ipmi]:10.10.0.0/16'
-        )
-        self.group.del_bmcnetwork()
-        self.assertEqual(self.group.show_bmc_if(), '')
-
     def test_get_net_name_for_if(self):
         self.assertEqual(self.group.get_net_name_for_if('eth0'), '')
         self.assertEqual(self.group.get_net_name_for_if('unexisting_if'), '')
@@ -394,7 +356,6 @@ class GroupConfigTests(unittest.TestCase):
 
     def test_get_ip(self):
 
-        self.group.set_bmcnetwork(self.bmcnet.name)
         self.group.set_net_to_if('eth0', self.net1.name)
 
         group_json = self.db['group'].find_one({'_id': self.group._id})
@@ -408,155 +369,23 @@ class GroupConfigTests(unittest.TestCase):
         human_eth0_ip = self.group.get_ip(
             interface_uuid=if_uuid,
             ip=500,
-            bmc=False,
             format='human'
         )
 
         num_eth0_ip = self.group.get_ip(
             interface_uuid=if_uuid,
             ip="10.11.1.244",
-            bmc=False,
             format='num'
         )
 
         self.assertEqual(human_eth0_ip, "10.11.1.244")
         self.assertEqual(num_eth0_ip, 500)
 
-        human_bmc_ip = self.group.get_ip(
-            ip=600,
-            bmc=True,
-            format='human'
-        )
-
-        num_bmc_ip = self.group.get_ip(
-            ip="10.10.2.88",
-            bmc=True,
-            format='num'
-        )
-
-        self.assertEqual(human_bmc_ip, "10.10.2.88")
-        self.assertEqual(num_bmc_ip, 600)
-
         out = self.group.get_ip()
         self.assertIsNone(out)
 
         out = self.group.get_ip(interface_uuid=if_uuid)
         self.assertIsNone(out)
-
-        out = self.group.get_ip(bmc=True)
-        self.assertIsNone(out)
-
-    def test_boot_params(self):
-
-        # mocking osimage boot stuff
-        self.osimage.copy_boot()
-
-        self.assertEqual(self.group.boot_params,
-                {'net_prefix': '',
-                'kernel_file': self.osimage.name + '-vmlinuz-1.0.0-1.el7.x86_64',
-                'kern_opts': '',
-                'boot_if': '',
-                'initrd_file': self.osimage.name + '-initramfs-1.0.0-1.el7.x86_64',
-            }
-        )
-
-        self.group.set('boot_if', 'eth0')
-
-        self.assertEqual(self.group.boot_params,
-                {'net_prefix': '',
-                'kernel_file': self.osimage.name + '-vmlinuz-1.0.0-1.el7.x86_64',
-                'kern_opts': '',
-                'boot_if': '',
-                'initrd_file': self.osimage.name + '-initramfs-1.0.0-1.el7.x86_64',
-            }
-        )
-
-        self.group.set_net_to_if('eth0', self.net1.name)
-
-        self.assertEqual(self.group.boot_params,
-                {'net_prefix': 16,
-                'kernel_file': self.osimage.name + '-vmlinuz-1.0.0-1.el7.x86_64',
-                'kern_opts': '',
-                'boot_if': 'eth0',
-                'initrd_file': self.osimage.name + '-initramfs-1.0.0-1.el7.x86_64',
-            }
-        )
-
-
-    def test_install_params(self):
-
-        # mocking osimage install stuff
-        self.osimage.copy_boot()
-        self.osimage.create_tarball()
-        self.osimage.create_torrent()
-
-        group_json = self.db['group'].find_one({'_id': self.group._id})
-        osimage_json = self.db['osimage'].find_one({'_id': self.osimage._id})
-
-        expected_dict = {
-            'torrent_if': '',
-            'partscript': group_json['partscript'],
-            'torrent_if_net_prefix': '',
-            'tarball': osimage_json['tarball'] + '.tgz',
-            'bmcsetup': {},
-            'interfaces': {'eth0': '\n'},
-            'prescript': '',
-            'domain': '',
-            'postscript': group_json['postscript'],
-            'boot_if': '',
-            'kernopts': '',
-            'kernver': '1.0.0-1.el7.x86_64',
-            'torrent': osimage_json['torrent'] + '.torrent'
-        }
-
-        self.maxDiff = None
-
-        self.assertEqual(self.group.install_params, expected_dict)
-
-        # check boot_if
-        self.group.set('boot_if', 'eth0')
-
-        self.assertEqual(self.group.install_params, expected_dict)
-
-        # check torrent_if
-        self.group.set('torrent_if', 'eth0')
-
-        self.assertEqual(self.group.install_params, expected_dict)
-
-        # assign net to interface
-        self.group.set_net_to_if('eth0', self.net1.name)
-
-        expected_dict['boot_if'] = 'eth0'
-        expected_dict['torrent_if'] = 'eth0'
-        expected_dict['torrent_if_net_prefix'] = self.net1.get('PREFIX')
-        expected_dict['interfaces']['eth0'] = "\nPREFIX=" + str(self.net1.get('PREFIX'))
-        expected_dict['domain'] = self.net1.name
-        self.assertEqual(self.group.install_params, expected_dict)
-
-        # add bmcconfig
-        bmc = luna.BMCSetup(
-            name="testbmc",
-            mongo_db=self.db,
-            create=True
-        )
-
-        self.group.bmcsetup(bmc.name)
-        expected_dict['bmcsetup'] = {
-            'mgmtchannel': 1,
-            'netchannel': 1,
-            'netmask': '',
-            'password': 'ladmin',
-            'user': 'ladmin',
-            'userid': 3,
-        }
-
-        self.assertEqual(self.group.install_params, expected_dict)
-
-        # add bmcnet
-        self.group.set_bmcnetwork(self.net2.name)
-        expected_dict['bmcsetup']['netmask'] = "255.255.0.0"
-
-        self.assertEqual(self.group.install_params, expected_dict)
 
     def test_get_allocated_ips(self):
 
@@ -588,35 +417,221 @@ class GroupConfigTests(unittest.TestCase):
 
         self.assertEqual(tmp_dict, [])
 
-    def test_get_allocated_bmc_ips(self):
-
-        nodes = []
-        for i in range(10):
-            nodes.append(luna.Node(
-                group=self.group,
-                mongo_db=self.db,
-                create=True,
-            ))
-
-        self.group = luna.Group(
-            name=self.group.name,
-            mongo_db=self.db,
+    def test_set_domain(self):
+        self.group.set_domain(self.net1.name)
+        group_json = self.db['group'].find_one({'_id': self.group._id})
+        self.assertEqual(group_json['domain'], self.net1.DBRef)
+        self.assertEqual(
+            group_json['_use_']['network'],
+            {str(self.net1._id): 1}
         )
 
-        self.group.set_bmcnetwork(self.net1.name)
+    def test_change_domain(self):
+        self.group.set_domain(self.net1.name)
+        self.group.set_domain(self.net2.name)
+        group_json = self.db['group'].find_one({'_id': self.group._id})
+        self.assertEqual(group_json['domain'], self.net2.DBRef)
+        self.assertEqual(
+            group_json['_use_']['network'],
+            {str(self.net2._id): 1}
+        )
 
-        net_json = self.db['network'].find_one({'_id': self.net1._id})
+    def test_delete_domain(self):
+        self.group.set_domain(self.net1.name)
+        self.group.set_domain()
+        group_json = self.db['group'].find_one({'_id': self.group._id})
+        self.assertIsNone(group_json['domain'])
+        self.assertNotIn(
+            'network',
+            group_json['_use_'].keys()
+        )
 
-        alloc_ips = self.group.get_allocated_ips(self.net1._id)
+class GroupBootInstallParamsTests(unittest.TestCase):
 
-        self.assertEqual(len(net_json['freelist']), 1)
+    def setUp(self):
 
-        tmp_dict = range(net_json['freelist'][0]['start'])[1:]
+        print
 
-        for e in alloc_ips:
-            tmp_dict.remove(alloc_ips[e])
+        self.sandbox = Sandbox()
+        self.db = self.sandbox.db
+        self.path = self.sandbox.path
+        osimage_path = self.sandbox.create_osimage()
 
-        self.assertEqual(tmp_dict, [])
+        self.cluster = luna.Cluster(
+            mongo_db=self.db,
+            create=True,
+            path=self.path,
+            user=getpass.getuser()
+        )
+
+        self.cluster.set("frontend_address", "127.0.0.1")
+
+        self.osimage = luna.OsImage(
+            name='testosimage',
+            path=osimage_path,
+            mongo_db=self.db,
+            create=True
+        )
+
+        self.bmcsetup = luna.BMCSetup(
+            name='bmcsetup',
+            mongo_db=self.db,
+            create=True
+        )
+
+        self.net1 = luna.Network(
+            name='cluster',
+            NETWORK='10.11.0.0',
+            PREFIX=16,
+            mongo_db=self.db,
+            create=True
+        )
+        self.net2 = luna.Network(
+            name='external',
+            NETWORK='10.12.0.0',
+            PREFIX=16,
+            mongo_db=self.db,
+            create=True
+        )
+        self.net3 = luna.Network(
+            name='ib',
+            NETWORK='10.13.0.0',
+            PREFIX=16,
+            mongo_db=self.db,
+            create=True
+        )
+
+        self.prescript = 'pre'
+        self.postscript = 'post'
+        self.partscript = 'part'
+        self.nics = {'BOOTIF': 'PARM=1', 'eth1': 'PARM=2', 'ib0': 'PARM=3'}
+
+        self.group = luna.Group(
+            name='compute',
+            osimage=self.osimage.name,
+            mongo_db=self.db,
+            interfaces=['BOOTIF'],
+            create=True)
+
+        # mocking osimage boot stuff
+        self.osimage.copy_boot()
+        self.osimage.create_tarball()
+        self.osimage.create_torrent()
+
+        group_json = self.db['group'].find_one({'_id': self.group._id})
+        osimage_json = self.db['osimage'].find_one({'_id': self.osimage._id})
+
+        self.install_expected_dict = {
+            'torrent_if': '',
+            'partscript': group_json['partscript'],
+            'tarball': osimage_json['tarball'] + '.tgz',
+            'bmcsetup': {},
+            'interfaces': {
+                'BOOTIF': {'netmask': '', 'options': '', 'prefix': ''}
+            },
+            'prescript': '',
+            'domain': '',
+            'postscript': group_json['postscript'],
+            'kernopts': '',
+            'kernver': '1.0.0-1.el7.x86_64',
+            'torrent': osimage_json['torrent'] + '.torrent'
+        }
+
+    def tearDown(self):
+        self.sandbox.cleanup()
+
+    def test_boot_params_default(self):
+
+        self.assertEqual(self.group.boot_params,
+                {'net_prefix': '',
+                'net_mask': '',
+                'kernel_file': self.osimage.name + '-vmlinuz-1.0.0-1.el7.x86_64',
+                'kern_opts': '',
+                'domain': '',
+                'initrd_file': self.osimage.name + '-initramfs-1.0.0-1.el7.x86_64',
+            }
+        )
+
+    def test_boot_params_w_domain(self):
+
+        self.group.set_domain(self.net1.name)
+
+        self.assertEqual(self.group.boot_params,
+                {'net_prefix': '',
+                'net_mask': '',
+                'kernel_file': self.osimage.name + '-vmlinuz-1.0.0-1.el7.x86_64',
+                'kern_opts': '',
+                'domain': self.net1.name,
+                'initrd_file': self.osimage.name + '-initramfs-1.0.0-1.el7.x86_64',
+            }
+        )
+
+    def test_boot_params_w_bootif_w_net(self):
+
+        self.group.set_net_to_if('BOOTIF', self.net1.name)
+
+        self.assertEqual(self.group.boot_params,
+                {'net_prefix': '16',
+                'net_mask': '255.255.0.0',
+                'kernel_file': self.osimage.name + '-vmlinuz-1.0.0-1.el7.x86_64',
+                'kern_opts': '',
+                'domain': '',
+                'initrd_file': self.osimage.name + '-initramfs-1.0.0-1.el7.x86_64',
+            }
+        )
+
+
+    def test_install_params_default(self):
+
+        self.assertEqual(self.group.install_params, self.install_expected_dict)
+
+    def test_install_params_w_torr_if_wo_net(self):
+
+        self.group.set('torrent_if', 'BOOTIF')
+        self.assertEqual(self.group.install_params, self.install_expected_dict)
+
+    def test_install_params_w_torr_if_w_net(self):
+
+        # configure torrent_if
+        self.group.set_net_to_if('BOOTIF', self.net1.name)
+        self.group.set('torrent_if', 'BOOTIF')
+
+        self.install_expected_dict['torrent_if'] = 'BOOTIF'
+        self.install_expected_dict['interfaces']['BOOTIF'] = {
+            'netmask': '255.255.0.0',
+            'options': '',
+            'prefix': '16',
+        }
+        self.assertEqual(self.group.install_params, self.install_expected_dict)
+
+
+    def test_install_params_w_domain(self):
+
+        self.group.set_domain(self.net1.name)
+        self.install_expected_dict['domain'] = self.net1.name
+
+        self.assertEqual(self.group.install_params, self.install_expected_dict)
+
+
+    def test_install_params_w_bmconfig_wo_net(self):
+
+        # add bmcconfig
+        bmc = luna.BMCSetup(
+            name="testbmc",
+            mongo_db=self.db,
+            create=True
+        )
+
+        self.group.bmcsetup(bmc.name)
+        self.install_expected_dict['bmcsetup'] = {
+            'mgmtchannel': 1,
+            'netchannel': 1,
+            'password': 'ladmin',
+            'user': 'ladmin',
+            'userid': 3,
+        }
+
+        self.assertEqual(self.group.install_params, self.install_expected_dict)
 
 if __name__ == '__main__':
     unittest.main()
