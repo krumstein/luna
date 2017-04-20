@@ -10,6 +10,8 @@ class OsimageCreateTests(unittest.TestCase):
 
     def setUp(self):
 
+        print
+
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
@@ -22,6 +24,9 @@ class OsimageCreateTests(unittest.TestCase):
             path=self.path,
             user=getpass.getuser(),
         )
+
+    def tearDown(self):
+        self.sandbox.cleanup()
 
     def test_create_osimage_with_defaults(self):
         osimage = luna.OsImage(
