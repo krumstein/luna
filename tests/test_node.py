@@ -39,6 +39,9 @@ class NodeCreateTests(unittest.TestCase):
             create=True,
         )
 
+    def tearDown(self):
+        self.sandbox.cleanup()
+
     def test_create_node_with_defaults(self):
 
         node = luna.Node(
