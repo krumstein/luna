@@ -23,38 +23,48 @@ along with Luna.  If not, see <http://www.gnu.org/licenses/>.
 import re
 import socket
 import struct
+from binascii import hexlify, unhexlify
 import logging
 
 
 log = logging.getLogger(__name__)
 
+af = {
+    4: socket.AF_INET,
+    6: socket.AF_INET6,
+}
 
-def ntoa(num_ip):
+hex_format = {
+    4: '08x',
+    6: '032x'
+}
+
+
+def ntoa(num_ip, ver=4):
     """
     Convert the IP numip from the binary notation
     into the IPv4 numbers-and-dots form
     """
 
     try:
-        # '>L' stands for a bigendian unsigned long
 
-        ip = socket.inet_ntoa(struct.pack('>L', num_ip))
+        ip = socket.inet_ntop(af[ver], unhexlify(format(num_ip, hex_format[ver])))
         return ip
 
     except:
         log.error(("Cannot convert '{}' from C"
-                   " to IPv4 format".format(num_ip)))
+                   " to IPv{} format".format(num_ip, ver)))
         raise RuntimeError
 
 
-def aton(ip):
+def aton(ip, ver=4):
     """
     Convert the IP ip from the IPv4 numbers-and-dots
     notation into binary form (in network byte order)
     """
 
     try:
-        absnum = struct.unpack('>L', (socket.inet_aton(ip)))[0]
+        absnum = int(hexlify(socket.inet_pton(af[ver], ip)), 16)
         return long(absnum)
 
     except:
@@ -72,18 +82,18 @@ def reltoa(num_net, rel_ip):
     return ntoa(num_ip)
 
 
-def atorel(ip, num_net, prefix):
+def atorel(ip, num_net, prefix, ver=4):
     """
     Convert an IPv4 address into a number relative to the base of
     the network obtained using 'get_num_subnet'
     """
 
-    num_ip = aton(ip)
+    num_ip = aton(ip, ver)
 
     # Check if the ip address actually belongs to num_net/prefix
     if not ip_in_net(ip, num_net, prefix):
         log.error(("Network '{}/{}' does not contain '{}'"
-                   .format(ntoa(num_net), prefix, ip)))
+                   .format(ntoa(num_net, ver), prefix, ip)))
         raise RuntimeError
 
     relative_num = long(num_ip - num_net)
@@ -91,36 +101,47 @@ def atorel(ip, num_net, prefix):
     return relative_num
 
 
-def get_num_subnet(ip, prefix):
+def get_num_subnet(ip, prefix, ver=4):
     """
     Get the address of the subnet to which ip belongs in binary form
     """
+
+    maxbits = 32
+    if ver == 6:
+        maxbits = 128
+
     try:
         prefix = int(prefix)
     except:
         log.error("Prefix '{}' is invalid, must be 'int'".format(prefix))
         raise RuntimeError
 
-    if prefix not in range(1, 32):
+    if ver == 4 and prefix not in range(1, 32):
         log.error("Prefix should be in the range [1..32]")
+        raise RuntimeError
+
+    if ver == 6 and prefix not in range(1, 128):
+        log.error("Prefix should be in the range [1..128]")
         raise RuntimeError
 
     if type(ip) is long or type(ip) is int:
         num_ip = ip
     else:
         try:
-            num_ip = aton(ip)
+            num_ip = aton(ip, ver)
         except socket.error:
             log.error("'{}' is not a valid IP".format(ip))
             raise RuntimeError
 
-    num_mask = ((1 << 32) - 1) ^ ((1 << (33 - prefix) - 1) - 1)
+    num_mask = (((1 << maxbits) - 1)
+            ^ ((1 << (maxbits+1 - prefix) - 1) - 1))
+
     num_subnet = long(num_ip & num_mask)
 
     return num_subnet
 
 
-def ip_in_net(ip, num_net, prefix):
+def ip_in_net(ip, num_net, prefix, ver=4):
     """
     Check if an address (either in binary or IPv4 form) belongs to
     num_net/prefix
@@ -129,10 +150,10 @@ def ip_in_net(ip, num_net, prefix):
     if type(ip) is long or type(ip) is int:
         num_ip = ip
     else:
-        num_ip = aton(ip)
+        num_ip = aton(ip, ver)
 
-    num_subnet1 = get_num_subnet(num_net, prefix)
-    num_subnet2 = get_num_subnet(ip, prefix)
+    num_subnet1 = get_num_subnet(num_net, prefix, ver)
+    num_subnet2 = get_num_subnet(ip, prefix, ver)
 
     return num_subnet1 == num_subnet2
 
