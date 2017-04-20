@@ -20,7 +20,7 @@ along with Luna.  If not, see <http://www.gnu.org/licenses/>.
 
 '''
 
-from config import *
+from config import usedby_key
 
 import logging
 import uuid
@@ -40,14 +40,13 @@ class Group(Base):
 
     log = logging.getLogger(__name__)
 
-    def __init__(self, name=None, mongo_db=None, create=False, id=None,
-                 prescript='', bmcsetup=None, bmcnetwork=None,
+    def __init__(self, name=None, mongo_db=None, create=False,
+                 id=None, prescript='', bmcsetup=None,
                  partscript='', osimage=None, interfaces=[],
-                 postscript='', boot_if=None, torrent_if=None):
+                 postscript='', torrent_if=None, domain=None):
         """
         prescript   - preinstall script
         bmcsetup    - bmcsetup options
-        bmcnetwork  - used for bmc networking
         partscript  - parition script
         osimage     - osimage
         interfaces  - list of the newtork interfaces
@@ -60,8 +59,7 @@ class Group(Base):
 
         self._collection_name = 'group'
         self._keylist = {'prescript': type(''), 'partscript': type(''),
-                         'postscript': type(''), 'boot_if': type(''),
-                         'torrent_if': type('')}
+                         'postscript': type(''), 'torrent_if': type('')}
 
         # Check if this group is already present in the datastore
         # Read it if that is the case
@@ -72,20 +70,27 @@ class Group(Base):
             cluster = Cluster(mongo_db=self._mongo_db)
             osimageobj = OsImage(osimage, mongo_db=self._mongo_db)
 
-            (bmcobj, bmcnetobj) = (None, None)
+            (bmcobj, bmcnetobj, domainobj) = (None, None, None)
             if bmcsetup:
                 bmcobj = BMCSetup(bmcsetup, mongo_db=self._mongo_db).DBRef
 
-            if bmcnetwork:
-                bmcnetobj = Network(bmcnetwork, mongo_db=self._mongo_db).DBRef
+            if domain:
+                domainobj = Network(domain, mongo_db=self._mongo_db).DBRef
 
             if interfaces and type(interfaces) is not list:
                 self.log.error("'interfaces' should be list")
                 raise RuntimeError
 
+            if not interfaces:
+                interfaces = []
+
             if_dict = {}
             for interface in interfaces:
-                if_dict[uuid.uuid4().hex] = {'name': interface, 'network': None, 'params': ''}
+                if_dict[uuid.uuid4().hex] = {
+                    'name': interface,
+                    'network': None,
+                    'params': ''
+                }
 
             if not partscript:
                 partscript = "mount -t tmpfs tmpfs /sysroot"
@@ -97,11 +102,12 @@ class Group(Base):
 
             # Store the new group in the datastore
 
-            group = {'name': name, 'prescript':  prescript, 'bmcsetup': bmcobj,
-                     'bmcnetwork': bmcnetobj, 'partscript': partscript,
-                     'osimage': osimageobj.DBRef, 'interfaces': if_dict,
-                     'postscript': postscript, 'boot_if': boot_if,
-                     'torrent_if': torrent_if}
+            group = {'name': name, 'prescript':  prescript,
+                'bmcsetup': bmcobj, 'partscript': partscript,
+                'osimage': osimageobj.DBRef, 'interfaces': if_dict,
+                'postscript': postscript, 'domain': domainobj,
+                'torrent_if': torrent_if
+            }
 
             self.log.debug("Saving group '{}' to the datastore".format(group))
 
@@ -114,8 +120,8 @@ class Group(Base):
             if bmcobj:
                 self.link(bmcobj)
 
-            if bmcnetobj:
-                self.link(bmcnetobj)
+            if domainobj:
+                self.link(domainobj)
 
             self.link(osimageobj)
 
@@ -129,36 +135,40 @@ class Group(Base):
         params['kernel_file'] = osimage.get('kernfile')
         params['initrd_file'] = osimage.get('initrdfile')
         params['kern_opts'] = osimage.get('kernopts')
+        params['domain'] = ''
+        params['net_prefix'] = ''
+        params['net_mask'] = ''
 
-        params['boot_if'] = self.get('boot_if')
-        params['net_prefix'] = ""
+        domaindbref = self.get('domain')
 
+        if domaindbref:
 
-        if not params['boot_if']:
-            return params
+            domainnet = Network(
+                id=domaindbref.id,
+                mongo_db=self._mongo_db
+            )
+
+            params['domain'] = domainnet.name
 
         if_list = self.list_ifs()
+        bootif_uuid = None
 
-        if not params['boot_if'] in if_list.keys():
-            params['boot_if'] = ""
+        if 'BOOTIF' in if_list:
+            bootif_uuid = if_list['BOOTIF']
 
-            self.log.error(("Unknown boot interface '{}'. Must be one of '{}'"
-                            .format(params['boot_if'], if_list.keys())))
+        if not bootif_uuid:
             return params
 
-        if_uuid = if_list[params['boot_if']]
         interfaces = self.get('interfaces')
+        if ('network' in interfaces[bootif_uuid]
+                and interfaces[bootif_uuid]['network']):
+            net = Network(
+                id=interfaces[bootif_uuid]['network'].id,
+                mongo_db=self._mongo_db
+            )
+            params['net_prefix'] = str(net.get('PREFIX'))
+            params['net_mask'] = str(net.get('NETMASK'))
 
-        if 'network' in interfaces[if_uuid] and interfaces[if_uuid]['network']:
-            net = Network(id=interfaces[if_uuid]['network'].id,
-                          mongo_db=self._mongo_db)
-
-            params['net_prefix'] = net.get('PREFIX')
-
-        else:
-            self.log.error(("Boot interface '{}' has no network configured"
-                            .format(params['boot_if'])))
-            params['boot_if'] = ""
         return params
 
     @property
@@ -167,67 +177,69 @@ class Group(Base):
         params['prescript'] = self.get('prescript')
         params['partscript'] = self.get('partscript')
         params['postscript'] = self.get('postscript')
-        params['boot_if'] = self.get('boot_if')
         params['torrent_if'] = self.get('torrent_if')
-        params['torrent_if_net_prefix'] = ""
+        params['domain'] = ""
+
+        domaindbref = self.get('domain')
+
+        if domaindbref:
+            domainnet = Network(
+                id=domaindbref.id,
+                mongo_db=self._mongo_db
+            )
+
+            params['domain'] = domainnet.name
 
         interfaces = self.get('interfaces')
         if_list = self.list_ifs()
+
+        # now find torrent_if name and net prefix
+
         if not params['torrent_if'] in if_list.keys():
             params['torrent_if'] = ""
 
-        if not params['boot_if'] in if_list.keys():
-            params['boot_if'] = ""
-
         torrent_if_uuid = None
-        boot_if_uuid = None
 
         if params['torrent_if']:
             torrent_if_uuid = if_list[params['torrent_if']]
 
-        if params['boot_if']:
-            boot_if_uuid = if_list[params['boot_if']]
-
+        net_for_torrent_if = False
         if (torrent_if_uuid
                 and 'network' in interfaces[torrent_if_uuid]
                 and interfaces[torrent_if_uuid]['network']):
-            net = Network(id=interfaces[torrent_if_uuid]['network'].id,
-                mongo_db=self._mongo_db)
-            params['torrent_if_net_prefix'] = net.get('PREFIX')
+            net = Network(
+                id=interfaces[torrent_if_uuid]['network'].id,
+                mongo_db=self._mongo_db
+            )
+            net_for_torrent_if = True
 
         # unable to find net params for torrent_if,
         # drop it
-        if not params['torrent_if_net_prefix']:
+        if not net_for_torrent_if:
             params['torrent_if'] = ""
 
-        if (boot_if_uuid
-                and 'network' in interfaces[boot_if_uuid]
-                and interfaces[boot_if_uuid]['network']):
-            net = Network(id=interfaces[boot_if_uuid]['network'].id,
-                          mongo_db=self._mongo_db)
-            params['domain'] = net.name
-        else:
-            params['domain'] = ""
-
-        # unable to find net params for boot_if,
-        # drop it
-        if not params['domain']:
-            params['boot_if'] = ""
-
         params['interfaces'] = {}
-        interfaces = self.get('interfaces')
+
         for nic_uuid in interfaces:
             nic_name = interfaces[nic_uuid]['name']
-            params['interfaces'][nic_name] = self.get_if_params(nic_name).strip()
-            net_prefix = ""
+            nicopts = self.get_if_params(nic_name).strip()
 
-            if 'network' in interfaces[nic_uuid] and interfaces[nic_uuid]['network']:
+            params['interfaces'][nic_name] = {}
+
+            params['interfaces'][nic_name]['options'] = nicopts
+            net_prefix = ""
+            net_mask = ""
+
+            if ('network' in interfaces[nic_uuid]
+                    and interfaces[nic_uuid]['network']):
                 net = Network(id=interfaces[nic_uuid]['network'].id,
                               mongo_db=self._mongo_db)
 
-                net_prefix = 'PREFIX=' + str(net.get('PREFIX'))
+                net_prefix = str(net.get('PREFIX'))
+                net_mask = str(net.get('NETMASK'))
 
-            params['interfaces'][nic_name] += '\n' + net_prefix
+            params['interfaces'][nic_name]['prefix'] = net_prefix
+            params['interfaces'][nic_name]['netmask'] = net_mask
 
         osimage = OsImage(id=self.get('osimage').id, mongo_db=self._mongo_db)
 
@@ -248,19 +260,13 @@ class Group(Base):
 
         params['bmcsetup'] = {}
         if self.get('bmcsetup'):
-            bmc = BMCSetup(id=self.get('bmcsetup').id, mongo_db=self._mongo_db)
 
+            bmc = BMCSetup(id=self.get('bmcsetup').id, mongo_db=self._mongo_db)
             params['bmcsetup']['mgmtchannel'] = bmc.get('mgmtchannel') or 1
             params['bmcsetup']['netchannel'] = bmc.get('netchannel') or 1
             params['bmcsetup']['userid'] = bmc.get('userid') or 3
             params['bmcsetup']['user'] = bmc.get('user') or "ladmin"
             params['bmcsetup']['password'] = bmc.get('password') or "ladmin"
-            params['bmcsetup']['netmask'] = ''
-
-            bmcnet = self.get('bmcnetwork')
-            if bmcnet:
-                net = Network(id=bmcnet.id, mongo_db=self._mongo_db)
-                params['bmcsetup']['netmask'] = net.get('NETMASK')
 
         return params
 
@@ -275,7 +281,7 @@ class Group(Base):
 
         return res
 
-    def bmcsetup(self, bmcsetup_name = None):
+    def bmcsetup(self, bmcsetup_name=None):
         bmcsetup = None
         old_bmc = self.get('bmcsetup')
 
@@ -293,60 +299,13 @@ class Group(Base):
 
         return res
 
-    def set_bmcnetwork(self, bmcnet):
-        net = self.get('bmcnetwork')
-        if net:
-            self.log.error("Network is already defined for BMC interface")
-            return None
-
-        net = Network(bmcnet, mongo_db=self._mongo_db)
-        res = self.set('bmcnetwork', net.DBRef)
-        self.link(net.DBRef)
-
-        reverse_links = self.get_back_links()
-        for link in reverse_links:
-            if link['collection'] == 'node':
-                node = Node(id=link['DBRef'].id, mongo_db=self._mongo_db)
-                node.add_ip(bmc=True)
-
-        return res
-
-    def del_bmcnetwork(self):
-        bmcnet = self.get('bmcnetwork')
-
-        if bmcnet:
-            reverse_links = self.get_back_links()
-            for link in reverse_links:
-                if link['collection'] == 'node':
-                    node = Node(id=link['DBRef'].id, mongo_db=self._mongo_db)
-                    node.del_ip(bmc=True)
-
-            self.unlink(bmcnet)
-
-        res = self.set('bmcnetwork', None)
-        return res
-
-    def show_bmc_if(self, brief=False):
-        bmcnetwork = self.get('bmcnetwork')
-
-        if bmcnetwork:
-            net = Network(id=bmcnetwork.id, mongo_db=self._mongo_db)
-            NETWORK = net.get('NETWORK')
-            PREFIX = str(net.get('PREFIX'))
-
-            if brief:
-                return "[" + net.name + "]:" + NETWORK + "/" + PREFIX
-
-            return NETWORK + "/" + PREFIX
-
-        else:
-            return ''
-
     def get_net_name_for_if(self, interface_name):
         interfaces_dict = self.get('interfaces')
         if_list = self.list_ifs()
         if interface_name not in if_list:
-            self.log.error("Interface '{}' does not exist".format(interface_name))
+            self.log.error(
+                "Interface '{}' does not exist".format(interface_name)
+            )
             return ''
 
         nic_uuid = if_list[interface_name]
@@ -373,11 +332,15 @@ class Group(Base):
         if_list = self.list_ifs()
 
         if interface_name not in if_list.keys():
-            self.log.error("Interface '{}' does not exist".format(interface_name))
+            self.log.error(
+                "Interface '{}' does not exist".format(interface_name)
+            )
             return None
 
         if interface_new_name in if_list.keys():
-            self.log.error("Interface '{}' already exists".format(interface_new_name))
+            self.log.error(
+                "Interface '{}' already exists".format(interface_new_name)
+            )
             return None
 
         interface_uuid = if_list[interface_name]
@@ -386,7 +349,9 @@ class Group(Base):
         res = self.set('interfaces', interfaces)
 
         if not res:
-            self.log.error("Could not rename interface '{}'".format(interface_name))
+            self.log.error(
+                "Could not rename interface '{}'".format(interface_name)
+            )
 
         return res
 
@@ -394,18 +359,27 @@ class Group(Base):
         interfaces = self.get('interfaces')
         if_list = self.list_ifs()
         if interface_name not in if_list.keys():
-            self.log.error("Interface '{}' does not exist".format(interface_name))
+            self.log.error(
+                "Interface '{}' does not exist".format(interface_name)
+            )
             return None
         outstr = ''
         interface_uuid = if_list[interface_name]
         assigned_net_dbref = interfaces[interface_uuid]['network']
         if assigned_net_dbref:
-            assigned_net_obj = Network(id=assigned_net_dbref.id, mongo_db=self._mongo_db)
+            assigned_net_obj = Network(
+                id=assigned_net_dbref.id,
+                mongo_db=self._mongo_db
+            )
             NETWORK = assigned_net_obj.get('NETWORK')
             PREFIX = str(assigned_net_obj.get('PREFIX'))
 
             if brief:
-                return "[" + assigned_net_obj.name + "]:" + NETWORK + "/" + PREFIX
+                outstr = (
+                    "[" + assigned_net_obj.name + "]:"
+                    + NETWORK + "/" + PREFIX
+                )
+                return outstr
 
             outstr = "NETWORK=" + NETWORK + "\n"
             outstr += "PREFIX=" + PREFIX
@@ -419,7 +393,9 @@ class Group(Base):
         interface_dict = self.get('interfaces')
         if_list = self.list_ifs()
         if interface_name in if_list.keys():
-            self.log.error("Interface '{}' already exists".format(interface_name))
+            self.log.error(
+                "Interface '{}' already exists".format(interface_name)
+            )
             return None
 
         interface_dict[uuid.uuid4().hex] = {'name': interface_name,
@@ -429,7 +405,9 @@ class Group(Base):
         res = self.set('interfaces', interface_dict)
 
         if not res:
-            self.log.error("Could not add interface '{}'".format(interface_name))
+            self.log.error(
+                "Could not add interface '{}'".format(interface_name)
+            )
 
         return res
 
@@ -437,7 +415,9 @@ class Group(Base):
         interfaces_dict = self.get('interfaces')
         if_list = self.list_ifs()
         if interface_name not in if_list.keys():
-            self.log.error("Interface '{}' does not exist".format(interface_name))
+            self.log.error(
+                "Interface '{}' does not exist".format(interface_name)
+            )
             return None
         interface_uuid = if_list[interface_name]
         return interfaces_dict[interface_uuid]['params']
@@ -446,7 +426,9 @@ class Group(Base):
         interfaces_dict = self.get('interfaces')
         if_list = self.list_ifs()
         if interface_name not in if_list.keys():
-            self.log.error("Interface '{}' does not exist".format(interface_name))
+            self.log.error(
+                "Interface '{}' does not exist".format(interface_name)
+            )
             return None
 
         interface_uuid = if_list[interface_name]
@@ -458,7 +440,6 @@ class Group(Base):
 
         return res
 
-
     def get_allocated_ips(self, net_id):
         ips = {}
 
@@ -469,16 +450,6 @@ class Group(Base):
                                .format(self.name, key))
             else:
                 ips[key] = val
-
-        bmcnet = self.get('bmcnetwork')
-        if self.get(usedby_key) and bmcnet and bmcnet.id == net_id:
-            for node_id in self.get(usedby_key)['node']:
-                node = Node(
-                    id=ObjectId(node_id),
-                    group=self,
-                    mongo_db=self._mongo_db,
-                )
-                add_to_dict(node.name, node.get_ip(bmc=True, format='num'))
 
         ifs = self.get('interfaces')
         if self.get(usedby_key) and ifs:
@@ -507,7 +478,9 @@ class Group(Base):
         if_list = self.list_ifs()
 
         if interface_name not in if_list.keys():
-            self.log.error("Interface '{}' does not exist".format(interface_name))
+            self.log.error(
+                "Interface '{}' does not exist".format(interface_name)
+            )
             return False
 
         interface_uuid = if_list[interface_name]
@@ -545,7 +518,9 @@ class Group(Base):
         if_list = self.list_ifs()
 
         if interface_name not in if_list.keys():
-            self.log.error("Interface '{}' does not exist".format(interface_name))
+            self.log.error(
+                "Interface '{}' does not exist".format(interface_name)
+            )
             return False
 
         interface_uuid = if_list[interface_name]
@@ -566,7 +541,7 @@ class Group(Base):
         res = self.set('interfaces', interfaces_dict)
         if not res:
             self.log.error("Error deleting network for interface '{}'"
-                           .format(interface))
+                           .format(interface_name))
             return False
 
         return True
@@ -578,7 +553,9 @@ class Group(Base):
         if_list = self.list_ifs()
 
         if interface_name not in if_list.keys():
-            self.log.error("Interface '{}' does not exist".format(interface_name))
+            self.log.error(
+                "Interface '{}' does not exist".format(interface_name)
+            )
             return False
 
         interface_uuid = if_list[interface_name]
@@ -587,18 +564,20 @@ class Group(Base):
 
         res = self.set('interfaces', interfaces_dict)
         if not res:
-            self.log.error("Error deleting interface '{}'".format(interface_name))
+            self.log.error(
+                "Error deleting interface '{}'".format(interface_name)
+            )
             return False
 
         return True
 
-    def manage_ip(self, interface_uuid=None, ip=None, bmc=False, release=False):
+    def manage_ip(self, interface_uuid=None,
+            ip=None, release=False):
         """
         operations with IP: add/delete
         """
-        if bmc:
-            net_dbref = self.get('bmcnetwork')
-        elif self.get('interfaces') and interface_uuid in self.get('interfaces'):
+        if (self.get('interfaces')
+                and interface_uuid in self.get('interfaces')):
             net_dbref = self.get('interfaces')[interface_uuid]['network']
         else:
             net_dbref = None
@@ -616,25 +595,26 @@ class Group(Base):
         else:
             return net_obj.reserve_ip(ip)
 
-    def get_ip(self, interface_uuid=None, ip=None, bmc=False, format='num'):
+    def get_ip(self, interface_uuid=None, ip=None, format='num'):
         """
         Convert from relative numbers to human-readable IPs and back
         """
-        if not interface_uuid and not bmc:
+        if not interface_uuid:
             self.log.error("Interface should be specified")
             return None
+
         if not ip:
             self.log.error("IP should be specified")
             return None
-        if bmc:
-            net_dbref = self.get('bmcnetwork')
-        elif self.get('interfaces') and interface_uuid in self.get('interfaces'):
+
+        if (self.get('interfaces')
+                and interface_uuid in self.get('interfaces')):
             net_dbref = self.get('interfaces')[interface_uuid]['network']
         else:
             net_dbref = None
 
         if not net_dbref:
-            interface_name = 'BMC'
+            interface_name = ''
             if interface_uuid:
                 interface_name = self.get('interfaces')[interface_uuid]['name']
             self.log.warning("Network is not configured for {} interface"
@@ -644,10 +624,42 @@ class Group(Base):
         net_obj = Network(id=net_dbref.id, mongo_db=self._mongo_db)
 
         if ip and format is 'human':
-            return utils.ip.reltoa(net_obj._json['NETWORK'], ip)
+            iphuman = utils.ip.reltoa(net_obj._json['NETWORK'], ip)
+            return iphuman
+
         elif ip and format is 'num':
-            return utils.ip.atorel(ip, net_obj._json['NETWORK'], net_obj.get('PREFIX'))
+            ipnum = utils.ip.atorel(
+                ip,
+                net_obj._json['NETWORK'],
+                net_obj.get('PREFIX')
+            )
+            return ipnum
 
         return None
+
+    def set_domain(self, domain_name=None):
+
+        newnet, oldnet = None, None
+        newnet_dbref = None
+
+        if domain_name:
+            newnet = Network(name=domain_name, mongo_db=self._mongo_db)
+            newnet_dbref = newnet.DBRef
+
+        if 'domain' in self._json and self._json['domain']:
+            oldnet = Network(
+                id=self._json['domain'].id,
+                mongo_db=self._mongo_db
+            )
+
+        if oldnet:
+            self.unlink(oldnet)
+
+        if newnet:
+            self.link(newnet)
+
+        self.set('domain', newnet_dbref)
+
+        return True
 
 from luna.node import Node

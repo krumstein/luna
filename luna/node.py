@@ -99,8 +99,6 @@ class Node(Base):
             for interface_name in self.group.list_ifs().keys():
                 self.add_ip(interface_name)
 
-            self.add_ip(bmc=True)
-
             # Link this node to its group and the current cluster
 
             self.link(self.group)
@@ -154,7 +152,7 @@ class Node(Base):
         self._get_group()
         return self.group.list_ifs()
 
-    def add_ip(self, interface_name=None, new_ip=None, bmc=False):
+    def add_ip(self, interface_name=None, new_ip=None):
 
         interface_uuid = None
 
@@ -162,16 +160,8 @@ class Node(Base):
             interface_dict = self.list_ifs()
             interface_uuid = interface_dict[interface_name]
 
-        if bmc:
-            self._get_group()
-
-        if not bmc and not interface_name:
+        if not interface_name:
             self.log.error("Interface should be specified")
-            return None
-
-        if bmc and self.get('bmcnetwork'):
-            self.log.error(("Node already has a BMC IP address"
-                            .format(interface_name)))
             return None
 
         if (interface_name
@@ -181,45 +171,21 @@ class Node(Base):
                             .format(interface_name)))
             return None
 
-        ip = self.group.manage_ip(interface_uuid, new_ip, bmc=bmc)
+        ip = self.group.manage_ip(interface_uuid, new_ip)
 
         if not ip:
             self.log.warning(("Could not reserve IP {} for {} interface"
                               .format(new_ip or '', interface_name or 'BMC')))
             return None
 
-        if bmc:
-            res = self.set('bmcnetwork', ip)
-        else:
-            self._json['interfaces'][interface_uuid] = ip
-            res = self.set('interfaces', self._json['interfaces'])
+        self._json['interfaces'][interface_uuid] = ip
+        res = self.set('interfaces', self._json['interfaces'])
 
         return res
 
-    def del_ip(self, interface_name=None, bmc=False):
+    def del_ip(self, interface_name=None):
 
         self._get_group()
-
-        # first work with BMC
-
-        bmcip = self._json['bmcnetwork']
-
-        if bmc and not bmcip:
-            self.log.error("Node has no BMC interface configured")
-            return True
-
-        if bmc:
-            self.group.manage_ip(ip=bmcip, bmc=bmc, release=True)
-            res = self.set('bmcnetwork', None)
-            return res
-
-        # regular interfaces
-
-        interface_uuid = None
-
-        if interface_name:
-            interface_dict = self.list_ifs()
-            interface_uuid = interface_dict[interface_name]
 
         interfaces = self._json['interfaces']
 
@@ -229,6 +195,8 @@ class Node(Base):
 
         new_interfaces = interfaces.copy()
 
+        # if interface_name is not specified
+        # delete all interfaces
 
         if not interface_name:
             for if_uuid in interfaces:
@@ -237,6 +205,14 @@ class Node(Base):
                 new_interfaces.pop(if_uuid)
             res = self.set('interfaces', new_interfaces)
             return res
+
+        # here interface_name is defined,
+        # so release this IP
+
+        interface_uuid = None
+
+        interface_dict = self.list_ifs()
+        interface_uuid = interface_dict[interface_name]
 
         if interface_uuid in interfaces:
             if_ip_assigned = interfaces[interface_uuid]
@@ -247,6 +223,7 @@ class Node(Base):
 
         self.log.warning(("Node does not have an '{}' interface"
             .format(interface)))
+
         return None
 
 
@@ -259,20 +236,36 @@ class Node(Base):
         self._get_group()
         group_params = self.group.boot_params
 
-        params['boot_if'] = group_params['boot_if']
-        params['kernel_file'] = group_params['kernel_file']
-        params['initrd_file'] = group_params['initrd_file']
-        params['kern_opts'] = group_params['kern_opts']
-        params['boot_if'] = group_params['boot_if']
-        params['net_prefix'] = group_params['net_prefix']
+        params = group_params.copy()
+
+        params['bootproto'] = 'dhcp'
+
         params['name'] = self.name
+
+        params['hostname'] = self.name
+
+        if params['domain']:
+            params['hostname'] += "." + params['domain']
+
+
         # FIXME 'service' and 'localboot' should be int or bool
         # not mix, please
         params['service'] = int(self.get('service'))
         params['localboot'] = self.get('localboot')
 
-        if params['boot_if']:
-            params['ip'] = self.get_ip(params['boot_if'])
+        interfaces = self.list_ifs()
+        bootif_uuid = None
+
+        params['ip'] = ''
+
+        if 'BOOTIF' in interfaces:
+            params['ip'] = self.get_ip('BOOTIF')
+
+        params['mac'] = self.get_mac()
+        if (params['ip']
+                and params['mac']
+                and (params['net_prefix'] or params['net_mask'])):
+            params['bootproto'] = 'static'
 
         return params
 
@@ -284,25 +277,17 @@ class Node(Base):
 
         params['name'] = self.name
         params['setupbmc'] = self.get('setupbmc')
+        params['mac'] = self.get_mac() or ''
 
         if params['domain']:
             params['hostname'] = self.name + "." + params['domain']
         else:
             params['hostname'] = self.name
 
-        if params['torrent_if']:
-            params['torrent_if_ip'] = self.get_ip(params['torrent_if'])
-
         for interface in params['interfaces']:
             ip = self.get_ip(interface)
             if ip:
-                params['interfaces'][interface] += "\n" + "IPADDR=" + ip
-
-        if params['bmcsetup']:
-            try:
-                params['bmcsetup']['ip'] = self.get_ip(bmc=True)
-            except:
-                pass
+                params['interfaces'][interface]['ip'] = str(ip)
 
         return params
 
@@ -333,16 +318,8 @@ class Node(Base):
 
         new_group = Group(new_group_name, mongo_db=self._mongo_db)
         self._get_group()
+
         group_interfaces = self.group._json['interfaces']
-
-        if 'bmcnetwork' in self.group._json and self.group._json['bmcnetwork']:
-            bmc_net_id = self.group._json['bmcnetwork'].id
-            bmc_ip = self.get_ip(bmc=True)
-        else:
-            bmc_net_id = None
-            bmc_ip = None
-
-        self.del_ip(bmc=True)
 
         ips = {}
 
@@ -353,26 +330,16 @@ class Node(Base):
                 net_id = group_interfaces[interface]['network'].id
                 ip = self.get_ip(if_name)
                 ips[net_id] = {'interface': if_name, 'ip': ip}
-            else:
-                net_id = None
 
-            self.del_ip(if_name)
+        self.del_ip()
 
         self.unlink(self.group)
+
         res = self.set('group', new_group.DBRef)
+
         self.link(new_group)
         self.group = None
         self._get_group()
-
-        if 'bmcnetwork' in new_group._json and new_group._json['bmcnetwork']:
-            newbmc_net_id = new_group._json['bmcnetwork'].id
-        else:
-            newbmc_net_id = None
-
-        if bool(bmc_net_id) and newbmc_net_id == bmc_net_id:
-            self.add_ip(new_ip=bmc_ip, bmc=True)
-        else:
-            self.add_ip(bmc=True)
 
         new_group_interfaces = new_group._json['interfaces']
         for interface in new_group_interfaces:
@@ -393,7 +360,7 @@ class Node(Base):
 
         return True
 
-    def set_ip(self, interface_name=None, ip=None, bmc=False):
+    def set_ip(self, interface_name=None, ip=None):
 
         if not ip:
             self.log.error("IP address should be provided")
@@ -405,16 +372,13 @@ class Node(Base):
             interface_dict = self.list_ifs()
             interface_uuid = interface_dict[interface_name]
 
-        if bmc:
-            self._get_group()
-
-        if not bool(self.group.get_ip(interface_uuid, ip, bmc=bmc, format='num')):
+        if not bool(self.group.get_ip(interface_uuid, ip, format='num')):
             return None
 
-        res = self.del_ip(interface_name, bmc=bmc)
+        res = self.del_ip(interface_name)
 
         if res:
-            return self.add_ip(interface_name, ip, bmc=bmc)
+            return self.add_ip(interface_name, ip)
 
         return None
 
@@ -481,7 +445,7 @@ class Node(Base):
             return ipnum
         else:
             self._get_group()
-            return self.group.get_ip(interface_uuid, ipnum, bmc=bmc, format='human')
+            return self.group.get_ip(interface_uuid, ipnum, format='human')
 
     def get_mac(self):
         try:
@@ -558,60 +522,11 @@ class Node(Base):
 
         return {'status': status, 'time': ret_time}
 
-    def check_avail(self, timeout=1, bmc=True, net=None):
-        avail = {'bmc': None, 'nets': {}}
-        bmc_ip = self.get_ip(bmc=True)
-
-        if bmc and bmc_ip:
-            ipmi_message = ("0600ff07000000000000000000092018c88100388e04b5"
-                            .decode('hex'))
-            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            sock.settimeout(timeout)
-            sock.sendto(ipmi_message, (bmc_ip, 623))
-
-            try:
-                data, addr = sock.recvfrom(1024)
-                avail['bmc'] = True
-            except socket.timeout:
-                avail['bmc'] = False
-
-        self._get_group()
-        test_ips = []
-
-        try:
-            ifs = self._json['interfaces']
-        except:
-            ifs = {}
-
-        for interface in ifs:
-            tmp_net = group.group.get_net_name_for_if(interface)
-            tmp_json = {'network': tmp_net,
-                        'ip': self.get_ip(interface)}
-
-            if bool(net):
-                if tmp_net == net:
-                    test_ips.append(tmp_json)
-            else:
-                if bool(tmp_net):
-                    test_ips.append(tmp_json)
-
-        for elem in test_ips:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(timeout)
-            result = sock.connect_ex((elem['ip'], 22))
-
-            if result == 0:
-                avail['nets'][elem['network']] = True
-            else:
-                avail['nets'][elem['network']] = False
-        return avail
-
     def release_resources(self):
         mac = self.get_mac()
         self._mongo_db['switch_mac'].remove({'mac': mac})
         self._mongo_db['mac'].remove({'mac': mac})
 
-        self.del_ip(bmc=True)
         self.del_ip()
 
         return True
@@ -648,6 +563,3 @@ class Node(Base):
                     server_ip=server_ip,
                     server_port=server_port
                     )
-
-
-
