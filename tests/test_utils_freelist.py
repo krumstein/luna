@@ -8,6 +8,7 @@ from luna.utils import freelist
 class UtilsFreelistTests(unittest.TestCase):
 
     def setUp(self):
+        print
         self.flist0 = []
         self.flist1 = [{'start': 1, 'end': 254}]
         self.flist2 = [{'start': 10, 'end': 18}, {'start': 20, 'end': 254}]
