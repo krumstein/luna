@@ -624,14 +624,15 @@ class Group(Base):
         net_obj = Network(id=net_dbref.id, mongo_db=self._mongo_db)
 
         if ip and format is 'human':
-            iphuman = utils.ip.reltoa(net_obj._json['NETWORK'], ip)
+            iphuman = utils.ip.reltoa(
+                net_obj._json['NETWORK'], ip, net_obj.version
+            )
             return iphuman
 
         elif ip and format is 'num':
             ipnum = utils.ip.atorel(
-                ip,
-                net_obj._json['NETWORK'],
-                net_obj.get('PREFIX')
+                ip, net_obj._json['NETWORK'], net_obj.get('PREFIX'),
+                net_obj.version
             )
             return ipnum
 
