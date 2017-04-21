@@ -62,7 +62,6 @@ def aton(ip, ver=4):
     Convert the IP ip from the IPv4 numbers-and-dots
     notation into binary form (in network byte order)
     """
-
     try:
         absnum = int(hexlify(socket.inet_pton(af[ver], ip)), 16)
         return long(absnum)
@@ -72,14 +71,14 @@ def aton(ip, ver=4):
         raise RuntimeError
 
 
-def reltoa(num_net, rel_ip):
+def reltoa(num_net, rel_ip, ver):
     """
     Convert a relative ip (a number relative to the base of the
     network obtained using 'get_num_subnet') into an IPv4 address
     """
 
     num_ip = int(num_net) + int(rel_ip)
-    return ntoa(num_ip)
+    return ntoa(num_ip, ver)
 
 
 def atorel(ip, num_net, prefix, ver=4):
@@ -91,7 +90,7 @@ def atorel(ip, num_net, prefix, ver=4):
     num_ip = aton(ip, ver)
 
     # Check if the ip address actually belongs to num_net/prefix
-    if not ip_in_net(ip, num_net, prefix):
+    if not ip_in_net(ip, num_net, prefix, ver):
         log.error(("Network '{}/{}' does not contain '{}'"
                    .format(ntoa(num_net, ver), prefix, ip)))
         raise RuntimeError
