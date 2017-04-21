@@ -86,11 +86,11 @@ def unfree_range(flist, start, end=None):
     first_free = flist[0]['start']
     last_free = flist[-1]['end']
 
-    if start not in range(first_free, last_free + 1):
+    if not (first_free <= start <= last_free):
         log.error("Requested IP '{}' is out of range".format(start))
         return (flist, None)
 
-    if end not in range(first_free, last_free + 1):
+    if not (first_free <= end <= last_free):
         log.error("Requested IP '{}' is out of range".format(end))
         return (flist, None)
 
@@ -102,8 +102,8 @@ def unfree_range(flist, start, end=None):
     index = -1
     for i, frange in enumerate(flist):
 
-        if (start in range(frange['start'], frange['end'] + 1) and
-                end in range(frange['start'], frange['end'] + 1)):
+        if ((frange['start'] <= start <= frange['end']) and
+                (frange['start'] <= end <= frange['end'])):
 
             index = i
 
@@ -165,8 +165,9 @@ def free_range(flist, start, end=None):
         if i == len(tmp_list) - 1:
             new_list.append(tmp_list[i])
 
-        elif tmp_list[i + 1]['start'] in range(tmp_list[i]['start'],
-                                               tmp_list[i]['end'] + 2):
+        elif (tmp_list[i]['start']
+                <= tmp_list[i + 1]['start']
+                <= tmp_list[i]['end'] + 2):
             s = tmp_list[i]['start']
             e = tmp_list[i]['end']
 
@@ -234,8 +235,10 @@ def get_nonfree(flist, limit=None):
 
     nonfree_list = []
 
-    for i in range(1, last_nonfree):
-        if i in range(flist[0]['start'], flist[0]['end'] + 1):
+    i = 0
+    while i < last_nonfree:
+        i += 1
+        if (flist[0]['start'] <= i <= flist[0]['end']):
             continue
 
         if i > flist[0]['end']:
