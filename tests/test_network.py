@@ -188,7 +188,7 @@ class NetworkAttributesTestsIPv6(unittest.TestCase):
         self.assertEqual(self.net.get('NETMASK'), 'ffff:ffff:ffff:ffff::')
 
     def test_get_PREFIX(self):
-        self.assertEqual(self.net.get('PREFIX'), '64')
+        self.assertEqual(self.net.get('PREFIX'), 64)
 
     def test_get_ns_ip(self):
         self.assertEqual(self.net.get('ns_ip'), 'fdee:172:30:128::254:254')
