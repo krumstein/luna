@@ -104,9 +104,9 @@ class Network(Base):
             # the cluster's frontend address
 
             if ns_ip is None:
-                ns_ip = str(utils.ip.reltoa(num_subnet,
+                ns_ip = utils.ip.reltoa(num_subnet,
                                             int(flist[0]['end']),
-                                            self.version))
+                                            self.version)
 
             self.set('ns_ip', ns_ip)
 
@@ -137,15 +137,17 @@ class Network(Base):
                 'start': int(start),
                 'end': int(end)
             })
+        if self._json['ns_ip']:
+            self._json['ns_ip'] = int(self._json['ns_ip'])
         self._json['freelist'] = flist
 
-    def _nsip_to_str(self, flist):
+    def _nsip_to_str(self, ip):
         """
         Convert ns_ip to strings for IPv6
         """
         if self.version == 4:
-            return flist
-        return str(flist)
+            return ip
+        return str(ip)
 
     def _flist_to_str(self, flist):
         """
@@ -163,6 +165,7 @@ class Network(Base):
         return new_flist
 
     def set(self, key, value):
+        self._convert_to_int()
         net = self._json
 
         if key == 'ns_ip':
@@ -177,9 +180,11 @@ class Network(Base):
                 self.release_ip(old_ip)
 
             self.reserve_ip(rel_ns_ip)
-            ret = super(Network, self).set(
-                'ns_ip', self._nsip_to_str(rel_ns_ip)
-            )
+
+            if self.version == 6:
+                rel_ns_ip = str(rel_ns_ip)
+
+            ret = super(Network, self).set('ns_ip', rel_ns_ip)
 
         elif key == 'NETWORK':
             prefix = net['PREFIX']
@@ -205,9 +210,11 @@ class Network(Base):
         else:
             ret = super(Network, self).set(key, value)
 
+        self._convert_to_int()
         return ret
 
     def get(self, key):
+        self._convert_to_int()
         net = self._json
 
         if key == 'NETWORK':
@@ -236,6 +243,7 @@ class Network(Base):
         return value
 
     def reserve_ip(self, ip1=None, ip2=None, ignore_errors=True):
+        self._convert_to_int()
         net = self._json
 
         if type(ip1) is str:
