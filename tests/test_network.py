@@ -133,6 +133,18 @@ class NetworkAttributesTests(unittest.TestCase):
     def test_get_ns_ip(self):
         self.assertEqual(self.net.get('ns_ip'), '172.16.1.254')
 
+    def test_change_ns_ip(self):
+        json = self.net._json
+        self.assertEqual(json['ns_ip'], 254)
+        self.assertEqual(json['freelist'],
+            [{'start': 1, 'end': 253}]
+        )
+        self.assertTrue(self.net.set('ns_ip', '172.16.1.253'))
+        self.assertEqual(json['ns_ip'], 253)
+        self.assertEqual(json['freelist'],
+            [{'start': 1, 'end': 252}, {'start': 254, 'end': 254}]
+        )
+
     def test_get_other_key(self):
         self.assertEqual(self.net.get('name'), 'test')
 
@@ -193,6 +205,25 @@ class NetworkAttributesTestsIPv6(unittest.TestCase):
     def test_get_ns_ip(self):
         self.assertEqual(self.net.get('ns_ip'), 'fdee:172:30:128::254:254')
 
+    def test_change_ns_ip(self):
+        json = self.net._json
+        self.assertEqual(json['ns_ip'], 39060052)
+        self.assertEqual(json['freelist'],
+            [
+                {'start': 1, 'end': 39060051},
+                {'start': 39060053, 'end': 18446744073709551614}
+            ]
+        )
+
+        self.assertTrue(self.net.set('ns_ip', 'fdee:172:30:128::254:253'))
+        self.assertEqual(json['ns_ip'], 39060051)
+        self.assertEqual(json['freelist'],
+            [
+                {'start': 1, 'end': 39060050},
+                {'start': 39060052, 'end': 18446744073709551614}
+            ]
+        )
+
     def test_get_other_key(self):
         self.assertEqual(self.net.get('name'), 'test')
 
@@ -200,9 +231,9 @@ class NetworkAttributesTestsIPv6(unittest.TestCase):
         self.net.reserve_ip('fdee:172:30:128::253:254')
         net = self.net._json
         expected_freelist = [
-            {'start': '1', 'end': '38994515'},
-            {'start': '38994517', 'end': '39060051'},
-            {'start': '39060053', 'end': '18446744073709551614'}
+            {'start': 1, 'end': 38994515},
+            {'start': 38994517, 'end': 39060051},
+            {'start': 39060053, 'end': 18446744073709551614}
         ]
         self.assertEqual(net['freelist'], expected_freelist)
 
@@ -210,24 +241,24 @@ class NetworkAttributesTestsIPv6(unittest.TestCase):
         self.net.reserve_ip('fdee:172:30:128::1:4', 'fdee:172:30:128::1:6')
         net = self.net._json
         self.assertEqual(net['freelist'],
-                         [{'end': '65539', 'start': '1'},
-                          {'start': '65543', 'end': '39060051'},
-                          {'start': '39060053', 'end': '18446744073709551614'}]
+                         [{'end': 65539, 'start': 1},
+                          {'start': 65543, 'end': 39060051},
+                          {'start': 39060053, 'end': 18446744073709551614}]
                          )
 
     def test_release_ip(self):
         self.net.release_ip('fdee:172:30:128::254:254')
         net = self.net._json
         self.assertEqual(net['freelist'],
-                         [{'start': '1', 'end': '18446744073709551614'}])
+                         [{'start': 1, 'end': 18446744073709551614}])
 
     def test_release_ip_range(self):
         self.net.reserve_ip('fdee:172:30:128::1:4', 'fdee:172:30:128::1:6')
         self.net.release_ip('fdee:172:30:128::1:4', 'fdee:172:30:128::1:6')
         net = self.net._json
         self.assertEqual(net['freelist'],
-                         [{'start': '1', 'end': '39060051'},
-                          {'start': '39060053', 'end': '18446744073709551614'}]
+                         [{'start': 1, 'end': 39060051},
+                          {'start': 39060053, 'end': 18446744073709551614}]
                          )
 
 if __name__ == '__main__':
