@@ -152,7 +152,7 @@ class Node(Base):
         self._get_group()
         return self.group.list_ifs()
 
-    def add_ip(self, interface_name=None, new_ip=None):
+    def add_ip(self, interface_name=None, new_ip=None, version=None):
 
         interface_uuid = None
 
@@ -164,22 +164,79 @@ class Node(Base):
             self.log.error("Interface should be specified")
             return None
 
-        if (interface_name
-                and interface_uuid in self._json['interfaces']
-                and self._json['interfaces'][interface_uuid]):
-            self.log.error(("Interface '{}' has IP address already"
-                            .format(interface_name)))
-            return None
+        interfaces = self._json['interfaces']
 
-        ip = self.group.manage_ip(interface_uuid, new_ip)
+        # First check if we have some bits for this interface,
+        # if no - create empty. Latter should be the case
+        # on node creation
+        if interface_uuid in interfaces:
+            interface_ips = interfaces[interface_uuid]
+        else:
+            interface_ips = {'4': None, '6': None}
 
-        if not ip:
-            self.log.warning(("Could not reserve IP {} for {} interface"
-                              .format(new_ip or '', interface_name or 'BMC')))
-            return None
+        # Tiny list for storing IPvX keys for which IP
+        # can be assigned: [], ['4'], ['6'], ['4', '6']
+        no_ip_keys = []
+        for key in interface_ips:
+            if not interface_ips[key]:
+                no_ip_keys.append(key)
 
-        self._json['interfaces'][interface_uuid] = ip
-        res = self.set('interfaces', self._json['interfaces'])
+        # Check if passed version in that list
+        # If no - we are unable to proceed
+        if version and version not in no_ip_keys:
+            self.log.error("Interface '{}' has IPv{} address already"
+                .format(interface_name, version))
+            return False
+
+        # No we know which IPvX we need to assign
+        # if version is specified - use it
+        if version:
+            versions_to_assign = [version]
+        else:
+            versions_to_assign = no_ip_keys[:]
+
+        # on this step we have versions_to_assign, but we are not sure if we can
+        # as network for this IPvX could not exist in corresponding group
+        # So pop versions if we have no network configured
+        tmp = versions_to_assign[:]
+        versions_to_assign = []
+        for v in range(len(tmp)):
+            net = self.group._json['interfaces'][interface_uuid]['network'][tmp[v]]
+            if net:
+                versions_to_assign.append(tmp[v])
+
+        # versions_to_assign contains all IPvX we can assign finally
+        # Now we can report an error if we unable to meet assignment
+        # if 'version' passed as parameter
+        if version and version not in versions_to_assign:
+            self.log.error(
+                ("Unable to assign IP address IPv{} for interface {}, "
+                 + "as network is not configured")
+                .format(version, interface_name)
+            )
+
+        # Finally we can acquire IPs
+        ips = {} # for rolling back if needed
+        for ver in versions_to_assign:
+            ip = self.group.manage_ip(interface_uuid, new_ip, version=ver)
+            interface_ips[ver] = ip
+            if not ip:
+                self.log.error(
+                    "Could not reserve IP {} (IPv{}) for {} interface"
+                    .format(new_ip or '', ver, interface_name or 'this'))
+                for v in ips:
+                    self.group.manage_ip(
+                        interface_uuid,
+                        ip=ips[v],
+                        release=True,
+                        version=v
+                    )
+                return False
+            ips[ver] = ip
+
+        all_interfaces = self._json['interfaces']
+        all_interfaces[interface_uuid] = interface_ips
+        res = self.set('interfaces', all_interfaces)
 
         return res
 
