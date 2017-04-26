@@ -88,7 +88,10 @@ class Group(Base):
             for interface in interfaces:
                 if_dict[uuid.uuid4().hex] = {
                     'name': interface,
-                    'network': None,
+                    'network': {
+                        '4': None,
+                        '6': None
+                    },
                     'params': ''
                 }
 
@@ -299,7 +302,12 @@ class Group(Base):
 
         return res
 
-    def get_net_name_for_if(self, interface_name):
+    def get_net_name_for_if(self, interface_name, version='4'):
+
+        if version not in ['4', '6']:
+            self.log.error("Only IPv4 and IPv6 are supported")
+            return False
+
         interfaces_dict = self.get('interfaces')
         if_list = self.list_ifs()
         if interface_name not in if_list:
@@ -310,8 +318,9 @@ class Group(Base):
 
         nic_uuid = if_list[interface_name]
         nic = interfaces_dict[nic_uuid]
-        if nic['network']:
-            net = Network(id=nic['network'].id, mongo_db=self._mongo_db)
+        if nic['network'][version]:
+            net_id = nic['network'][version].id
+            net = Network(id=net_id, mongo_db=self._mongo_db)
             return net.name
         else:
             return ''
@@ -355,39 +364,71 @@ class Group(Base):
 
         return res
 
-    def show_if(self, interface_name, brief=False):
+    def show_if(self, interface_name=None, interface_uuid=None):
+
+        if not interface_name and not interface_uuid:
+            self.log.error("Interface should be specified")
+            return False
+
         interfaces = self.get('interfaces')
         if_list = self.list_ifs()
-        if interface_name not in if_list.keys():
+
+        if not interface_uuid:
+            try:
+                interface_uuid = if_list[interface_name]
+            except KeyError:
+                self.log.error(
+                    "Interface '{}' does not exist".format(interface_name)
+                )
+                return False
+
+        if not interface_uuid in interfaces.keys():
             self.log.error(
-                "Interface '{}' does not exist".format(interface_name)
+                "Interface with UUID {} does not exist".format(interface_uuid)
             )
+            return False
+
+        if interface_name not in if_list.keys():
             return None
-        outstr = ''
-        interface_uuid = if_list[interface_name]
-        assigned_net_dbref = interfaces[interface_uuid]['network']
-        if assigned_net_dbref:
+
+        params = {
+            'options': interfaces[interface_uuid]['params'],
+            'name': interfaces[interface_uuid]['name'],
+            'network': {
+                '4': {
+                    'name': '',
+                    'network': '',
+                    'prefix': '',
+                    'netmask': '',
+                },
+                '6': {
+                    'name': '',
+                    'network': '',
+                    'prefix': '',
+                    'netmask': '',
+                },
+            },
+
+        }
+
+        for ver in ['4', '6']:
+
+            assigned_net_dbref = interfaces[interface_uuid]['network'][ver]
+
+            if not assigned_net_dbref:
+                continue
+
             assigned_net_obj = Network(
                 id=assigned_net_dbref.id,
                 mongo_db=self._mongo_db
             )
-            NETWORK = assigned_net_obj.get('NETWORK')
-            PREFIX = str(assigned_net_obj.get('PREFIX'))
 
-            if brief:
-                outstr = (
-                    "[" + assigned_net_obj.name + "]:"
-                    + NETWORK + "/" + PREFIX
-                )
-                return outstr
+            params['network'][ver]['name'] = assigned_net_obj.name
+            params['network'][ver]['network'] = assigned_net_obj.get('NETWORK')
+            params['network'][ver]['prefix'] = str(assigned_net_obj.get('PREFIX'))
+            params['network'][ver]['netmask'] = str(assigned_net_obj.get('NETMASK'))
 
-            outstr = "NETWORK=" + NETWORK + "\n"
-            outstr += "PREFIX=" + PREFIX
-
-        if interfaces[interface_uuid]['params'] and not brief:
-            outstr += "\n" + nic['params']
-
-        return outstr.rstrip()
+        return params
 
     def add_interface(self, interface_name):
         interface_dict = self.get('interfaces')
@@ -399,7 +440,10 @@ class Group(Base):
             return None
 
         interface_dict[uuid.uuid4().hex] = {'name': interface_name,
-                                            'network': None,
+                                            'network': {
+                                                '4': None,
+                                                '6': None,
+                                                },
                                             'params': ''}
 
         res = self.set('interfaces', interface_dict)
@@ -485,13 +529,15 @@ class Group(Base):
 
         interface_uuid = if_list[interface_name]
 
-        if interfaces_dict[interface_uuid]['network']:
-            self.log.error("Network is already defined for interface '{}'"
-                           .format(interface_name))
+        network_obj = Network(network_name, mongo_db=self._mongo_db)
+        version = str(network_obj.version)
+
+        if interfaces_dict[interface_uuid]['network'][version]:
+            self.log.error("Network IPv{} is already defined for interface '{}'"
+                           .format(version, interface_name))
             return False
 
-        network_obj = Network(network_name, mongo_db=self._mongo_db)
-        interfaces_dict[interface_uuid]['network'] = network_obj.DBRef
+        interfaces_dict[interface_uuid]['network'][version] = network_obj.DBRef
 
         res = self.set('interfaces', interfaces_dict)
 
@@ -513,7 +559,12 @@ class Group(Base):
 
         return True
 
-    def del_net_from_if(self, interface_name, mute_error=False):
+    def del_net_from_if(self, interface_name, mute_error=False, version='4'):
+
+        if version not in ['4', '6']:
+            self.log.error("Only IPv4 and IPv6 are supported")
+            return False
+
         interfaces_dict = self.get('interfaces')
         if_list = self.list_ifs()
 
@@ -524,20 +575,20 @@ class Group(Base):
             return False
 
         interface_uuid = if_list[interface_name]
-        if not interfaces_dict[interface_uuid]['network']:
+        if not interfaces_dict[interface_uuid]['network'][version]:
             if not mute_error:
-                self.log.error("Network is not configured for interface '{}'"
-                               .format(interface_name))
+                self.log.error("Network IPv{} is not configured for interface '{}'"
+                               .format(version, interface_name))
             return False
 
         reverse_links = self.get_back_links()
         for link in reverse_links:
             if link['collection'] == 'node':
                 node = Node(id=link['DBRef'].id, mongo_db=self._mongo_db)
-                node.del_ip(interface_name)
+                node.del_ip(interface_name, version)
 
-        self.unlink(interfaces_dict[interface_uuid]['network'])
-        interfaces_dict[interface_uuid]['network'] = None
+        self.unlink(interfaces_dict[interface_uuid]['network'][version])
+        interfaces_dict[interface_uuid]['network'][version] = None
         res = self.set('interfaces', interfaces_dict)
         if not res:
             self.log.error("Error deleting network for interface '{}'"
@@ -547,7 +598,8 @@ class Group(Base):
         return True
 
     def del_interface(self, interface_name):
-        self.del_net_from_if(interface_name, mute_error=True)
+        self.del_net_from_if(interface_name, mute_error=True, version='4')
+        self.del_net_from_if(interface_name, mute_error=True, version='6')
 
         interfaces_dict = self.get('interfaces')
         if_list = self.list_ifs()
@@ -572,20 +624,54 @@ class Group(Base):
         return True
 
     def manage_ip(self, interface_uuid=None,
-            ip=None, release=False):
+            ip=None, release=False, version=None):
         """
         operations with IP: add/delete
         """
-        if (self.get('interfaces')
-                and interface_uuid in self.get('interfaces')):
-            net_dbref = self.get('interfaces')[interface_uuid]['network']
+
+        if version:
+            version = str(version)
+
+        if version and version not in ['4', '6']:
+            self.log.error("Only IPv4 and IPv6 are supported")
+            return False
+
+        if interface_uuid not in self.get('interfaces'):
+            self.log.error("Interface {} does not exixt"
+                .format(interface_uuid))
+            return False
+
+        interface_name = self.get('interfaces')[interface_uuid]['name']
+
+        net4_dbref = self.get('interfaces')[interface_uuid]['network']['4']
+        net6_dbref = self.get('interfaces')[interface_uuid]['network']['6']
+
+        if not version:
+            if net4_dbref and net6_dbref:
+                self.log.error(
+                    ("Both IPv4 and IPv6 are configured for the interface {}. "+
+                    "Version needs to be specified." )
+                    .format(interface_name)
+                )
+                return False
+
+        if not version and not net4_dbref and not net6_dbref:
+            self.log.warning("Network is not configured for the interface {}."
+                .format(interface_name))
+            return False
+
+        net_dbref = net4_dbref
+        if not version:
+            if net6_dbref:
+                net_dbref = net6_dbref
         else:
-            net_dbref = None
+            if int(version) == 6:
+                net_dbref = net6_dbref
 
         if not net_dbref:
-            #self.log.warning("Network is not configured for {} interface"
-            #                 .format(interface_uuid or 'BMC'))
-            return None
+            self.log.warning("Network IPv{} is not configured for the interface {}."
+                .format(version, interface_name))
+            return False
 
         net_obj = Network(id=net_dbref.id, mongo_db=self._mongo_db)
 
@@ -595,10 +681,15 @@ class Group(Base):
         else:
             return net_obj.reserve_ip(ip)
 
-    def get_ip(self, interface_uuid=None, ip=None, format='num'):
+    def get_ip(self, interface_uuid=None, ip=None, format='num', version='4'):
         """
         Convert from relative numbers to human-readable IPs and back
         """
+
+        if version not in ['4', '6']:
+            self.log.error("Only IPv4 and IPv6 are supported")
+            return False
+
         if not interface_uuid:
             self.log.error("Interface should be specified")
             return None
@@ -609,7 +700,7 @@ class Group(Base):
 
         if (self.get('interfaces')
                 and interface_uuid in self.get('interfaces')):
-            net_dbref = self.get('interfaces')[interface_uuid]['network']
+            net_dbref = self.get('interfaces')[interface_uuid]['network'][version]
         else:
             net_dbref = None
 
