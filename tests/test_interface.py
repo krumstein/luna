@@ -55,32 +55,104 @@ class InterfaceBasicTests(unittest.TestCase):
             PREFIX=16,
         )
 
+        self.network6 = luna.Network(
+            name="testnet2",
+            mongo_db=self.db,
+            create=True,
+            NETWORK='fe80::',
+            PREFIX=64,
+            version=6
+        )
+
     def tearDown(self):
         self.sandbox.cleanup()
 
-    def test_add_del_net(self):
+    def test_add_net_w_nodes_4(self):
 
         start_array, end_array = [], []
 
-        for obj_class in ['network', 'group', 'node']:
-            start_array.append(
-                self.db[obj_class].find_one()
-            )
-
         self.group.set_net_to_if('eth0', self.network.name)
 
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+        self.network = luna.Network(name=self.network.name, mongo_db=self.db)
+
         for key in self.node._json['interfaces']:
-            rel_ip = self.node._json['interfaces'][key]
-            self.assertEqual(rel_ip, 1)
 
-        self.group.del_net_from_if('eth0')
-
-        for obj_class in ['network', 'group', 'node']:
-            end_array.append(
-                self.db[obj_class].find_one()
+            if_dict = self.node._json['interfaces'][key]
+            self.assertEqual(
+                if_dict,
+                {'4': 1, '6': None}
             )
 
-        self.assertEqual(start_array, end_array)
+    def test_add_net_w_nodes_6(self):
+
+        start_array, end_array = [], []
+
+        self.group.set_net_to_if('eth0', self.network6.name)
+
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+        self.network = luna.Network(name=self.network6.name, mongo_db=self.db)
+
+        for key in self.node._json['interfaces']:
+
+            if_dict = self.node._json['interfaces'][key]
+            self.assertEqual(
+                if_dict,
+                {'4': None, '6': 1}
+            )
+
+    def test_add_net_group_node_net4_net6(self):
+
+        start_array, end_array = [], []
+
+        self.group.set_net_to_if('eth0', self.network.name)
+        self.group.set_net_to_if('eth0', self.network6.name)
+
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+        self.network = luna.Network(name=self.network6.name, mongo_db=self.db)
+
+        for key in self.node._json['interfaces']:
+
+            if_dict = self.node._json['interfaces'][key]
+            self.assertEqual(
+                if_dict,
+                {'4': 1, '6': 1}
+            )
+
+    def test_add_net_group_net4_node_net6(self):
+
+        start_array, end_array = [], []
+
+        self.node.delete()
+        self.group = luna.Group(name=self.group.name, mongo_db=self.db)
+        self.group.set_net_to_if('eth0', self.network.name)
+        self.node = luna.Node(
+            group=self.group.name,
+            mongo_db=self.db,
+            create=True,
+        )
+
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+
+        for key in self.node._json['interfaces']:
+
+            if_dict = self.node._json['interfaces'][key]
+            self.assertEqual(
+                if_dict,
+                {'4': 1, '6': None}
+            )
+
+        self.group.set_net_to_if('eth0', self.network6.name)
+
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+
+        for key in self.node._json['interfaces']:
+
+            if_dict = self.node._json['interfaces'][key]
+            self.assertEqual(
+                if_dict,
+                {'4': 1, '6': 1}
+            )
 
     def test_node_del_ip(self):
 
