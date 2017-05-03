@@ -186,3 +186,13 @@ def guess_ns_hostname():
     # Return the current host's hostname if the guessed name could not
     # be resolved
     return ns_hostname
+
+def get_ip_version(ip):
+    import sys
+    for ver in [4, 6]:
+        try:
+            absnum = int(hexlify(socket.inet_pton(af[ver], ip)), 16)
+            return ver
+        except:
+            pass
+    return None
