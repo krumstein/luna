@@ -119,5 +119,25 @@ class UtilsIPTestsV6(unittest.TestCase):
             'gd12:3456:789a:1::1', 64, 6
         )
 
+class UtilsDetectIPver(unittest.TestCase):
+
+    def setUp(self):
+        print
+
+    def test_wrong_ipv4(self):
+        self.assertFalse(ip.get_ip_version('256.0.0.1'))
+
+    def test_wrong_ipv6(self):
+        self.assertFalse(ip.get_ip_version('fr80::'))
+        self.assertFalse(ip.get_ip_version('fe80:'))
+        self.assertFalse(ip.get_ip_version('fe80::1::'))
+
+    def test_ipv4(self):
+        self.assertEqual(ip.get_ip_version('192.168.1.1'), 4)
+
+    def test_ipv6(self):
+        self.assertEqual(ip.get_ip_version('fe80::1:1'), 6)
+
+
 if __name__ == '__main__':
     unittest.main()
