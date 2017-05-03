@@ -152,6 +152,72 @@ class Node(Base):
         self._get_group()
         return self.group.list_ifs()
 
+    def add_interface(self, interface_name=None):
+
+        if not interface_name:
+            self.log.error("Interface should be specified")
+            return False
+
+        interface_uuid = None
+        interface_dict = self.list_ifs()
+
+        if not interface_name in interface_dict:
+            self.log.error("Interface {} does not exist"
+                .format(interface_name))
+            return False
+
+        interface_uuid = interface_dict[interface_name]
+
+        interface_ips = {'4': None, '6': None}
+        new_interfaces = {}
+
+        for key in self._json['interfaces']:
+            new_interfaces[key] = self._json['interfaces'][key].copy()
+
+        new_interfaces[interface_uuid] = interface_ips
+        res = self.set('interfaces', new_interfaces)
+
+        return res
+
+    def del_interface(self, interface_name=None, interface_uuid=None):
+
+        if not interface_name and not interface_uuid:
+            self.log.error("Interface should be specified")
+            return False
+
+        if not interface_uuid:
+
+            interface_dict = self.list_ifs()
+
+            if not interface_name in interface_dict:
+                self.log.error("Interface {} does not exist"
+                    .format(interface_name))
+                return False
+
+            interface_uuid = interface_dict[interface_name]
+
+        interfaces = self._json['interfaces']
+
+        if interface_uuid not in interfaces:
+            self.log.error("Interface with UUID {} does not exist"
+                .format(interface_uuid))
+            return False
+
+        new_interfaces = {}
+
+        if interfaces[interface_uuid]['4'] or interfaces[interface_uuid]['6']:
+            self.log.error(("IP addresses are configured for interface {}. "
+                + "Unable to delete.")
+                .format(interface_uuid))
+
+        for key in interfaces:
+            new_interfaces[key] = interfaces[key].copy()
+
+        new_interfaces.pop(interface_uuid)
+        res = self.set('interfaces', new_interfaces)
+
+        return res
+
     def add_ip(self, interface_name=None, new_ip=None, version=None):
 
         interface_uuid = None
@@ -195,13 +261,14 @@ class Node(Base):
         else:
             versions_to_assign = no_ip_keys[:]
 
-        # on this step we have versions_to_assign, but we are not sure if we can
-        # as network for this IPvX could not exist in corresponding group
-        # So pop versions if we have no network configured
+        # on this step we have versions_to_assign, but we are not sure
+        # if we can as network for this IPvX could not exist in corresponding
+        # group. So add only those who have.
         tmp = versions_to_assign[:]
         versions_to_assign = []
         for v in range(len(tmp)):
-            net = self.group._json['interfaces'][interface_uuid]['network'][tmp[v]]
+            group_if = self.group._json['interfaces'][interface_uuid]
+            net = group_if['network'][tmp[v]]
             if net:
                 versions_to_assign.append(tmp[v])
 
@@ -214,6 +281,7 @@ class Node(Base):
                  + "as network is not configured")
                 .format(version, interface_name)
             )
+            return False
 
         # Finally we can acquire IPs
         ips = {} # for rolling back if needed
@@ -240,7 +308,135 @@ class Node(Base):
 
         return res
 
-    def del_ip(self, interface_name=None):
+    def _get_interface(self, name=None, uuid=None):
+        """
+        returns (interface_name, interface_uuid, if_dict)
+        return (None, None, {}) if no interface is configured
+        """
+        if not (name or uuid):
+            self.log.error('Interface name or interface UUID ' +
+                           'should be specified')
+            return (None, None, {})
+
+        interfaces = self._json['interfaces']
+
+        if uuid and uuid not in interfaces:
+            self.log.error("No interface with UUID '{}'."
+                .format(uuid))
+            return (None, None, {})
+
+        if name:
+            interface_dict = self.list_ifs()
+            if name not in interface_dict:
+                self.log.error("No such interface '{}'".format(name))
+                return (None, None, {})
+            uuid = interface_dict[name]
+
+        # get interface name
+        if not name:
+            self._get_group()
+            group_if = self.group._json['interfaces'][uuid]
+            name = group_if['name']
+
+        if not uuid or uuid not in interfaces:
+            self.log.error('Unable to find UUID for interface {}'
+                    .format(interface_name))
+            return (None, None, {})
+
+        if_dict = interfaces[uuid]
+
+        return (name, uuid, if_dict)
+
+    def _unconfigure_if(self, interface_uuid=None, version=None):
+        """
+        Helper to unconfigure (unassign) IP addresses from interface
+        """
+
+        (interface_name,
+         interface_uuid,
+         if_dict) = self._get_interface(None,
+                                        interface_uuid)
+
+        if not interface_uuid:
+            self.log.error("interface UUID needs to be specified.")
+            return False
+
+        # check if we have correct 'version' parameter
+        if version:
+            version = str(version)
+
+        if version and version not in ['4', '6', 'all']:
+            self.log.error("IPv4 and IPv6 are supported only.")
+            return False
+
+        # store all versions for which IPs are configured
+
+        ips_configured = []
+
+        for key in if_dict:
+            if if_dict[key]:
+                ips_configured.append(key)
+
+        # check if there is no ambiguity
+
+        if not version and len(ips_configured) == 2:
+            self.log.error("Both IPv4 and IPv6 are configured for interface.")
+            return False
+
+        # then check if 'version' specified has IP configured
+
+        if version and version != 'all' and version not in ips_configured:
+            self.log.error("IPv{} is not configured for {}."
+                .format(version, interface_name))
+            return False
+
+        # 'versions' variable will contan IP versions we need to remove
+        # if no 'version' == 'all' is specified - remove all configured IPs
+
+        versions = []
+
+        if version in ['4', '6']:
+            versions = [version]
+
+        # here we know that len(ips_configured) == 1 or version == 'all'
+
+        if not versions or version == 'all':
+            versions = ips_configured
+
+        released_ips = {}
+
+        if not versions and version == 'all':
+            # Seems like we were asked to unconfigure 'empty' interface
+            # No IPs are configured
+            return True
+
+        if not versions:
+            self.log.error("No IPs are configured for {}."
+                .format(interface_name))
+            return False
+
+        for ver in versions:
+            if_ip_assigned = if_dict[ver]
+            res = self.group.manage_ip(interface_uuid, if_ip_assigned,
+                release=True, version=ver)
+
+            if not res:
+
+                self.log.error("Unable to release {} for {}."
+                    .format(if_ip_assigned, interface_name))
+
+                # roll back using released_ips
+
+                for v in released_ips:
+                    self.group.manage_ip(interface_uuid, released_ips[v],
+                        release=False, version=v)
+
+                return False
+            released_ips[ver] = if_ip_assigned
+
+        return released_ips
+
+    def del_ip(self, interface_name=None, version=None):
 
         self._get_group()
 
@@ -248,18 +444,24 @@ class Node(Base):
 
         if not interfaces:
             self.log.error("Node has no interfaces configured")
-            return None
+            return False
 
         new_interfaces = interfaces.copy()
 
-        # if interface_name is not specified
-        # delete all interfaces
+        # if no interface_name is defined
+        # release all ips
 
         if not interface_name:
             for if_uuid in interfaces:
-                if_ip_assigned = interfaces[if_uuid]
-                self.group.manage_ip(if_uuid, ip=if_ip_assigned, release=True)
-                new_interfaces.pop(if_uuid)
+
+                unconf_res = self._unconfigure_if(if_uuid, 'all')
+
+                if unconf_res:
+                    new_interfaces.pop(if_uuid)
+                else:
+                    self.log.error("Unable to unconfigure interface {}."
+                        .format(if_uuid))
+                    return False
             res = self.set('interfaces', new_interfaces)
             return res
 
@@ -269,20 +471,25 @@ class Node(Base):
         interface_uuid = None
 
         interface_dict = self.list_ifs()
+
+        if interface_name not in interface_dict:
+            self.log.error("Node does not have an '{}' interface"
+                .format(interface_name))
+            return False
+
         interface_uuid = interface_dict[interface_name]
+        unconf_res = self._unconfigure_if(interface_uuid, version)
+        if not unconf_res:
+            self.log.error("Unable to delete interface {}"
+                .format(interface_name))
+            return False
 
-        if interface_uuid in interfaces:
-            if_ip_assigned = interfaces[interface_uuid]
-            self.group.manage_ip(interface_uuid, if_ip_assigned, release=True)
-            new_interfaces.pop(interface_uuid)
-            res = self.set('interfaces', new_interfaces)
-            return res
+        if unconf_res:
+            for ver in unconf_res:
+                new_interfaces[interface_uuid][ver] = None
 
-        self.log.warning(("Node does not have an '{}' interface"
-            .format(interface)))
-
-        return None
-
+        res = self.set('interfaces', new_interfaces)
+        return res
 
     @property
     def boot_params(self):
@@ -417,7 +624,65 @@ class Node(Base):
 
         return True
 
-    def set_ip(self, interface_name=None, ip=None):
+    def set_ip(self, interface_name=None,
+               interface_uuid=None, ip=None, force=False):
+
+        """
+        Method to set/change IP
+        returns   False is wrong parameters passed
+                  or error occured
+        otherwise True
+        """
+
+        (interface_name,
+         interface_uuid,
+         if_dict) = self._get_interface(interface_name,
+                                        interface_uuid)
+
+        if not interface_uuid:
+            return False
+
+        if not ip:
+            self.log.error("IP address should be provided")
+            return False
+
+        ipver = utils.ip.get_ip_version(ip)
+
+        if not ipver:
+            self.log.error("Wrong IP address is provided")
+            return False
+
+        ipver = str(ipver)
+
+        if force:
+            self._json['interfaces'][interface_uuid][ipver] = None
+            res = self.add_ip(interface_name, ip, version=ipver)
+            if not res:
+                self.log.error("Error on adding IP occurred.")
+                return False
+            return True
+
+        old_ip = self.get_ip(interface_name, version=ipver)
+
+        if not old_ip:
+            self.log.error("Unable to get IP for interface.")
+            return False
+
+        res = self.del_ip(interface_name, version=ipver)
+
+        if not res:
+            self.log.error("Error on releasing IP occurred.")
+            return False
+
+        res = self.add_ip(interface_name, ip, version=ipver)
+        if not res and old_ip:
+            self.log.error("Error on adding IP occurred.")
+            self.add_ip(interface_name, old_ip, version=ipver)
+            return False
+
+        return True
+
+    def old_set_ip(self, interface_name=None, ip=None, version=None):
 
         if not ip:
             self.log.error("IP address should be provided")
@@ -432,10 +697,10 @@ class Node(Base):
         if not bool(self.group.get_ip(interface_uuid, ip, format='num')):
             return None
 
-        res = self.del_ip(interface_name)
+        res = self.del_ip(interface_name, version)
 
         if res:
-            return self.add_ip(interface_name, ip)
+            return self.add_ip(interface_name, ip, version)
 
         return None
 
@@ -477,32 +742,60 @@ class Node(Base):
 
         return bool(res)
 
-    def get_ip(self, interface_name=None, interface_uuid = None, bmc=False, format='human'):
+    def get_ip(self, interface_name=None, interface_uuid=None,
+               format='human', version=None):
 
-        if interface_name:
-            interface_dict = self.list_ifs()
-            interface_uuid = interface_dict[interface_name]
+        # convert version to str, as mongo umable to use int as keys
+        if version:
+            version = str(version)
 
-        if not interface_uuid and not bmc:
-            self.log.error('Unable to find UUID for interface {}'
-                    .format(interface_name))
-            return None
+        if version and version not in ['4', '6']:
+            self.log.error("Version should be '4' or '6'")
+            return False
 
+        (interface_name,
+         interface_uuid,
+         if_dict) = self._get_interface(interface_name,
+                                        interface_uuid)
 
-        if bmc and 'bmcnetwork' in self._json:
-            ipnum = self._json['bmcnetwork']
-        elif interface_uuid and  interface_uuid in self._json['interfaces']:
-            ipnum = self._json['interfaces'][interface_uuid]
-        else:
-            self.log.warning(('{} interface has no IP'
-                              .format(interface_name or 'BMC')))
-            return None
+        if not interface_uuid:
+            return False
+
+        # if 'version' is unspecified we can proceed only if IPv6 or IPv4
+        # configured. Not both.
+        if if_dict['4'] and if_dict['6'] and not version:
+            self.log.error('Both IPv4 and IPv6 IP addresses are configured.'+
+                           'Version should be specified.')
+            return False
+
+        ipnum = None
+
+        if not version:
+            if if_dict['4']:
+                version = '4'
+            elif if_dict['6']:
+                version = '6'
+
+        if not version:
+            self.log.error(
+                'No IP addresses or networks are configured for interface {}'
+                .format(interface_name)
+            )
+            return False
+
+        ipnum = if_dict[version]
+
+        if not ipnum:
+            self.log.error("No IPv{} address or network are configured for '{}'"
+                        .format(version, interface_name))
+            return False
 
         if format == 'num':
             return ipnum
         else:
             self._get_group()
-            return self.group.get_ip(interface_uuid, ipnum, format='human')
+            return self.group.get_ip(interface_uuid, ipnum,
+                                     format='human', version=version)
 
     def get_mac(self):
         try:
