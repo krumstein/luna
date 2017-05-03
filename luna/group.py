@@ -453,6 +453,12 @@ class Group(Base):
                 "Could not add interface '{}'".format(interface_name)
             )
 
+        reverse_links = self.get_back_links()
+        for link in reverse_links:
+            if link['collection'] == 'node':
+                node_obj = Node(id=link['DBRef'].id, mongo_db=self._mongo_db)
+                node_obj.add_interface(interface_name)
+
         return res
 
     def get_if_params(self, interface_name):
