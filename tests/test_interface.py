@@ -5,9 +5,9 @@ import getpass
 from helper_utils import Sandbox
 
 
-class InterfaceBasicTests(unittest.TestCase):
+class AddNetToGroupTests(unittest.TestCase):
     """
-    Test for group without nodes
+    Add network to group with nodes
     """
 
     def setUp(self):
@@ -69,8 +69,6 @@ class InterfaceBasicTests(unittest.TestCase):
 
     def test_add_net_w_nodes_4(self):
 
-        start_array, end_array = [], []
-
         self.group.set_net_to_if('eth0', self.network.name)
 
         self.node = luna.Node(name=self.node.name, mongo_db=self.db)
@@ -86,8 +84,6 @@ class InterfaceBasicTests(unittest.TestCase):
 
     def test_add_net_w_nodes_6(self):
 
-        start_array, end_array = [], []
-
         self.group.set_net_to_if('eth0', self.network6.name)
 
         self.node = luna.Node(name=self.node.name, mongo_db=self.db)
@@ -102,8 +98,6 @@ class InterfaceBasicTests(unittest.TestCase):
             )
 
     def test_add_net_group_node_net4_net6(self):
-
-        start_array, end_array = [], []
 
         self.group.set_net_to_if('eth0', self.network.name)
         self.group.set_net_to_if('eth0', self.network6.name)
@@ -121,8 +115,6 @@ class InterfaceBasicTests(unittest.TestCase):
 
     def test_add_net_group_net4_node_net6(self):
 
-        start_array, end_array = [], []
-
         self.node.delete()
         self.group = luna.Group(name=self.group.name, mongo_db=self.db)
         self.group.set_net_to_if('eth0', self.network.name)
@@ -131,8 +123,6 @@ class InterfaceBasicTests(unittest.TestCase):
             mongo_db=self.db,
             create=True,
         )
-
-        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
 
         for key in self.node._json['interfaces']:
 
@@ -154,58 +144,536 @@ class InterfaceBasicTests(unittest.TestCase):
                 {'4': 1, '6': 1}
             )
 
-    def test_node_del_ip(self):
 
-        start_array, end_array = [], []
+class DeleteIPTests(unittest.TestCase):
+    """
+    Test for delete ip addresses from node
+    """
 
-        for obj_class in ['network', 'group', 'node']:
-            start_array.append(
-                self.db[obj_class].find_one()
-            )
+    def setUp(self):
+
+        print
+
+        self.sandbox = Sandbox()
+        self.db = self.sandbox.db
+        self.path = self.sandbox.path
+        osimage_path = self.sandbox.create_osimage()
+
+        self.cluster = luna.Cluster(
+            mongo_db=self.db,
+            create=True,
+            path=self.path,
+            user=getpass.getuser()
+        )
+
+        self.osimage = luna.OsImage(
+            name='testosimage',
+            path=osimage_path,
+            mongo_db=self.db,
+            create=True
+        )
+
+        self.group = luna.Group(
+            name='testgroup',
+            osimage=self.osimage.name,
+            mongo_db=self.db,
+            interfaces=['eth0'],
+            create=True,
+        )
+
+        self.node = luna.Node(
+            group=self.group.name,
+            mongo_db=self.db,
+            create=True,
+        )
+
+        self.network = luna.Network(
+            name="testnet",
+            mongo_db=self.db,
+            create=True,
+            NETWORK='10.50.0.0',
+            PREFIX=16,
+        )
+
+        self.network6 = luna.Network(
+            name="testnet2",
+            mongo_db=self.db,
+            create=True,
+            NETWORK='fe80::',
+            PREFIX=64,
+            version=6
+        )
+
+    def tearDown(self):
+        self.sandbox.cleanup()
+
+    def test_node_del_ip_net4(self):
 
         self.group.set_net_to_if('eth0', self.network.name)
 
-        # otherwise node._json is outdated after group.set_net_to_if()
-        self.node = luna.Node('node001', mongo_db=self.db)
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+
         self.node.del_ip('eth0')
 
-        self.assertEqual(self.node._json['interfaces'], {})
+        net_json = self.db['network'].find_one({'_id': self.network._id})
 
-        node_json = self.db['node'].find_one(
-            {'_id': self.node._id}
+        node_json = self.db['node'].find_one({'_id': self.node._id})
+
+        for if_uuid in node_json['interfaces']:
+            if_dict = node_json['interfaces'][if_uuid]
+            self.assertEqual(if_dict, {'4': None, '6': None})
+
+        self.assertEqual(net_json['freelist'], [{'start': 1, 'end': 65533L}])
+
+    def test_node_del_ip_net6(self):
+
+        self.group.set_net_to_if('eth0', self.network6.name)
+
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+
+        self.node.del_ip('eth0')
+
+        net_json = self.db['network'].find_one({'_id': self.network6._id})
+
+        node_json = self.db['node'].find_one({'_id': self.node._id})
+
+        for if_uuid in node_json['interfaces']:
+            if_dict = node_json['interfaces'][if_uuid]
+            self.assertEqual(if_dict, {'4': None, '6': None})
+
+        self.assertEqual(net_json['freelist'],
+                         [{'start': '1', 'end': '18446744073709551613'}])
+
+    def test_node_del_ip_mistaken(self):
+
+        self.group.set_net_to_if('eth0', self.network6.name)
+
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+
+        self.node.del_ip('eth0')
+
+        self.assertFalse(self.node.del_ip('eth0'))
+
+    def test_node_del_ip_w_version(self):
+
+        self.group.set_net_to_if('eth0', self.network.name)
+
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+
+        self.assertTrue(self.node.del_ip('eth0', version=4))
+
+        node_json = self.db['node'].find_one({'_id': self.node._id})
+
+        for k in node_json['interfaces']:
+            self.assertEqual(node_json['interfaces'][k],
+                             {'4': None, '6': None})
+
+    def test_node_del_ip_wrong_version(self):
+
+        self.group.set_net_to_if('eth0', self.network6.name)
+
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+
+        self.assertFalse(self.node.del_ip('eth0', version=4))
+
+        node_json = self.db['node'].find_one({'_id': self.node._id})
+
+        for k in node_json['interfaces']:
+            self.assertEqual(node_json['interfaces'][k],
+                             {'4': None, '6': 1})
+
+    def test_node_del_ip_both_ver(self):
+        self.group.set_net_to_if('eth0', self.network.name)
+        self.group.set_net_to_if('eth0', self.network6.name)
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+        self.assertTrue(self.node.del_ip('eth0', version='all'))
+        node_json = self.db['node'].find_one({'_id': self.node._id})
+
+        for k in node_json['interfaces']:
+            self.assertEqual(node_json['interfaces'][k],
+                             {'4': None, '6': None})
+
+        net_json = self.db['network'].find_one({'_id': self.network._id})
+        net6_json = self.db['network'].find_one({'_id': self.network6._id})
+        self.assertEqual(net_json['freelist'], [{'start': 1, 'end': 65533}])
+        self.assertEqual(net6_json['freelist'],
+                         [{'start': '1', 'end': '18446744073709551613'}])
+
+
+class GetIPTests(unittest.TestCase):
+    """
+    Test for Node.get_ip
+    """
+
+    def setUp(self):
+
+        print
+
+        self.sandbox = Sandbox()
+        self.db = self.sandbox.db
+        self.path = self.sandbox.path
+        osimage_path = self.sandbox.create_osimage()
+
+        self.cluster = luna.Cluster(
+            mongo_db=self.db,
+            create=True,
+            path=self.path,
+            user=getpass.getuser()
         )
 
-        self.assertEqual(node_json['interfaces'], {})
+        self.osimage = luna.OsImage(
+            name='testosimage',
+            path=osimage_path,
+            mongo_db=self.db,
+            create=True
+        )
 
-        # check if IP released in net
-        net_json = self.db['network'].find_one()
+        self.group = luna.Group(
+            name='testgroup',
+            osimage=self.osimage.name,
+            mongo_db=self.db,
+            interfaces=['eth0'],
+            create=True,
+        )
 
-        self.assertEqual(net_json['freelist'][0]['start'], 1)
+        self.node = luna.Node(
+            group=self.group.name,
+            mongo_db=self.db,
+            create=True,
+        )
 
-        before_mistaken_del_ip, after_mistaken_del_ip = [], []
+        self.network = luna.Network(
+            name="testnet",
+            mongo_db=self.db,
+            create=True,
+            NETWORK='10.50.0.0',
+            PREFIX=16,
+        )
 
-        for obj_class in ['network', 'group', 'node']:
-            before_mistaken_del_ip.append(
-                self.db[obj_class].find_one()
-            )
+        self.network6 = luna.Network(
+            name="testnet2",
+            mongo_db=self.db,
+            create=True,
+            NETWORK='fe80::',
+            PREFIX=64,
+            version=6
+        )
 
-        self.node.del_ip('eth0')
+    def test_get_ip_wrong_ver(self):
+        self.assertFalse(self.node.get_ip('eth0', version=5))
 
-        for obj_class in ['network', 'group', 'node']:
-            after_mistaken_del_ip.append(
-                self.db[obj_class].find_one()
-            )
+    def test_wo_uuid_or_name(self):
+        self.assertFalse(self.node.get_ip(version=4))
 
-        self.assertEqual(before_mistaken_del_ip, after_mistaken_del_ip)
+    def test_wrong_uuid(self):
+        self.assertFalse(self.node.get_ip(interface_uuid='wrong-uuid'))
 
-        self.group.del_net_from_if('eth0')
+    def test_wrong_name(self):
+        self.assertFalse(self.node.get_ip(interface_name='wrong-name'))
 
-        for obj_class in ['network', 'group', 'node']:
-            end_array.append(
-                self.db[obj_class].find_one()
-            )
+    def test_by_uuid_net4(self):
+        interface_uuid = None
+        for k in self.node._json['interfaces']:
+            interface_uuid = k
 
-        self.assertEqual(start_array, end_array)
+        self.group.set_net_to_if('eth0', self.network.name)
+
+        self.node = luna.Node(name=self.node.name,
+                              mongo_db=self.db)
+
+        self.assertEqual(self.node.get_ip(interface_uuid=interface_uuid),
+                         '10.50.0.1')
+
+        self.assertEqual(self.node.get_ip(interface_uuid=interface_uuid,
+                                          format='num'),
+                         1)
+
+        self.assertEqual(self.node.get_ip(interface_uuid=interface_uuid,
+                                          version=4),
+                         '10.50.0.1')
+
+    def test_by_name_net6(self):
+        self.group.set_net_to_if('eth0', self.network6.name)
+
+        self.node = luna.Node(name=self.node.name,
+                              mongo_db=self.db)
+
+        self.assertEqual(self.node.get_ip(interface_name='eth0'),
+                         'fe80::1')
+
+        self.assertEqual(self.node.get_ip(interface_name='eth0',
+                                          format='num'),
+                         1)
+
+        self.assertEqual(self.node.get_ip(interface_name='eth0',
+                                          version=6),
+                         'fe80::1')
+
+    def test_wrong_version6(self):
+        interface_uuid = None
+        for k in self.node._json['interfaces']:
+            interface_uuid = k
+
+        self.group.set_net_to_if('eth0', self.network.name)
+
+        self.node = luna.Node(name=self.node.name,
+                              mongo_db=self.db)
+
+        self.assertFalse(self.node.get_ip(interface_uuid=interface_uuid,
+                                          version=6))
+
+    def test_wrong_version4(self):
+        self.group.set_net_to_if('eth0', self.network6.name)
+
+        self.node = luna.Node(name=self.node.name,
+                              mongo_db=self.db)
+
+        self.assertFalse(self.node.get_ip(interface_name='eth0',
+                                          version=4))
+
+    def test_ambiguous_ver(self):
+        self.group.set_net_to_if('eth0', self.network.name)
+        self.group.set_net_to_if('eth0', self.network6.name)
+
+        self.node = luna.Node(name=self.node.name,
+                              mongo_db=self.db)
+
+        self.assertFalse(self.node.get_ip(interface_name='eth0'))
+
+    def test_both_vers_confgured(self):
+        self.group.set_net_to_if('eth0', self.network.name)
+        self.group.set_net_to_if('eth0', self.network6.name)
+
+        self.node = luna.Node(name=self.node.name,
+                              mongo_db=self.db)
+
+        self.assertEqual(self.node.get_ip(interface_name='eth0',
+                                          version=6),
+                         'fe80::1')
+
+        self.assertEqual(self.node.get_ip(interface_name='eth0',
+                                          version=4),
+                         '10.50.0.1')
+
+class SetIPTests(unittest.TestCase):
+    """
+    Test for Node.get_ip
+    """
+
+    def setUp(self):
+
+        print
+
+        self.sandbox = Sandbox()
+        self.db = self.sandbox.db
+        self.path = self.sandbox.path
+        osimage_path = self.sandbox.create_osimage()
+
+        self.cluster = luna.Cluster(
+            mongo_db=self.db,
+            create=True,
+            path=self.path,
+            user=getpass.getuser()
+        )
+
+        self.osimage = luna.OsImage(
+            name='testosimage',
+            path=osimage_path,
+            mongo_db=self.db,
+            create=True
+        )
+
+        self.group = luna.Group(
+            name='testgroup',
+            osimage=self.osimage.name,
+            mongo_db=self.db,
+            interfaces=['eth0'],
+            create=True,
+        )
+
+        self.node = luna.Node(
+            group=self.group.name,
+            mongo_db=self.db,
+            create=True,
+        )
+
+        self.network = luna.Network(
+            name="testnet",
+            mongo_db=self.db,
+            create=True,
+            NETWORK='10.50.0.0',
+            PREFIX=16,
+        )
+
+        self.network6 = luna.Network(
+            name="testnet2",
+            mongo_db=self.db,
+            create=True,
+            NETWORK='fe80::',
+            PREFIX=64,
+            version=6
+        )
+
+    def test_get_ip_wrong_name(self):
+        self.assertFalse(self.node.set_ip(interface_name='wrong-interface',
+                                          ip='10.50.0.2'))
+
+    def test_get_ip_wrong_uuid(self):
+        self.assertFalse(self.node.set_ip(interface_uuid='wrong-uuid',
+                                          ip='10.50.0.2'))
+
+    def test_get_ip_for_unconfigured_if(self):
+        self.assertFalse(self.node.set_ip(interface_name='eth0',
+                                          ip='10.50.0.2'))
+
+    def test_set_ip_by_name(self):
+        self.group.set_net_to_if('eth0', self.network.name)
+
+        self.node = luna.Node(name=self.node.name,
+                              mongo_db=self.db)
+
+
+        self.assertTrue(self.node.set_ip(interface_name='eth0',
+                                          ip='10.50.0.2'))
+
+        self.network = luna.Network(name=self.network.name,
+                                    mongo_db=self.db)
+
+        self.assertEqual(
+            self.network._json['freelist'],
+            [{'start': 1, 'end': 1}, {'start': 3, 'end': 65533}],
+        )
+
+    def test_set_ip_by_uuid(self):
+        interface_uuid = None
+        for k in self.node._json['interfaces']:
+            interface_uuid = k
+
+        self.group.set_net_to_if('eth0', self.network.name)
+
+        self.node = luna.Node(name=self.node.name,
+                              mongo_db=self.db)
+
+        self.assertTrue(self.node.set_ip(interface_uuid=interface_uuid,
+                                          ip='10.50.0.2'))
+
+        self.network = luna.Network(name=self.network.name,
+                                    mongo_db=self.db)
+
+        self.assertEqual(
+            self.network._json['freelist'],
+            [{'start': 1, 'end': 1}, {'start': 3, 'end': 65533}],
+        )
+
+    def test_set_both_ips(self):
+        self.group.set_net_to_if('eth0', self.network.name)
+        self.group.set_net_to_if('eth0', self.network6.name)
+
+        self.node = luna.Node(name=self.node.name,
+                              mongo_db=self.db)
+
+
+        self.assertTrue(self.node.set_ip(interface_name='eth0',
+                                          ip='10.50.0.2'))
+
+        self.assertTrue(self.node.set_ip(interface_name='eth0',
+                                          ip='fe80::2'))
+
+        self.network = luna.Network(name=self.network.name,
+                                    mongo_db=self.db)
+
+        self.network6 = luna.Network(name=self.network6.name,
+                                    mongo_db=self.db)
+
+        self.assertEqual(
+            self.network._json['freelist'],
+            [{'start': 1, 'end': 1}, {'start': 3, 'end': 65533}],
+        )
+
+        self.assertEqual(
+            self.network6._json['freelist'],
+            [{'start': 1, 'end': 1}, {'start': 3, 'end': 18446744073709551613}]
+        )
+
+    def test_set_ip_force_wo_net_configured(self):
+        self.assertFalse(self.node.set_ip(interface_name='eth0',
+                                          ip='10.50.0.2', force=True))
+
+    def test_set_ip_force(self):
+        self.group.set_net_to_if('eth0', self.network.name)
+
+        self.node = luna.Node(name=self.node.name,
+                              mongo_db=self.db)
+
+        self.assertTrue(self.node.set_ip(interface_name='eth0',
+                                          ip='10.50.0.2', force=True))
+
+        self.network = luna.Network(name=self.network.name,
+                                    mongo_db=self.db)
+
+        self.assertEqual(
+            self.network._json['freelist'],
+            [{'start': 3, 'end': 65533}],
+        )
+
+class OtherInterfaceTests(unittest.TestCase):
+    """
+    Test for Node.get_ip
+    """
+
+    def setUp(self):
+
+        print
+
+        self.sandbox = Sandbox()
+        self.db = self.sandbox.db
+        self.path = self.sandbox.path
+        osimage_path = self.sandbox.create_osimage()
+
+        self.cluster = luna.Cluster(
+            mongo_db=self.db,
+            create=True,
+            path=self.path,
+            user=getpass.getuser()
+        )
+
+        self.osimage = luna.OsImage(
+            name='testosimage',
+            path=osimage_path,
+            mongo_db=self.db,
+            create=True
+        )
+
+        self.group = luna.Group(
+            name='testgroup',
+            osimage=self.osimage.name,
+            mongo_db=self.db,
+            interfaces=['eth0'],
+            create=True,
+        )
+
+        self.node = luna.Node(
+            group=self.group.name,
+            mongo_db=self.db,
+            create=True,
+        )
+
+        self.network = luna.Network(
+            name="testnet",
+            mongo_db=self.db,
+            create=True,
+            NETWORK='10.50.0.0',
+            PREFIX=16,
+        )
+
+        self.network6 = luna.Network(
+            name="testnet2",
+            mongo_db=self.db,
+            create=True,
+            NETWORK='fe80::',
+            PREFIX=64,
+            version=6
+        )
 
     def test_node_get_ip(self):
         self.assertIsNone(self.node.get_ip('eth0'))
@@ -247,6 +715,7 @@ class InterfaceBasicTests(unittest.TestCase):
                 self.node.get_ip(interface_uuid=if_uuid, format="num"),
                 1,
             )
+
     def test_node_add_ip(self):
         start_array, end_array = [], []
 
@@ -348,6 +817,7 @@ class InterfaceBasicTests(unittest.TestCase):
 
         self.assertEqual(len(network_json['freelist']), 1)
         self.assertEqual(network_json['freelist'][0]['start'], 2)
+
 
 class InterfaceOperations(unittest.TestCase):
     """
