@@ -455,6 +455,7 @@ class GetIPTests(unittest.TestCase):
                                           version=4),
                          '10.50.0.1')
 
+
 class SetIPTests(unittest.TestCase):
     """
     Test for Node.get_ip
@@ -532,9 +533,8 @@ class SetIPTests(unittest.TestCase):
         self.node = luna.Node(name=self.node.name,
                               mongo_db=self.db)
 
-
         self.assertTrue(self.node.set_ip(interface_name='eth0',
-                                          ip='10.50.0.2'))
+                                         ip='10.50.0.2'))
 
         self.network = luna.Network(name=self.network.name,
                                     mongo_db=self.db)
@@ -555,7 +555,7 @@ class SetIPTests(unittest.TestCase):
                               mongo_db=self.db)
 
         self.assertTrue(self.node.set_ip(interface_uuid=interface_uuid,
-                                          ip='10.50.0.2'))
+                                         ip='10.50.0.2'))
 
         self.network = luna.Network(name=self.network.name,
                                     mongo_db=self.db)
@@ -614,6 +614,283 @@ class SetIPTests(unittest.TestCase):
         self.assertEqual(
             self.network._json['freelist'],
             [{'start': 3, 'end': 65533}],
+        )
+
+
+class ChangeGroupTests(unittest.TestCase):
+    """
+    Test for Node.get_ip
+    """
+
+    def setUp(self):
+
+        print
+
+        self.sandbox = Sandbox()
+        self.db = self.sandbox.db
+        self.path = self.sandbox.path
+        osimage_path = self.sandbox.create_osimage()
+
+        self.cluster = luna.Cluster(mongo_db=self.db, create=True,
+                                    path=self.path, user=getpass.getuser())
+
+        self.osimage = luna.OsImage(name='testosimage', path=osimage_path,
+                                    mongo_db=self.db, create=True)
+
+        self.group = luna.Group(name='testgroup',
+                                osimage=self.osimage.name, mongo_db=self.db,
+                                interfaces=['eth0'], create=True)
+
+        self.new_group1 = luna.Group(name='new1',
+                                osimage=self.osimage.name, mongo_db=self.db,
+                                interfaces=['eth0'], create=True)
+
+        self.node = luna.Node(group=self.group.name, mongo_db=self.db,
+                              create=True)
+
+        self.network11 = luna.Network(name="net11", mongo_db=self.db,
+                                     create=True, NETWORK='10.51.0.0',
+                                     PREFIX=16)
+
+        self.network61 = luna.Network(name="net61", mongo_db=self.db,
+                                     create=True, NETWORK='fe80::',
+                                     PREFIX=64, version=6)
+
+    def test_wo_interfaces_configured(self):
+
+        self.assertTrue(self.node.set_group(self.new_group1.name))
+
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+
+        self.group = luna.Group(name=self.group.name,
+                                     mongo_db=self.db)
+
+        self.new_group1 = luna.Group(name=self.new_group1.name,
+                                     mongo_db=self.db)
+
+        self.assertEqual(self.node._json['group'], self.new_group1.DBRef)
+
+        self.assertEqual(
+            self.node._json['_use_']['group'],
+            {str(self.new_group1._id): 1}
+        )
+
+        group_if_uid = None
+
+        for uuid in self.new_group1._json['interfaces']:
+            group_if_uid = uuid
+
+        self.assertEqual(
+            self.node._json['interfaces'][group_if_uid],
+            {'4': None, '6': None}
+        )
+
+        self.assertEqual(self.group._json['_usedby_'], {})
+
+    def test_w_interfaces_configured_in_new_group_net4(self):
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+        self.new_group1.set_net_to_if('eth0', self.network11.name)
+
+        self.assertTrue(self.node.set_group(self.new_group1.name))
+
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+
+        self.group = luna.Group(name=self.group.name,
+                                     mongo_db=self.db)
+
+        self.new_group1 = luna.Group(name=self.new_group1.name,
+                                     mongo_db=self.db)
+
+        self.network11 = luna.Network(name=self.network11.name,
+                                      mongo_db=self.db)
+
+        group_if_uid = None
+
+        for uuid in self.new_group1._json['interfaces']:
+            group_if_uid = uuid
+
+        self.assertEqual(
+            self.node._json['interfaces'][group_if_uid],
+            {'4': 1, '6': None}
+        )
+
+        self.assertEqual(
+            self.network11._json['freelist'],
+            [{'start': 2, 'end': 65533}]
+        )
+
+    def test_w_interfaces_configured_in_new_group_net6(self):
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+        self.new_group1.set_net_to_if('eth0', self.network61.name)
+
+        self.assertTrue(self.node.set_group(self.new_group1.name))
+
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+
+        self.group = luna.Group(name=self.group.name,
+                                     mongo_db=self.db)
+
+        self.new_group1 = luna.Group(name=self.new_group1.name,
+                                     mongo_db=self.db)
+
+        self.network61 = luna.Network(name=self.network61.name,
+                                      mongo_db=self.db)
+
+        group_if_uid = None
+
+        for uuid in self.new_group1._json['interfaces']:
+            group_if_uid = uuid
+
+        self.assertEqual(
+            self.node._json['interfaces'][group_if_uid],
+            {'4': None, '6': 1}
+        )
+
+        self.assertEqual(
+            self.network61._json['freelist'],
+            [{'start': 2, 'end': 18446744073709551613}]
+        )
+
+    def test_w_interfaces_configured_in_old_group_net4(self):
+        self.group.set_net_to_if('eth0', self.network11.name)
+
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+
+        self.assertTrue(self.node.set_group(self.new_group1.name))
+
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+
+        self.group = luna.Group(name=self.group.name,
+                                     mongo_db=self.db)
+
+        self.new_group1 = luna.Group(name=self.new_group1.name,
+                                     mongo_db=self.db)
+
+        self.network11 = luna.Network(name=self.network11.name,
+                                      mongo_db=self.db)
+
+        group_if_uid = None
+
+        for uuid in self.new_group1._json['interfaces']:
+            group_if_uid = uuid
+
+        self.assertEqual(
+            self.node._json['interfaces'][group_if_uid],
+            {'4': None, '6': None}
+        )
+
+        self.assertEqual(
+            self.network11._json['freelist'],
+            [{'start': 1, 'end': 65533}]
+        )
+
+    def test_w_interfaces_configured_in_both_groups_same_net(self):
+        self.group.set_net_to_if('eth0', self.network11.name)
+        self.new_group1.set_net_to_if('eth0', self.network11.name)
+
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+
+        self.assertTrue(self.node.set_group(self.new_group1.name))
+
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+
+        self.group = luna.Group(name=self.group.name,
+                                     mongo_db=self.db)
+
+        self.new_group1 = luna.Group(name=self.new_group1.name,
+                                     mongo_db=self.db)
+
+        self.network11 = luna.Network(name=self.network11.name,
+                                      mongo_db=self.db)
+
+        group_if_uid = None
+
+        for uuid in self.new_group1._json['interfaces']:
+            group_if_uid = uuid
+
+        self.assertEqual(
+            self.node._json['interfaces'][group_if_uid],
+            {'4': 1, '6': None}
+        )
+
+        self.assertEqual(
+            self.network11._json['freelist'],
+            [{'start': 2, 'end': 65533}]
+        )
+
+    def test_w_interfaces_configured_in_both_groups_same_net2(self):
+        self.group.set_net_to_if('eth0', self.network11.name)
+        self.new_group1.set_net_to_if('eth0', self.network11.name)
+
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+        self.node.set_ip(interface_name='eth0', ip='10.51.0.2')
+
+        self.assertTrue(self.node.set_group(self.new_group1.name))
+
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+
+        self.group = luna.Group(name=self.group.name,
+                                     mongo_db=self.db)
+
+        self.new_group1 = luna.Group(name=self.new_group1.name,
+                                     mongo_db=self.db)
+
+        self.network11 = luna.Network(name=self.network11.name,
+                                      mongo_db=self.db)
+
+        group_if_uid = None
+
+        for uuid in self.new_group1._json['interfaces']:
+            group_if_uid = uuid
+
+        self.assertEqual(
+            self.node._json['interfaces'][group_if_uid],
+            {'4': 2, '6': None}
+        )
+
+        self.assertEqual(
+            self.network11._json['freelist'],
+            [{'start': 1, 'end': 1}, {'start': 3, 'end': 65533}]
+        )
+
+    def test_same_net_different_ifs(self):
+
+        self.new_group2 = luna.Group(name='new2',
+                                osimage=self.osimage.name, mongo_db=self.db,
+                                interfaces=['em1'], create=True)
+
+        self.group.set_net_to_if('eth0', self.network11.name)
+        self.new_group2.set_net_to_if('em1', self.network11.name)
+
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+        self.node.set_ip(interface_name='eth0', ip='10.51.0.2')
+
+        self.assertTrue(self.node.set_group(self.new_group2.name))
+
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+
+        self.group = luna.Group(name=self.group.name,
+                                     mongo_db=self.db)
+
+        self.new_group2 = luna.Group(name=self.new_group2.name,
+                                     mongo_db=self.db)
+
+        self.network11 = luna.Network(name=self.network11.name,
+                                      mongo_db=self.db)
+
+        group_if_uid = None
+
+        for uuid in self.new_group2._json['interfaces']:
+            group_if_uid = uuid
+
+        self.assertEqual(
+            self.node._json['interfaces'][group_if_uid],
+            {'4': 2, '6': None}
+        )
+
+        self.assertEqual(
+            self.network11._json['freelist'],
+            [{'start': 1, 'end': 1}, {'start': 3, 'end': 65533}]
         )
 
 class OtherInterfaceTests(unittest.TestCase):
