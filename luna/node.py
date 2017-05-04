@@ -663,7 +663,20 @@ class Node(Base):
                         .format(old_if_name)
                     )
 
-                    if not new_group_interfaces[if_uuid]['network'][ver]:
+                    new_net = new_group_interfaces[if_uuid]['network'][ver]
+
+
+                    if not new_net:
+                        self.log.debug(
+                            "No network assigned for the interface."
+                        )
+                        continue
+
+                    if not new_net == old_ips[ver][old_if_name]['network']:
+                        self.log.debug(
+                            "New network is not the same " +
+                            "as the old one for the interface."
+                        )
                         continue
 
                     self.log.debug(
