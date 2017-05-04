@@ -682,28 +682,6 @@ class Node(Base):
 
         return True
 
-    def old_set_ip(self, interface_name=None, ip=None, version=None):
-
-        if not ip:
-            self.log.error("IP address should be provided")
-            return None
-
-        interface_uuid = None
-
-        if interface_name:
-            interface_dict = self.list_ifs()
-            interface_uuid = interface_dict[interface_name]
-
-        if not bool(self.group.get_ip(interface_uuid, ip, format='num')):
-            return None
-
-        res = self.del_ip(interface_name, version)
-
-        if res:
-            return self.add_ip(interface_name, ip, version)
-
-        return None
-
     def set_mac(self, mac=None):
         if not mac:
             mac = self.get_mac()
