@@ -73,7 +73,7 @@ class GroupCreateTests(unittest.TestCase):
         for uuid in if_dict:
             self.assertEqual(if_dict[uuid]['name'], 'BOOTIF')
             self.assertEqual(if_dict[uuid]['params'], '')
-            self.assertEqual(if_dict[uuid]['network'], None)
+            self.assertEqual(if_dict[uuid]['network'], {'4': None, '6': None})
 
     def test_create_broken(self):
         self.assertRaises(
@@ -161,7 +161,7 @@ class GroupCreateTests(unittest.TestCase):
         for uuid in if_dict:
             self.assertIn(if_dict[uuid]['name'], nics)
             self.assertEqual(if_dict[uuid]['params'], '')
-            self.assertEqual(if_dict[uuid]['network'], None)
+            self.assertEqual(if_dict[uuid]['network'], {'4': None, '6': None})
             nics.remove(if_dict[uuid]['name'])
 
 
