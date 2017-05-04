@@ -576,51 +576,164 @@ class Node(Base):
         return json
 
     def set_group(self, new_group_name=None):
+        """
+        Method to change group for node
+        """
         if not new_group_name:
             self.log.error("Group needs to be specified")
-            return None
+            return False
 
-        new_group = Group(new_group_name, mongo_db=self._mongo_db)
         self._get_group()
+        new_group = Group(new_group_name, mongo_db=self._mongo_db)
 
-        group_interfaces = self.group._json['interfaces']
+        old_group_interfaces = self.group._json['interfaces']
 
-        ips = {}
+        # Dictionary to store old IPs
+        old_ips = {'4':{}, '6':{}}
+        old_interfaces = self._json['interfaces']
 
-        for interface in group_interfaces:
-            if_name = group_interfaces[interface]['name']
-            if ('network' in group_interfaces[interface] and
-                    group_interfaces[interface]['network']):
-                net_id = group_interfaces[interface]['network'].id
-                ip = self.get_ip(if_name)
-                ips[net_id] = {'interface': if_name, 'ip': ip}
+        for if_uuid in old_interfaces:
+           for ver in ['4', '6']:
+               old_ip = old_interfaces[if_uuid][ver]
+               if old_ip:
+                   old_if_name = old_group_interfaces[if_uuid]['name']
+                   old_ip = self.get_ip(interface_uuid=if_uuid, version=ver)
+                   old_net = old_group_interfaces[if_uuid]['network'][ver]
+                   old_ips[ver][old_if_name] = {
+                                                'ip': old_ip,
+                                                'network': old_net,
+                                               }
 
+        self.log.debug('Old IPs dictionary: {}'.format(old_ips))
+
+        self.log.debug('Release all IPs from node')
         self.del_ip()
 
+        self.log.debug('Unlink old group from node')
         self.unlink(self.group)
 
+        self.log.debug('Set new group')
         res = self.set('group', new_group.DBRef)
 
+        self.log.debug('Link with new group')
         self.link(new_group)
+
+        self.log.debug('Update self.group')
         self.group = None
         self._get_group()
 
         new_group_interfaces = new_group._json['interfaces']
-        for interface in new_group_interfaces:
-            if_name = new_group_interfaces[interface]['name']
-            if ('network' in new_group_interfaces[interface] and
-                    new_group_interfaces[interface]['network']):
-                net_id = new_group_interfaces[interface]['network'].id
+        new_interfaces = {}
+        for uuid in new_group_interfaces:
+            new_interfaces[uuid] = {'4': None, '6': None}
 
-                if net_id in ips:
-                    self.add_ip(if_name, ips[net_id]['ip'])
-                else:
-                    self.add_ip(if_name)
+        self.set('interfaces', new_interfaces)
 
-            else:
-                self.add_ip(if_name)
+        new_ifs = self.list_ifs()
 
-            #self.add_ip(if_name, ip)
+        for new_if_name in new_ifs:
+            for ver in ['4', '6']:
+                if_uuid = new_ifs[new_if_name]
+                if new_group_interfaces[if_uuid]['network'][ver]:
+                    self.add_ip(new_if_name, version=ver)
+
+        self.log.debug('Automatically assigned IPs: {}'
+                       .format(self._json['interfaces'])
+        )
+
+        self.log.debug('Restore IPs')
+
+        self.log.debug('First try to restore by name')
+
+        # clone old_ips to tmp_dict
+        # we need it , as we will .pop old_ips later
+        tmp_dict = {'4': {}, '6': {}}
+        for ver in tmp_dict:
+            tmp_dict[ver] = old_ips[ver].copy()
+
+        for if_uuid in new_group_interfaces:
+            for ver in ['4', '6']:
+                for old_if_name in tmp_dict[ver]:
+                    new_if_dict = new_group_interfaces[if_uuid]
+                    if old_if_name != new_if_dict['name']:
+                        continue
+
+                    self.log.debug(
+                        'Old interface name is the same as new: {}'
+                        .format(old_if_name)
+                    )
+
+                    if not new_group_interfaces[if_uuid]['network'][ver]:
+                        continue
+
+                    self.log.debug(
+                        'Network IPv{} is assigned on {}'
+                        .format(ver, old_if_name)
+                    )
+
+                    auto_ip = self.get_ip(interface_name=old_if_name,
+                                          version=ver)
+                    old_ip = old_ips[ver][old_if_name]['ip']
+
+                    self.log.debug(
+                        "Automatically assigned IP {} for {}"
+                        .format(auto_ip, new_if_dict['name'])
+                    )
+
+                    self.log.debug(
+                        "Trying to restore {} for {} in new group"
+                        .format(old_ip, old_if_name)
+                    )
+
+                    self.set_ip(interface_name=old_if_name, ip=old_ip)
+
+                    self.log.debug('Modified node interface dictionary: {}'
+                                   .format(self._json['interfaces'])
+                    )
+
+                    old_ips[ver].pop(old_if_name)
+
+                    self.log.debug(
+                        'Modified old interfaces dictionary: {}'
+                        .format(old_ips)
+                    )
+
+        self.log.debug(
+            'Old interfaces dictionary: {}'
+            .format(old_ips)
+        )
+
+        self.log.debug('Try to restore using networks')
+
+        # clone old_ips to tmp_dict
+        tmp_dict = {'4': {}, '6': {}}
+        for ver in tmp_dict:
+            tmp_dict[ver] = old_ips[ver].copy()
+
+        for if_uuid in new_group_interfaces:
+            for ver in ['4', '6']:
+                for old_if_name in tmp_dict[ver]:
+
+                    new_net = new_group_interfaces[if_uuid]['network'][ver]
+                    old_net = tmp_dict[ver][old_if_name]['network']
+
+                    if old_net == new_net:
+
+                        new_if_name = new_group_interfaces[if_uuid]['name']
+
+                        self.log.debug(
+                            "New/old {}/{} have the same net {}"
+                            .format( new_if_name, old_if_name, new_net)
+                        )
+
+                        old_ip = tmp_dict[ver][old_if_name]['ip']
+
+                        self.log.debug(
+                            "Restoring {} for {}"
+                            .format(old_ip, new_if_name)
+                        )
+
+                        self.set_ip(interface_name=new_if_name, ip=old_ip)
 
         return True
 
