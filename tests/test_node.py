@@ -56,7 +56,6 @@ class NodeCreateTests(unittest.TestCase):
             'name': 'node001',
             'bmcnetwork': None,
             'localboot': False,
-            'interfaces': {},
             'setupbmc': True,
             'switch': None,
             'service': False,
@@ -66,6 +65,13 @@ class NodeCreateTests(unittest.TestCase):
             },
             'group': self.group.DBRef,
         }
+
+        if_uuid = None
+
+        for uuid in self.group._json['interfaces']:
+            if_uuid = uuid
+
+        expected['interfaces'] = {if_uuid: {'4': None, '6': None}}
 
         for attr in expected:
             self.assertEqual(doc[attr], expected[attr])
@@ -172,7 +178,10 @@ class NodeChangeTests(unittest.TestCase):
         }
 
         actual_dict = self.db['node'].find_one({'_id': self.node._id})
-        self.maxDiff = None
+        if_uuid = None
+        for uuid in self.group_new._json['interfaces']:
+            if_uuid = uuid
+        expected_dict['interfaces'] = {if_uuid: {'4': None, '6': None}}
         self.assertEqual(expected_dict, actual_dict)
 
         self.node.set_group(self.group.name)
@@ -390,7 +399,7 @@ class NodeChangeTests(unittest.TestCase):
 
         self.assertEqual(node_json['group'], group1.DBRef)
         for k in node_json['interfaces']:
-            self.assertEqual(node_json['interfaces'][k], 5)
+            self.assertEqual(node_json['interfaces'][k], {'4': 5, '6': None})
         self.assertEqual(len(net1_json['freelist']), 1)
         self.assertEqual(net1_json['freelist'][0]['start'], 12)
         #node_json['interfaces'], net1_json['freelist']
@@ -431,23 +440,14 @@ class NodeChangeTests(unittest.TestCase):
         self.assertIsNot(eth0_uuid, '')
         self.assertIsNot(em1_uuid, '')
         # should be 5
-        self.assertEqual(node_json['interfaces'][eth0_uuid], 5)
+        self.assertEqual(node_json['interfaces'][eth0_uuid], {'4': 5, '6': None})
         # another should be 1
-        self.assertEqual(node_json['interfaces'][em1_uuid], 1)
+        self.assertEqual(node_json['interfaces'][em1_uuid], {'4': 1, '6': None})
 
         # check network
         self.assertEqual(net1_json['freelist'], [{'start': 12, 'end': 65533}])
         self.assertEqual(net2_json['freelist'], [{'start': 2, 'end': 65533}])
 
-        # check using get_allocated_ips
-        self.assertNotIn(
-            node005.name,
-            group1.get_allocated_ips(net1._id).keys()
-        )
-        self.assertIn(
-            node005.name,
-            group2.get_allocated_ips(net1._id).keys()
-        )
         #
         # change group second time
         #
@@ -469,9 +469,9 @@ class NodeChangeTests(unittest.TestCase):
         self.assertIsNot(eth1_uuid, '')
         self.assertIsNot(em1_uuid, '')
         # should be 1
-        self.assertEqual(node_json['interfaces'][eth1_uuid], 1)
+        self.assertEqual(node_json['interfaces'][eth1_uuid], {'4': 1, '6': None})
         # another should be 5
-        self.assertEqual(node_json['interfaces'][em1_uuid], 5)
+        self.assertEqual(node_json['interfaces'][em1_uuid], {'4': 5, '6': None})
 
         #
         # change group third time
