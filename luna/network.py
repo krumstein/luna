@@ -36,7 +36,7 @@ class Network(Base):
     log = logging.getLogger(__name__)
 
     def __init__(self, name=None, mongo_db=None,
-                 create=False, id=None, version=4,
+                 create=False, id=None, version=None,
                  NETWORK=None, PREFIX=None,
                  ns_hostname=None, ns_ip=None):
         """
@@ -59,8 +59,15 @@ class Network(Base):
         net = self._get_object(name, mongo_db, create, id)
 
         if create:
+            if not version:
+                version = utils.ip.get_ip_version(NETWORK)
+                if version == 0:
+                    self.log.error("Unable to determine protocol " +
+                                   "version for given network")
+                    raise RuntimeError
+
             if version not in [4, 6]:
-                self.log.error("version should be 4 or 6")
+                self.log.error("IP version should be 4 or 6")
                 raise RuntimeError
 
             maxbits = 32
@@ -324,7 +331,9 @@ class Network(Base):
             if elem == "group":
                 for gid in rev_links[elem]:
                     group = Group(id=ObjectId(gid), mongo_db=self._mongo_db)
-                    tmp_dict = group.get_allocated_ips(self.id)
+                    tmp_dict = group.get_allocated_ips(self)
+                    if not tmp_dict:
+                        continue
 
                     for nodename in tmp_dict:
                         add_to_out_dict(nodename, tmp_dict[nodename])
