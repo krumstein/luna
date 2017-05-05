@@ -490,35 +490,69 @@ class Group(Base):
 
         return res
 
-    def get_allocated_ips(self, net_id):
+    def get_allocated_ips(self, net):
+
+        interfaces = self.get('interfaces')
+
+        if type(net) != Network:
+            self.log.error("net should be Network class. Unable to preceed.")
+            return False
+
+        ver = net.version
+
+        # get all the interfaces with desired net configured in format:
+        # {'uudd1': 'eth0', 'uuid2': 'BMC'}
+        interfaces_with_net = {}
+        for uuid in interfaces:
+            interface = interfaces[uuid]
+            if interface['network'][str(ver)] == net.DBRef:
+                interfaces_with_net[uuid] = interface['name']
+
+        # check if lower() will not cause name conflict
+        # no bmc and BMC are configured at the same time
+        lowered = False
+        lower_names = [s.lower() for s in interfaces_with_net.values()]
+        lower_names.sort()
+
+        if list(set(lower_names)) == lower_names:
+            lowered = True
+
+        # enumerate all the node in group now
+
         ips = {}
 
-        def add_to_dict(key, val):
-            if key in ips:
-                self.log.error(("Duplicate IP detected in the group '{}'."
-                                "Could not process '{}'")
-                               .format(self.name, key))
-            else:
-                ips[key] = val
+        for node_id in self.get(usedby_key)['node']:
+            node_id = ObjectId(node_id)
+            node = Node(id=node_id, group=self, mongo_db=self._mongo_db)
+            for uuid in interfaces_with_net:
+                hostname = node.name
+                ifname = interfaces_with_net[uuid]
 
-        ifs = self.get('interfaces')
-        if self.get(usedby_key) and ifs:
-            for if_uuid in ifs:
-                if_name = ifs[if_uuid]['name']
-                if ('network' in ifs[if_uuid]
-                        and ifs[if_uuid]['network']
-                        and ifs[if_uuid]['network'].id == net_id):
-                    for node_id in self.get(usedby_key)['node']:
-                        node_id = ObjectId(node_id)
-                        node = Node(
-                            id=node_id,
-                            group=self,
-                            mongo_db=self._mongo_db,
-                        )
-                        add_to_dict(
-                            node.name,
-                            node.get_ip(if_name, format='num')
-                        )
+                # add *-ifname if we have more that one interface
+                # with this net configured, for example:
+                # node001-eth0, node001-bmc
+                if len(interfaces_with_net) > 1:
+
+                    suffix = "-" + ifname
+
+                    if lowered:
+                        suffix = suffix.lower()
+
+                    hostname += suffix
+                    self.log.warning(
+                        ('Several interfaces for {} are configured. ' +
+                         'Using {}.').format(node.name, hostname)
+                    )
+
+                ipnum = node.get_ip(interface_name=ifname,
+                                    format='num', version=ver)
+
+                if hostname in ips:
+                    self.log.error(("Duplicate IP detected in the group '{}'."
+                                    "Could not process '{}'")
+                                   .format(self.name, hostname))
+                else:
+                    ips[hostname] = ipnum
 
         return ips
 
