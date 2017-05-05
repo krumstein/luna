@@ -1,0 +1,24 @@
+---
+- hosts: localhost
+  tasks:
+    - name: Create a test bmcsetup
+      luna_bmcsetup:
+        name: "Test1"
+        user: "Test"
+        password: "Test"
+        state: "present"
+    - name: Delete a test bmcsetup
+      luna_bmcsetup:
+        name: "Test"
+        state: absent
+    - name: Create a test1 bmcsetup
+      luna_bmcsetup:
+        name: "Test1"
+        user: "Test"
+        password: "Test"
+        state: "present"
+    - name: Change a test1 bmcsetup
+      luna_bmcsetup:
+        name: "Test1"
+        userid: 10
+        state: "present"

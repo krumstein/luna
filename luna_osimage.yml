@@ -1,0 +1,27 @@
+---
+- hosts: localhost
+  tasks:
+    - name: Create a test osimage
+      luna_osimage:
+        name: "Test1"
+        path: "/trinity/images/compute-2017-04-16-02-30"
+        state: "present"
+    - name: Delete a test osimage
+      luna_osimage:
+        name: "Test"
+        state: absent
+    - name: Create a test1 osimage
+      luna_osimage:
+        name: "Test1"
+        path: "/trinity/images/compute-2017-04-16-02-30"
+        state: "present"
+    - name: Change a test1 osimage
+      luna_osimage:
+        name: "Test1"
+        path: "/trinity/images/compute-2017-04-16-02-30"
+        kernopts: "console=tty0"     
+        state: "present"
+#    - name: Delete a test1 osimage
+#      luna_osimage:
+#        name: "Test1"
+#        state: "present"

@@ -1,0 +1,9 @@
+---
+- hosts: osimages
+  tasks:
+      - name: copy /etc/resolv.conf
+        copy: src=/etc/resolv.conf dest=/etc/resolv.conf 
+      - name: install vim
+        yum:
+             name: vim
+             state: present
