@@ -51,7 +51,7 @@ class Network(Base):
 
         self._collection_name = 'network'
         self._keylist = {'NETWORK': long, 'PREFIX': int,
-                         'ns_hostname': type('')}
+                         'ns_hostname': type(''), 'include': str}
 
         # Check if this network is already present in the datastore
         # Read it if that is the case
@@ -96,7 +96,7 @@ class Network(Base):
 
             net = {'name': name, 'NETWORK': num_subnet, 'PREFIX': PREFIX,
                    'freelist': flist, 'ns_hostname': ns_hostname,
-                   'ns_ip': None, 'version': version}
+                   'ns_ip': None, 'version': version, 'include': None}
 
             self.log.debug("Saving net '{}' to the datastore".format(net))
 
