@@ -139,5 +139,40 @@ class UtilsDetectIPver(unittest.TestCase):
         self.assertEqual(ip.get_ip_version('fe80::1:1'), 6)
 
 
+class UtilsIPv6Unwrap(unittest.TestCase):
+
+    def setUp(self):
+        print
+
+    def test_ip_norm1(self):
+        self.assertEqual(
+            ip.ipv6_unwrap('fe80:1::'),
+            'fe80:0001:0000:0000:0000:0000:0000:0000'
+        )
+
+    def test_ip_norm2(self):
+        self.assertEqual(
+            ip.ipv6_unwrap('fe80:1::1'),
+            'fe80:0001:0000:0000:0000:0000:0000:0001'
+        )
+
+    def test_ip_norm3(self):
+        self.assertEqual(
+            ip.ipv6_unwrap('fe80::1:1'),
+            'fe80:0000:0000:0000:0000:0000:0001:0001'
+        )
+
+    def test_ip_norm4(self):
+        self.assertEqual(
+            ip.ipv6_unwrap('2001:db8:0:0:0:ff00:42:8329'),
+            '2001:0db8:0000:0000:0000:ff00:0042:8329'
+        )
+
+    def test_ip_norm5(self):
+        self.assertEqual(
+            ip.ipv6_unwrap('2001:db8::ff00:42:8329'),
+            '2001:0db8:0000:0000:0000:ff00:0042:8329'
+        )
+
 if __name__ == '__main__':
     unittest.main()
