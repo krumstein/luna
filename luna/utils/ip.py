@@ -196,3 +196,31 @@ def get_ip_version(ip):
         except:
             pass
     return None
+
+def ipv6_unwrap(ip):
+    """
+    Retruns IPv6 ip address in full form:
+    fe80:1::                => fe80:0001:0000:0000:0000:0000:0000:0000
+    2001:db8::ff00:42:8329  => 2001:0db8:0000:0000:0000:ff00:0042:8329
+    """
+
+    ip = ntoa(aton(ip, 6), 6)
+
+    out = [''] * 8
+    start, end = ip.split('::')
+
+    start_splited = start.split(':')
+    end_splited = end.split(':')
+
+    out[:len(start_splited)] = start_splited
+
+    i = 1
+    for elem in reversed(end_splited):
+        out[-i] = elem
+        i += 1
+
+    for i in range(len(out)):
+        out[i] = '{:0>4}'.format(out[i])
+
+    return ":".join(out)
+
