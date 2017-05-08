@@ -50,8 +50,9 @@ class Network(Base):
         # Define the schema used to represent network objects
 
         self._collection_name = 'network'
-        self._keylist = {'NETWORK': long, 'PREFIX': int,
-                         'ns_hostname': type(''), 'include': str}
+        self._keylist = {'PREFIX': int,
+                         'ns_hostname': type(''),
+                         'include': str, 'rev_include': str}
 
         # Check if this network is already present in the datastore
         # Read it if that is the case
@@ -96,7 +97,8 @@ class Network(Base):
 
             net = {'name': name, 'NETWORK': num_subnet, 'PREFIX': PREFIX,
                    'freelist': flist, 'ns_hostname': ns_hostname,
-                   'ns_ip': None, 'version': version, 'include': None}
+                   'ns_ip': None, 'version': version,
+                   'include': None, 'rev_include': None}
 
             self.log.debug("Saving net '{}' to the datastore".format(net))
 
@@ -198,8 +200,10 @@ class Network(Base):
             num_subnet = utils.ip.get_num_subnet(
                 value, prefix, self.version
             )
+            if self.version == 6:
+                num_subnet = str(num_subnet)
 
-            ret = super(Network, self).set('NETWORK', str(num_subnet))
+            ret = super(Network, self).set('NETWORK', num_subnet)
 
         elif key == 'PREFIX':
             num_subnet = net['NETWORK']
@@ -207,8 +211,10 @@ class Network(Base):
                 num_subnet, value, self.version
             )
 
-            limit = (1 << (self.maxbits - value)) - 1
-            flist = utils.freelist.set_upper_limit(net['freelist'], limit)
+            limit = (1 << (self.maxbits - value)) - 2
+            prev_limit = (1 << (self.maxbits - self.get('PREFIX'))) - 2
+            flist = utils.freelist.set_upper_limit(
+                net['freelist'], limit, prev_limit)
 
             ret = super(Network, self).set('freelist', flist)
             ret &= super(Network, self).set('NETWORK', new_num_subnet)
@@ -351,3 +357,97 @@ class Network(Base):
         add_to_out_dict(net['ns_hostname'], net['ns_ip'])
 
         return out_dict
+
+
+    @property
+    def zone_data(self):
+        zone_dict = {}
+        master_ip = self.get('ns_ip')
+        zone_dict['zone_name'] = self.name
+        zone_dict['ns_hostname'] = self.get('ns_hostname')
+        zone_dict['ns_ip'] = master_ip
+        zone_dict['hosts'] = self.resolve_used_ips()
+
+        if self.version == 4:
+
+            """
+            # here we need to find first octet in IP address
+            # which varies.
+            # 191.168.1.2, 191.168.1.254   => 3
+            # 10.141.0.1,  10.141.255.254  => 2
+            # find min and max IPs
+            ips = zone_dict['hosts'].values()
+            ips.sort()
+            ip_max = 0
+            ip_min = utils.ip.aton('255.255.255.255')
+            for ip in ips:
+                ip_num = utils.ip.aton(ip, ver=self.version)
+                if ip_num < ip_min:
+                    ip_min = ip_num
+                if ip_num > ip_max:
+                    ip_max = ip_num
+
+            # now we have first and last IPs:
+            ip_min = utils.ip.ntoa(ip_min).split('.')
+            ip_max = utils.ip.ntoa(ip_max).split('.')
+            mutable_octet = 0
+            for i in range(len(ip_min)):
+                if ip_min[i] != ip_max[i]:
+                    break
+                mutable_octet = i
+            """
+
+            prefix = self.get('prefix')
+
+            if prefix < 8:
+                prefix = 8
+            if prefix > 24:
+                prefix = 24
+
+            mutable_octet = self.get('PREFIX')//8
+            tmp = master_ip.split('.')[:mutable_octet]
+            zone_dict['rev_zone_name'] = '.'.join(reversed(tmp))
+            zone_dict['rev_hosts'] = {}
+            for host in zone_dict['hosts']:
+                ip = zone_dict['hosts'][host]
+                ip_reversed = list(reversed(ip.split('.')))
+                ptr = ip_reversed[:(4-mutable_octet)]
+                ptr = '.'.join(ptr)
+                ptr_hostname = host + '.' + self.name + '.'
+                zone_dict['rev_hosts'][ptr] = ptr_hostname
+            return zone_dict
+
+        # IPv6
+        prefix = self.get('prefix')
+        # IPv6 PTR uses nibbles (4 bits)
+        # https://tools.ietf.org/html/rfc3596
+        if prefix < 4:
+            prefix = 4
+        if prefix > 124:
+            prefix = 124
+        mutable_octet = self.get('PREFIX')//4
+        master_nibbles = utils.ip.ipv6_unwrap(master_ip)
+        # master_nibbles in fe80:0000:0000:0000:ffff:ffff:ffff:fffe format
+        # need to get it in f.e.8.0.0.0.0.0 ... format
+        master_nibbles_list = "".join(master_nibbles.split(':'))
+        master_nibbles_list =  list(master_nibbles_list)
+        tmp = master_nibbles_list[:mutable_octet]
+        zone_dict['rev_zone_name'] = '.'.join(reversed(tmp))
+        zone_dict['rev_hosts'] = {}
+
+        for host in zone_dict['hosts']:
+            ip = zone_dict['hosts'][host]
+            host_nibbles = utils.ip.ipv6_unwrap(ip)
+            host_nibbles_list = "".join(host_nibbles.split(':'))
+            host_nibbles_list = list(host_nibbles_list)
+            host_nibbles_list_reversed = list(reversed(host_nibbles_list))
+            ptr = host_nibbles_list_reversed[:(32-mutable_octet)]
+            ptr = '.'.join(ptr)
+            ptr_hostname = host + '.' + self.name + '.'
+            zone_dict['rev_hosts'][ptr] = ptr_hostname
+
+        return zone_dict
+
+
+
+

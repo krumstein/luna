@@ -261,5 +261,274 @@ class NetworkAttributesTestsIPv6(unittest.TestCase):
                           {'start': 39060053, 'end': 18446744073709551614}]
                          )
 
+
+class ZoneDataIPv4(unittest.TestCase):
+
+    def setUp(self):
+
+        print
+
+        self.sandbox = Sandbox()
+        self.db = self.sandbox.db
+        self.path = self.sandbox.path
+        osimage_path = self.sandbox.create_osimage()
+
+        self.cluster = luna.Cluster(
+            mongo_db=self.db,
+            create=True,
+            path=self.path,
+            user=getpass.getuser()
+        )
+        self.cluster.set('path', self.path)
+        self.cluster.set('frontend_address', '127.0.0.1')
+
+        self.osimage = luna.OsImage(
+            name='testosimage',
+            path=osimage_path,
+            mongo_db=self.db,
+            create=True
+        )
+
+        self.net = luna.Network(
+            'testnet',
+            mongo_db=self.db,
+            create=True,
+            NETWORK='10.50.0.0',
+            PREFIX=16,
+        )
+
+        self.net.set('ns_hostname', 'master')
+
+        self.group = luna.Group(
+            name='testgroup',
+            osimage=self.osimage.name,
+            mongo_db=self.db,
+            interfaces=['eth0'],
+            create=True,
+        )
+
+        self.group.set_net_to_if('eth0', self.net.name)
+
+        self.nodes = []
+        for i in range(10):
+            self.nodes.append(luna.Node(
+                group=self.group,
+                create=True,
+                mongo_db=self.db,
+            ))
+
+        self.net = luna.Network(name=self.net.name, mongo_db=self.db)
+
+    def tearDown(self):
+        self.sandbox.cleanup()
+
+    def test_zone_data_simple(self):
+        expected_dict = {
+            'ns_hostname': 'master',
+            'ns_ip': '10.50.255.254',
+            'zone_name': 'testnet',
+            'hosts': {
+                    'node001': '10.50.0.1',
+                    'node002': '10.50.0.2',
+                    'node003': '10.50.0.3',
+                    'node004': '10.50.0.4',
+                    'node005': '10.50.0.5',
+                    'node006': '10.50.0.6',
+                    'node007': '10.50.0.7',
+                    'node008': '10.50.0.8',
+                    'node009': '10.50.0.9',
+                    'node010': '10.50.0.10',
+                    'master':  '10.50.255.254',
+            },
+            'rev_zone_name': '50.10',
+            'rev_hosts': {
+                '1.0': 'node001.testnet.',
+                '2.0': 'node002.testnet.',
+                '3.0': 'node003.testnet.',
+                '4.0': 'node004.testnet.',
+                '5.0': 'node005.testnet.',
+                '6.0': 'node006.testnet.',
+                '7.0': 'node007.testnet.',
+                '8.0': 'node008.testnet.',
+                '9.0': 'node009.testnet.',
+                '10.0': 'node010.testnet.',
+                '254.255': 'master.testnet.',
+            },
+        }
+        self.assertEqual(self.net.zone_data, expected_dict)
+
+    def test_zone_data_prefix19(self):
+        self.net.set('ns_ip', '10.50.2.254')
+        self.net.set('PREFIX', 19)
+        self.net.set('NETWORK', '10.50.32.0')
+        expected_dict = {
+            'ns_hostname': 'master',
+            'ns_ip': '10.50.34.254',
+            'zone_name': 'testnet',
+            'hosts': {
+                    'node001': '10.50.32.1',
+                    'node002': '10.50.32.2',
+                    'node003': '10.50.32.3',
+                    'node004': '10.50.32.4',
+                    'node005': '10.50.32.5',
+                    'node006': '10.50.32.6',
+                    'node007': '10.50.32.7',
+                    'node008': '10.50.32.8',
+                    'node009': '10.50.32.9',
+                    'node010': '10.50.32.10',
+                    'master':  '10.50.34.254',
+            },
+            'rev_zone_name': '50.10',
+            'rev_hosts': {
+                '1.32': 'node001.testnet.',
+                '2.32': 'node002.testnet.',
+                '3.32': 'node003.testnet.',
+                '4.32': 'node004.testnet.',
+                '5.32': 'node005.testnet.',
+                '6.32': 'node006.testnet.',
+                '7.32': 'node007.testnet.',
+                '8.32': 'node008.testnet.',
+                '9.32': 'node009.testnet.',
+                '10.32': 'node010.testnet.',
+                '254.34': 'master.testnet.',
+            },
+        }
+        self.assertEqual(self.net.zone_data, expected_dict)
+
+
+    def test_zone_data_prefix19_2(self):
+        self.net.set('ns_ip', '10.50.0.254')
+        self.net.set('PREFIX', 19)
+        self.net.set('NETWORK', '10.50.32.0')
+        expected_dict = {
+            'ns_hostname': 'master',
+            'ns_ip': '10.50.32.254',
+            'zone_name': 'testnet',
+            'hosts': {
+                    'node001': '10.50.32.1',
+                    'node002': '10.50.32.2',
+                    'node003': '10.50.32.3',
+                    'node004': '10.50.32.4',
+                    'node005': '10.50.32.5',
+                    'node006': '10.50.32.6',
+                    'node007': '10.50.32.7',
+                    'node008': '10.50.32.8',
+                    'node009': '10.50.32.9',
+                    'node010': '10.50.32.10',
+                    'master':  '10.50.32.254',
+            },
+            'rev_zone_name': '50.10',
+            'rev_hosts': {
+                '1.32': 'node001.testnet.',
+                '2.32': 'node002.testnet.',
+                '3.32': 'node003.testnet.',
+                '4.32': 'node004.testnet.',
+                '5.32': 'node005.testnet.',
+                '6.32': 'node006.testnet.',
+                '7.32': 'node007.testnet.',
+                '8.32': 'node008.testnet.',
+                '9.32': 'node009.testnet.',
+                '10.32': 'node010.testnet.',
+                '254.32': 'master.testnet.',
+            },
+        }
+        self.assertEqual(self.net.zone_data, expected_dict)
+
+
+class ZoneDataIPv6(unittest.TestCase):
+
+    def setUp(self):
+
+        print
+
+        self.sandbox = Sandbox()
+        self.db = self.sandbox.db
+        self.path = self.sandbox.path
+        osimage_path = self.sandbox.create_osimage()
+
+        self.cluster = luna.Cluster(
+            mongo_db=self.db,
+            create=True,
+            path=self.path,
+            user=getpass.getuser()
+        )
+        self.cluster.set('path', self.path)
+        self.cluster.set('frontend_address', '127.0.0.1')
+
+        self.osimage = luna.OsImage(
+            name='testosimage',
+            path=osimage_path,
+            mongo_db=self.db,
+            create=True
+        )
+
+        self.net = luna.Network(
+            'testnet',
+            mongo_db=self.db,
+            create=True,
+            NETWORK='fe80::',
+            PREFIX=64,
+        )
+
+        self.net.set('ns_hostname', 'master')
+
+        self.group = luna.Group(
+            name='testgroup',
+            osimage=self.osimage.name,
+            mongo_db=self.db,
+            interfaces=['eth0'],
+            create=True,
+        )
+
+        self.group.set_net_to_if('eth0', self.net.name)
+
+        self.nodes = []
+        for i in range(10):
+            self.nodes.append(luna.Node(
+                group=self.group,
+                create=True,
+                mongo_db=self.db,
+            ))
+
+        self.net = luna.Network(name=self.net.name, mongo_db=self.db)
+
+    def tearDown(self):
+        self.sandbox.cleanup()
+
+    def test_zone_data_simple(self):
+        expected_dict = {
+            'ns_hostname': 'master',
+            'ns_ip': 'fe80::ffff:ffff:ffff:fffe',
+            'zone_name': 'testnet',
+            'hosts': {
+                'node001': 'fe80::1',
+                'node002': 'fe80::2',
+                'node003': 'fe80::3',
+                'node004': 'fe80::4',
+                'node005': 'fe80::5',
+                'node006': 'fe80::6',
+                'node007': 'fe80::7',
+                'node008': 'fe80::8',
+                'node009': 'fe80::9',
+                'node010': 'fe80::a',
+                'master':  'fe80::ffff:ffff:ffff:fffe',
+            },
+            'rev_zone_name': '0.0.0.0.0.0.0.0.0.0.0.0.0.8.e.f',
+            'rev_hosts': {
+                '1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0': 'node001.testnet.',
+                '2.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0': 'node002.testnet.',
+                '3.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0': 'node003.testnet.',
+                '4.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0': 'node004.testnet.',
+                '5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0': 'node005.testnet.',
+                '6.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0': 'node006.testnet.',
+                '7.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0': 'node007.testnet.',
+                '8.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0': 'node008.testnet.',
+                '9.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0': 'node009.testnet.',
+                'a.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0': 'node010.testnet.',
+                'e.f.f.f.f.f.f.f.f.f.f.f.f.f.f.f': 'master.testnet.',
+            },
+        }
+        self.assertEqual(self.net.zone_data, expected_dict)
+
 if __name__ == '__main__':
     unittest.main()
