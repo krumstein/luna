@@ -195,22 +195,24 @@ def free_range(flist, start, end=None):
         return (new_list, [start, end])
 
 
-def set_upper_limit(flist, end):
+def set_upper_limit(flist, end, prev_end):
     """
     Update a freelists's uppper end. We assume that a freelist is always
     sorted since the only operation that might alter the order (free_range)
     does perform a sort on the freelist.
     """
 
-    last_range = flist[-1]
+    last_ip = flist[-1]['start'] - 1 # last occupied ip
+    if flist[-1]['end'] != prev_end:
+        last_ip = prev_end
 
     # Make sure the new 'end' does not exclude some non-free elements
 
-    if last_range['start'] > end:
+    if last_ip > end:
         log.error(("Cannot update freelist upper limit. "
                    "This new limit excludes some already nonfree elements"))
         raise RuntimeError
-
+    last_range = flist[-1]
     flist[-1] = {'start': last_range['start'], 'end': end}
 
     return flist
