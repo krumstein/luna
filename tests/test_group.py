@@ -465,36 +465,6 @@ class GroupConfigTests(unittest.TestCase):
         out = self.group.get_ip(interface_uuid=if_uuid)
         self.assertIsNone(out)
 
-    def Z_test_get_allocated_ips(self):
-
-        nodes = []
-        for i in range(10):
-            nodes.append(luna.Node(
-                group=self.group,
-                mongo_db=self.db,
-                create=True,
-            ))
-
-        self.group = luna.Group(
-            name=self.group.name,
-            mongo_db=self.db,
-        )
-
-        self.group.set_net_to_if('eth0', self.net1.name)
-
-        net_json = self.db['network'].find_one({'_id': self.net1._id})
-
-        alloc_ips = self.group.get_allocated_ips(self.net1._id)
-
-        self.assertEqual(len(net_json['freelist']), 1)
-
-        tmp_dict = range(net_json['freelist'][0]['start'])[1:]
-
-        for e in alloc_ips:
-            tmp_dict.remove(alloc_ips[e])
-
-        self.assertEqual(tmp_dict, [])
-
     def test_set_domain(self):
         self.group.set_domain(self.net1.name)
         group_json = self.db['group'].find_one({'_id': self.group._id})
@@ -822,7 +792,19 @@ class GroupBootInstallParamsTests(unittest.TestCase):
             'tarball': osimage_json['tarball'] + '.tgz',
             'bmcsetup': {},
             'interfaces': {
-                'BOOTIF': {'netmask': '', 'options': '', 'prefix': ''}
+                'BOOTIF': {
+                    'options': '',
+                    '4': {
+                        'ip': '',
+                        'netmask': '',
+                        'prefix': '',
+                    },
+                    '6': {
+                        'ip': '',
+                        'netmask': '',
+                        'prefix': '',
+                    }
+                }
             },
             'prescript': '',
             'domain': '',
@@ -838,8 +820,7 @@ class GroupBootInstallParamsTests(unittest.TestCase):
     def test_boot_params_default(self):
 
         self.assertEqual(self.group.boot_params,
-                {'net_prefix': '',
-                'net_mask': '',
+                {'net': {},
                 'kernel_file': self.osimage.name + '-vmlinuz-1.0.0-1.el7.x86_64',
                 'kern_opts': '',
                 'domain': '',
@@ -852,8 +833,7 @@ class GroupBootInstallParamsTests(unittest.TestCase):
         self.group.set_domain(self.net1.name)
 
         self.assertEqual(self.group.boot_params,
-                {'net_prefix': '',
-                'net_mask': '',
+                {'net': {},
                 'kernel_file': self.osimage.name + '-vmlinuz-1.0.0-1.el7.x86_64',
                 'kern_opts': '',
                 'domain': self.net1.name,
@@ -866,8 +846,7 @@ class GroupBootInstallParamsTests(unittest.TestCase):
         self.group.set_net_to_if('BOOTIF', self.net1.name)
 
         self.assertEqual(self.group.boot_params,
-                {'net_prefix': '16',
-                'net_mask': '255.255.0.0',
+                {'net': {'4': {'prefix': '16', 'mask': '255.255.0.0'} },
                 'kernel_file': self.osimage.name + '-vmlinuz-1.0.0-1.el7.x86_64',
                 'kern_opts': '',
                 'domain': '',
@@ -880,9 +859,10 @@ class GroupBootInstallParamsTests(unittest.TestCase):
 
         self.assertEqual(self.group.install_params, self.install_expected_dict)
 
-    def test_install_params_w_torr_if_wo_net(self):
+    def test_install_params_w_wrong_torrent_if(self):
 
-        self.group.set('torrent_if', 'BOOTIF')
+        self.group.set('torrent_if', 'eth0')
+
         self.assertEqual(self.group.install_params, self.install_expected_dict)
 
     def test_install_params_w_torr_if_w_net(self):
@@ -892,9 +872,9 @@ class GroupBootInstallParamsTests(unittest.TestCase):
         self.group.set('torrent_if', 'BOOTIF')
 
         self.install_expected_dict['torrent_if'] = 'BOOTIF'
-        self.install_expected_dict['interfaces']['BOOTIF'] = {
+        self.install_expected_dict['interfaces']['BOOTIF']['4'] = {
+            'ip': '',
             'netmask': '255.255.0.0',
-            'options': '',
             'prefix': '16',
         }
         self.assertEqual(self.group.install_params, self.install_expected_dict)
