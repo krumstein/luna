@@ -608,15 +608,13 @@ class NodeBootInstallTests(unittest.TestCase):
 
         self.boot_expected_dict = {
             'domain': '',
-            'net_mask': '',
-            'initrd_file': None,
-            'mac': None,
-            'net_prefix': '',
-            'kernel_file': None,
-            'localboot': False,
+            'initrd_file': '',
+            'mac': '',
+            'kernel_file': '',
+            'localboot': 0,
             'name': 'node001',
             'service': 0,
-            'ip': '',
+            'net': {},
             'hostname': 'node001',
             'kern_opts': '',
             'bootproto': 'dhcp'
@@ -630,7 +628,32 @@ class NodeBootInstallTests(unittest.TestCase):
             'tarball': '',
             'bmcsetup': {},
             'interfaces': {
-                'eth0': {'netmask': '', 'options': '', 'prefix': ''}
+                'BOOTIF': {
+                    'options': '',
+                    '4': {
+                        'ip': '',
+                        'netmask': '',
+                        'prefix': '',
+                    },
+                    '6': {
+                        'ip': '',
+                        'netmask': '',
+                        'prefix': '',
+                    }
+                },
+                'eth0': {
+                    'options': '',
+                    '4': {
+                        'ip': '',
+                        'netmask': '',
+                        'prefix': '',
+                    },
+                    '6': {
+                        'ip': '',
+                        'netmask': '',
+                        'prefix': '',
+                    }
+                }
             },
             'prescript': '',
             'domain': '',
@@ -657,40 +680,50 @@ class NodeBootInstallTests(unittest.TestCase):
             self.boot_expected_dict,
         )
 
-    def test_boot_params_w_net_assigned(self):
+    def test_boot_params_w_net_and_mac_assigned(self):
 
+        mac = '00:11:22:33:44:55'
         self.group.set_net_to_if('eth0', self.net1.name)
         self.group.add_interface('BOOTIF')
         self.group.set_net_to_if('BOOTIF', self.net2.name)
+        self.node.set_mac(mac)
 
         self.node = luna.Node(
             name=self.node.name,
             mongo_db=self.db,
         )
 
-        self.boot_expected_dict['net_prefix'] = '16'
-        self.boot_expected_dict['net_mask'] = '255.255.0.0'
-        self.boot_expected_dict['ip'] = '10.51.0.1'
+        self.boot_expected_dict['bootproto'] = 'static'
+        self.boot_expected_dict['mac'] = mac
+        self.boot_expected_dict['net']['4'] = {}
+        self.boot_expected_dict['net']['4']['prefix'] = '16'
+        self.boot_expected_dict['net']['4']['mask'] = '255.255.0.0'
+        self.boot_expected_dict['net']['4']['ip'] = '10.51.0.1'
 
         self.assertEqual(
             self.node.boot_params,
             self.boot_expected_dict,
         )
 
-    def test_boot_params_w_mac_net_assigned(self):
+    def test_boot_params_w_bootif_wo_net(self):
 
-        mac = '00:11:22:33:44:55'
+        self.group.add_interface('BOOTIF')
+
+        self.node = luna.Node(
+            name=self.node.name,
+            mongo_db=self.db,
+        )
+
+        self.assertEqual(
+            self.node.boot_params,
+            self.boot_expected_dict,
+        )
+
+    def test_boot_params_w_net_wo_mac_assigned(self):
 
         self.group.set_net_to_if('eth0', self.net1.name)
         self.group.add_interface('BOOTIF')
         self.group.set_net_to_if('BOOTIF', self.net2.name)
-        self.node.set_mac(mac)
-
-        self.boot_expected_dict['bootproto'] = 'static'
-        self.boot_expected_dict['mac'] = mac
-        self.boot_expected_dict['net_prefix'] = '16'
-        self.boot_expected_dict['net_mask'] = '255.255.0.0'
-        self.boot_expected_dict['ip'] = '10.51.0.1'
 
         self.node = luna.Node(
             name=self.node.name,
@@ -704,7 +737,8 @@ class NodeBootInstallTests(unittest.TestCase):
 
     def test_install_params_default(self):
 
-        self.maxDiff = None
+        self.install_expected_dict['interfaces'].pop('BOOTIF')
+
         self.assertEqual(
             self.node.install_params,
             self.install_expected_dict,
@@ -721,19 +755,15 @@ class NodeBootInstallTests(unittest.TestCase):
             mongo_db=self.db,
         )
 
-        self.install_expected_dict['interfaces'] = {
-            'BOOTIF': {
-                'ip': '10.51.0.1',
-                'netmask': '255.255.0.0',
-                'options': '',
-                'prefix': '16',
-            },
-            'eth0': {
-                'ip': '10.50.0.1',
-                'netmask': '255.255.0.0',
-                'options': '',
-                'prefix': '16',
-            }
+        self.install_expected_dict['interfaces']['BOOTIF']['4'] = {
+            'ip': '10.51.0.1',
+            'netmask': '255.255.0.0',
+            'prefix': '16',
+        }
+        self.install_expected_dict['interfaces']['eth0']['4'] = {
+            'ip': '10.50.0.1',
+            'netmask': '255.255.0.0',
+            'prefix': '16',
         }
 
         self.assertEqual(
@@ -741,7 +771,7 @@ class NodeBootInstallTests(unittest.TestCase):
             self.install_expected_dict,
         )
 
-    def test_install_params_w_nets(self):
+    def test_install_params_w_bmc(self):
 
         self.maxDiff = None
 
@@ -750,6 +780,8 @@ class NodeBootInstallTests(unittest.TestCase):
             mongo_db=self.db,
             create=True,
         )
+
+        self.install_expected_dict['interfaces'].pop('BOOTIF')
 
         self.group.bmcsetup(bmcsetup.name)
 
@@ -771,7 +803,7 @@ class NodeBootInstallTests(unittest.TestCase):
             self.install_expected_dict,
         )
 
-    def ktest_install_scripts(self):
+    def Z_test_install_scripts(self):
         self.assertIsNone(self.node.render_script('non_exist'))
         self.assertEqual(self.node.render_script('boot').split()[0], '#!ipxe')
         self.assertEqual(
