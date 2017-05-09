@@ -137,11 +137,13 @@ class Group(Base):
         osimage = OsImage(id=self.get('osimage').id, mongo_db=self._mongo_db)
         params['kernel_file'] = osimage.get('kernfile')
         params['initrd_file'] = osimage.get('initrdfile')
+        if not params['kernel_file']:
+            params['kernel_file'] = ''
+        if not params['initrd_file']:
+            params['initrd_file'] = ''
         params['kern_opts'] = osimage.get('kernopts')
         params['domain'] = ''
-        params['net_prefix'] = ''
-        params['net_mask'] = ''
-
+        params['net'] = {}
         domaindbref = self.get('domain')
 
         if domaindbref:
@@ -163,14 +165,20 @@ class Group(Base):
             return params
 
         interfaces = self.get('interfaces')
-        if ('network' in interfaces[bootif_uuid]
-                and interfaces[bootif_uuid]['network']):
-            net = Network(
-                id=interfaces[bootif_uuid]['network'].id,
-                mongo_db=self._mongo_db
-            )
-            params['net_prefix'] = str(net.get('PREFIX'))
-            params['net_mask'] = str(net.get('NETMASK'))
+
+        if not 'network' in interfaces[bootif_uuid]:
+            return params
+
+        for ver in ['4', '6']:
+            if interfaces[bootif_uuid]['network'][ver]:
+                params['net'][ver] = {}
+                net_id = interfaces[bootif_uuid]['network'][ver].id
+                net = Network(id=net_id, mongo_db=self._mongo_db)
+                params['net'][ver]['prefix'] = str(net.get('PREFIX'))
+                params['net'][ver]['mask'] = str(net.get('NETMASK'))
+
+        if bootif_uuid and not params['net']:
+            self.log.warning('No network for BOOTIF configured')
 
         return params
 
@@ -181,7 +189,7 @@ class Group(Base):
         params['partscript'] = self.get('partscript')
         params['postscript'] = self.get('postscript')
         params['torrent_if'] = self.get('torrent_if')
-        params['domain'] = ""
+        params['domain'] = ''
 
         domaindbref = self.get('domain')
 
@@ -198,51 +206,46 @@ class Group(Base):
 
         # now find torrent_if name and net prefix
 
-        if not params['torrent_if'] in if_list.keys():
-            params['torrent_if'] = ""
-
-        torrent_if_uuid = None
-
-        if params['torrent_if']:
-            torrent_if_uuid = if_list[params['torrent_if']]
-
-        net_for_torrent_if = False
-        if (torrent_if_uuid
-                and 'network' in interfaces[torrent_if_uuid]
-                and interfaces[torrent_if_uuid]['network']):
-            net = Network(
-                id=interfaces[torrent_if_uuid]['network'].id,
-                mongo_db=self._mongo_db
-            )
-            net_for_torrent_if = True
-
-        # unable to find net params for torrent_if,
-        # drop it
-        if not net_for_torrent_if:
-            params['torrent_if'] = ""
+        if params['torrent_if'] and not params['torrent_if'] in if_list.keys():
+            self.log.error(('No such interface {}. Unable to ' +
+                'set torrent_if').format(params['torrent_if']))
+            params['torrent_if'] = ''
 
         params['interfaces'] = {}
 
         for nic_uuid in interfaces:
             nic_name = interfaces[nic_uuid]['name']
-            nicopts = self.get_if_params(nic_name).strip()
 
             params['interfaces'][nic_name] = {}
 
+            nicopts = self.get_if_params(nic_name).strip()
+
             params['interfaces'][nic_name]['options'] = nicopts
-            net_prefix = ""
-            net_mask = ""
 
-            if ('network' in interfaces[nic_uuid]
-                    and interfaces[nic_uuid]['network']):
-                net = Network(id=interfaces[nic_uuid]['network'].id,
-                              mongo_db=self._mongo_db)
+            for ver in ['4', '6']:
+                params['interfaces'][nic_name][ver] = {
+                    'prefix': '',
+                    'netmask': '',
+                    'ip': '',
+                }
+                if 'network' in interfaces[nic_uuid]:
 
-                net_prefix = str(net.get('PREFIX'))
-                net_mask = str(net.get('NETMASK'))
+                    net_prefix = ""
+                    net_mask = ""
 
-            params['interfaces'][nic_name]['prefix'] = net_prefix
-            params['interfaces'][nic_name]['netmask'] = net_mask
+                    if not interfaces[nic_uuid]['network'][ver]:
+                        continue
+
+                    net_id = interfaces[nic_uuid]['network'][ver].id
+
+                    net = Network(id=net_id,
+                                  mongo_db=self._mongo_db)
+
+                    net_prefix = str(net.get('PREFIX'))
+                    net_mask = str(net.get('NETMASK'))
+
+                    params['interfaces'][nic_name][ver]['prefix'] = net_prefix
+                    params['interfaces'][nic_name][ver]['netmask'] = net_mask
 
         osimage = OsImage(id=self.get('osimage').id, mongo_db=self._mongo_db)
 
