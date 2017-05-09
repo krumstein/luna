@@ -502,6 +502,12 @@ class Node(Base):
 
         params = group_params.copy()
 
+        if not params['kernel_file']:
+            self.log.error('No kernel file found for node.')
+
+        if not params['initrd_file']:
+            self.log.error('No initrd file found for node.')
+
         params['bootproto'] = 'dhcp'
 
         params['name'] = self.name
@@ -511,25 +517,31 @@ class Node(Base):
         if params['domain']:
             params['hostname'] += "." + params['domain']
 
-
-        # FIXME 'service' and 'localboot' should be int or bool
-        # not mix, please
         params['service'] = int(self.get('service'))
-        params['localboot'] = self.get('localboot')
+        params['localboot'] = int(self.get('localboot'))
 
         interfaces = self.list_ifs()
         bootif_uuid = None
 
-        params['ip'] = ''
+        params['mac'] = self.get_mac()
+
+        if not params['mac']:
+            self.log.warning('No MAC found for node')
+            params['mac'] = ''
+            params['net'] = {}
+            return params
 
         if 'BOOTIF' in interfaces:
-            params['ip'] = self.get_ip('BOOTIF')
+            boot_if_uuid = interfaces['BOOTIF']
+            for ver in ['4', '6']:
+                if ver in group_params['net']:
+                    params['net'][ver] = group_params['net'][ver].copy()
+                    params['net'][ver]['ip'] = self.get_ip(
+                        interface_uuid=boot_if_uuid,
+                        version=int(ver),
+                    )
 
-        params['mac'] = self.get_mac()
-        if (params['ip']
-                and params['mac']
-                and (params['net_prefix'] or params['net_mask'])):
-            params['bootproto'] = 'static'
+                    params['bootproto'] = 'static'
 
         return params
 
@@ -549,9 +561,17 @@ class Node(Base):
             params['hostname'] = self.name
 
         for interface in params['interfaces']:
-            ip = self.get_ip(interface)
-            if ip:
-                params['interfaces'][interface]['ip'] = str(ip)
+            for ver in ['4','6']:
+
+                ip = self.get_ip(
+                    interface_name=interface,
+                    version=int(ver)
+                )
+
+                if not ip:
+                    continue
+
+                params['interfaces'][interface][ver]['ip'] = ip
 
         return params
 
