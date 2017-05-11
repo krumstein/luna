@@ -100,7 +100,8 @@ class Switch(Base):
                 return None
 
             net = Network(id=net_dbref.id, mongo_db=self._mongo_db)
-            return utils.ip.reltoa(net._json['NETWORK'], self._json['ip'])
+            return utils.ip.reltoa(
+                net._json['NETWORK'], self._json['ip'], net.version)
 
         return super(Switch, self).get(key)
 
