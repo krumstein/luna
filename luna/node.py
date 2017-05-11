@@ -90,7 +90,7 @@ class Node(Base):
             node = {'name': name, 'group': self.group.DBRef, 'interfaces': {},
                     'mac': None, 'switch': None, 'port': None,
                     'localboot': localboot, 'setupbmc': setupbmc,
-                    'service': service, 'bmcnetwork': None}
+                    'service': service}
 
             self.log.debug("Saving node '{}' to the datastore".format(node))
 
@@ -867,7 +867,7 @@ class Node(Base):
         return bool(res)
 
     def get_ip(self, interface_name=None, interface_uuid=None,
-               format='human', version=None):
+               format='human', version=None, quiet=False):
 
         # convert version to str, as mongo umable to use int as keys
         if version:
@@ -901,17 +901,21 @@ class Node(Base):
                 version = '6'
 
         if not version:
-            self.log.error(
-                'No IP addresses or networks are configured for interface {}'
-                .format(interface_name)
-            )
+            if not quiet:
+                self.log.error(
+                    ('No IP addresses or networks ' +
+                    'are configured for interface {}')
+                    .format(interface_name)
+                )
             return False
 
         ipnum = if_dict[version]
 
         if not ipnum:
-            self.log.error("No IPv{} address or network are configured for '{}'"
-                        .format(version, interface_name))
+            if not quiet:
+                self.log.error(
+                    "No IPv{} address or network are configured for '{}'"
+                    .format(version, interface_name))
             return False
 
         if format == 'num':
