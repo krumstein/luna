@@ -185,7 +185,8 @@ class Cluster(Base):
 
             net = Network(id=ObjectId(netid), mongo_db=self._mongo_db)
             return utils.ip.reltoa(net._json['NETWORK'],
-                                   super(Cluster, self).get(key))
+                    super(Cluster, self).get(key),
+                    ver=net.version)
 
         return super(Cluster, self).get(key)
 
@@ -236,14 +237,17 @@ class Cluster(Base):
                 objnet = Network(name=netname, mongo_db=self._mongo_db)
         except:
             objnet = None
+        if objnet.version != 4:
+            self.log.error("Only IPv4 networks are supported.")
+            return False
 
         if not objnet:
             self.log.error("Proper DHCP network should be specified.")
-            return None
+            return False
 
         if not startip or not endip:
             self.log.error("First and last IPs of range should be specified.")
-            return None
+            return False
 
         if not self.get_cluster_ips():
             no_ha = True
@@ -255,7 +259,7 @@ class Cluster(Base):
 
         if not startip or not endip:
             self.log.error("Error in acquiring IPs.")
-            return None
+            return False
 
         oldnetid = self._json['dhcp_net']
         oldstartip = self._json['dhcp_range_start']
@@ -332,7 +336,7 @@ class Cluster(Base):
         ips = self.get('cluster_ips')
 
         if ips == '':
-            self.log.info('No cluster IPs are configured.')
+            self.log.debug('No cluster IPs are configured.')
             return cluster_ips
 
         ips = ips.split(",")
@@ -388,6 +392,17 @@ class Cluster(Base):
     def makedns(self):
         from luna.network import Network
 
+        # figure out paths
+        includefile = self.get('named_include_file')
+        zonedir = self.get('named_zone_dir')
+        if not includefile:
+            self.log.error("named_include_file should be configured")
+            return None
+        if not zonedir:
+            self.log.error("named_zone_dir should be configured")
+            return None
+
+
         rlinks = self.get(usedby_key)
         if not rlinks or 'network' not in rlinks or not rlinks['network']:
             self.log.error("No networks configured in this cluster")
@@ -433,16 +448,6 @@ class Cluster(Base):
             revzonename = '.'.join(list(reversed(master_ip.split('.')[:mutable_octet]))) + ".in-addr.arpa"
             networks[netobj.name]['mutable_octet'] = mutable_octet
             networks[netobj.name]['rev_zone_name'] = revzonename
-
-        # figure out paths
-        includefile = self.get('named_include_file')
-        zonedir = self.get('named_zone_dir')
-        if not includefile:
-            self.log.error("named_include_file should be configured")
-            return None
-        if not zonedir:
-            self.log.error("named_zone_dir should be configured")
-            return None
 
         # load templates
         tloader = template.Loader(self.get('path') + '/templates')
