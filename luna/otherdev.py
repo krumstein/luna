@@ -99,7 +99,8 @@ class OtherDev(Base):
             for rec in nets:
                 net = Network(id=ObjectId(rec), mongo_db=self._mongo_db)
                 if net.name == network:
-                    return utils.ip.reltoa(net._json['NETWORK'], nets[rec])
+                    return utils.ip.reltoa(
+                        net._json['NETWORK'], nets[rec], net.version)
 
         else:
             self.log.error("Device '{}' is not attached to network '{}'"
