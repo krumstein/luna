@@ -503,3 +503,10 @@ class Cluster(Base):
             os.chown(revzonepath, nameduid, namedgid)
             self.log.info("Created '{}'".format(revzonepath))
         return True
+
+    def delete(self, force=False):
+
+        if force:
+            return self._mongo_db.connection.drop_database(db_name)
+
+        return super(Cluster, self).delete()
