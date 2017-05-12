@@ -54,7 +54,6 @@ class NodeCreateTests(unittest.TestCase):
 
         expected = {
             'name': 'node001',
-            'bmcnetwork': None,
             'localboot': False,
             'setupbmc': True,
             'switch': None,
