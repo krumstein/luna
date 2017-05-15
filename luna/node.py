@@ -1027,13 +1027,6 @@ class Node(Base):
             p = self.boot_params
             p['server_ip'] = server_ip
             p['server_port'] = server_port
-            p['delay'] = 10
-            if not p['boot_if']:
-                p['ifcfg'] = 'dhcp'
-            else:
-                p['ifcfg'] = (p['boot_if'] + ":" +
-                                        p['ip'] + "/" +
-                                        str(p['net_prefix']))
             return tloader.load('templ_nodeboot.cfg').generate(p=p)
         if name == 'install':
             return tloader.load('templ_install.cfg').generate(
