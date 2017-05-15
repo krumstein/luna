@@ -172,14 +172,6 @@ class Manager(tornado.web.RequestHandler):
             # found node finally
             boot_params = node.boot_params
 
-            if not boot_params['boot_if']:
-                boot_params['ifcfg'] = 'dhcp'
-            else:
-                boot_params['ifcfg'] = (boot_params['boot_if'] + ":" +
-                                        boot_params['ip'] + "/" +
-                                        str(boot_params['net_prefix']))
-
-            boot_params['delay'] = 10
             boot_params['server_ip'] = self.server_ip
             boot_params['server_port'] = self.server_port
 
