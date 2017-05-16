@@ -82,7 +82,7 @@ function luna_start () {
     sleep 5
     echo "Luna: Set-up network"
     luna_bootproto=$(getargs luna.bootproto=)
-    if [ "x$luna_bootproto" = "xdhcp" ]; then 
+    if [ "x$luna_bootproto" = "xdhcp" ]; then
         echo "Luna: Configuring dhcp for all interfaces"
         /usr/sbin/dhclient -lf /luna/dhclient.leases
     else
@@ -96,6 +96,7 @@ function luna_start () {
             /usr/sbin/dhclient -lf /luna/dhclient.leases
         else
             echo "${luna_nic}" > /luna/luna_nic
+            export LUNA_BOOTIF="${luna_nic}"
             ip a add ${luna_ip} dev ${luna_nic}
             sleep 1
             ip l set dev ${luna_nic} up
@@ -117,7 +118,7 @@ function luna_finish () {
     else
         cat /luna/dhclient.leases  | \
             sed -n '/interface /s/\W*interface "\(.*\)";/\1/p' | \
-            while read iface; do 
+            while read iface; do
                 ip addr flush $iface
                 ip link set dev $iface down
             done
@@ -133,7 +134,7 @@ function _get_luna_ctty () {
     [ "x${luna_ctty}" = "x" ] && luna_ctty="/dev/tty1"
     echo -n $luna_ctty
 }
-if [ "x$root" = "xluna" ]; then 
+if [ "x$root" = "xluna" ]; then
     luna_start
     luna_ctty=$(_get_luna_ctty)
     luna_url=$(getargs luna.url=)
@@ -146,12 +147,12 @@ if [ "x$root" = "xluna" ]; then
         RES="failure"
         while [ "x$RES" = "xfailure" ]; do
             echo "Luna: Trying to get install script."
-            while ! curl -f -s -m 60 --connect-timeout 10 "$luna_url?step=install&node=$luna_node" > /luna/install.sh; do 
+            while ! curl -f -s -m 60 --connect-timeout 10 "$luna_url?step=install&node=$luna_node" > /luna/install.sh; do
                 echo "Luna: Could not get install script. Sleeping 10 sec."
                 sleep 10
             done
             /bin/sh /luna/install.sh && RES="success"
-            echo "Luna: install.sh exit status: $RES" 
+            echo "Luna: install.sh exit status: $RES"
             sleep 10
         done
     fi
