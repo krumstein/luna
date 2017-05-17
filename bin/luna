@@ -582,6 +582,12 @@ def network_add(**args):
     return bool(net)
 
 def network_change(**args):
+    parm_sum = 0
+    for elem in ['include', 'rev_include']:
+        parm_sum += int(bool(args[elem]))
+    if parm_sum > 1 and args['edit']:
+        log.error('Only one element can be edited')
+        return False
     net = luna.Network(name=args['name'])
     if bool(args['network']):
         return net.set('NETWORK', args['network'])
@@ -595,7 +601,23 @@ def network_change(**args):
         return net.set('ns_hostname', args['ns_hostname'])
     if bool(args['ns_ip']):
         return net.set('ns_ip', args['ns_ip'])
-    return True
+
+    if parm_sum < 1:
+        return True
+
+    scr_type = None
+    if bool(args['include']):
+        scr_type = 'include'
+    elif bool(args['rev_include']):
+        scr_type = 'rev_include'
+
+    old_script = net.show()[scr_type]
+    script = _edit_script(old_script)
+
+    if not bool(script):
+        script = ''
+
+    return net.set(scr_type, script)
 
 def network_delete(name):
     net = luna.Network(name)
@@ -768,6 +790,8 @@ def group_change(**args):
         group.set('torrent_if', args['torrent_if'])
     if bool(args['osimage']):
         group.osimage(args['osimage'])
+    if bool(args['domain']) or args['domain'] == '':
+        group.set_domain(args['domain'])
     if bool(args['bmcsetup']) or args['bmcsetup'] == '':
         group.bmcsetup(args['bmcsetup'])
     if bool(args['prescript']):
@@ -1364,7 +1388,11 @@ cmd.add_argument('--reserve', '-R', metavar='X.X.X.X', help='Reserve IP')
 cmd.add_argument('--release', metavar='X.X.X.X', help='Release IP')
 cmd.add_argument('--ns_hostname', help='Name server for zone file')
 cmd.add_argument('--ns_ip', metavar='N.N.N.N',
-                 help='Name server\'s IP for zone file')
+    help='Name server\'s IP for zone file')
+cmd.add_argument('--include', action='store_true',
+    help='Include data for zone file')
+cmd.add_argument('--rev_include', action='store_true',
+    help='Include data for reverse zone file')
 # rename
 cmd = network_a.add_parser('rename', help='Rename Network')
 cmd.add_argument('name', help='Name of the Network')
@@ -1412,6 +1440,7 @@ cmd.add_argument('--network', '-N', required=True,
 cmd = group_a.add_parser('change', help='Change Group')
 cmd.add_argument('name', help='Name of the Group')
 cmd.add_argument('--osimage', '-o', help='Osimage assigned to Group')
+cmd.add_argument('--domain', '-d', help='Domain')
 cmd.add_argument('--prescript', '--pre', action='store_true',
                  help='Set prescript')
 cmd.add_argument('--postscript', '--post', action='store_true',
