@@ -324,19 +324,30 @@ class Network(Base):
         out_dict = {}
 
         def add_to_out_dict(name, relative_ip):
-            try:
-                out_dict[name]
+            if name in out_dict:
                 self.log.error(("Duplicate name '{}' in network '{}'"
                                 .format(name, self.name)))
-            except:
-                out_dict[name] = utils.ip.reltoa(
-                    net['NETWORK'], relative_ip, self.version
-                )
+                return False
+            if not relative_ip:
+                self.log.error(("IP does not provided for '{}'"
+                                .format(name)))
+                return False
+
+            out_dict[name] = utils.ip.reltoa(
+                net['NETWORK'], relative_ip, self.version
+            )
+            return True
 
         for elem in rev_links:
             if elem == "group":
                 for gid in rev_links[elem]:
-                    group = Group(id=ObjectId(gid), mongo_db=self._mongo_db)
+                    try:
+                        group = Group(id=ObjectId(gid),
+                            mongo_db=self._mongo_db)
+                    except RuntimeError:
+                        self.log.error('No group with id={} found.'
+                            .format(gid))
+                        continue
                     tmp_dict = group.get_allocated_ips(self)
                     if not tmp_dict:
                         continue
@@ -366,7 +377,14 @@ class Network(Base):
         zone_dict['zone_name'] = self.name
         zone_dict['ns_hostname'] = self.get('ns_hostname')
         zone_dict['ns_ip'] = master_ip
+        zone_dict['version'] = self.version
         zone_dict['hosts'] = self.resolve_used_ips()
+        for key in ['include', 'rev_include']:
+            if key in self._json and bool(self._json[key]):
+                zone_dict[key] = self._json[key]
+            else:
+                zone_dict[key] = ''
+
 
         if self.version == 4:
 
