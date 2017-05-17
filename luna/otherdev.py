@@ -98,7 +98,7 @@ class OtherDev(Base):
         elif type(network) is str:
             for rec in nets:
                 net = Network(id=ObjectId(rec), mongo_db=self._mongo_db)
-                if net.name == network:
+                if net.name == network and nets[rec]:
                     return utils.ip.reltoa(
                         net._json['NETWORK'], nets[rec], net.version)
 
