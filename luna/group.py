@@ -517,12 +517,19 @@ class Group(Base):
         lower_names = [s.lower() for s in interfaces_with_net.values()]
         lower_names.sort()
 
-        if list(set(lower_names)) == lower_names:
+        lower_names_set = list(set(lower_names))
+        lower_names_set.sort()
+
+        if lower_names_set == lower_names:
             lowered = True
 
         # enumerate all the node in group now
 
         ips = {}
+
+        if not 'node' in  self.get(usedby_key):
+            # No nodes in group. Returning empty list
+            return ips
 
         for node_id in self.get(usedby_key)['node']:
             node_id = ObjectId(node_id)
@@ -543,8 +550,10 @@ class Group(Base):
 
                     hostname += suffix
                     self.log.warning(
-                        ('Several interfaces for {} are configured. ' +
-                         'Using {}.').format(node.name, hostname)
+                        ('Several interfaces for {} in network {} ' +
+                         'are configured. ' +
+                         'Using suffix: {}.').format(node.name,
+                            net.name, hostname)
                     )
 
                 ipnum = node.get_ip(interface_name=ifname,
@@ -796,5 +805,8 @@ class Group(Base):
         self.set('domain', newnet_dbref)
 
         return True
+
+    def release_resources(self):
+        self.set_domain(domain_name=None)
 
 from luna.node import Node
