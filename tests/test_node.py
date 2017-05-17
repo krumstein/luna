@@ -802,7 +802,7 @@ class NodeBootInstallTests(unittest.TestCase):
             self.install_expected_dict,
         )
 
-    def Z_test_install_scripts(self):
+    def test_install_scripts(self):
         self.assertIsNone(self.node.render_script('non_exist'))
         self.assertEqual(self.node.render_script('boot').split()[0], '#!ipxe')
         self.assertEqual(
