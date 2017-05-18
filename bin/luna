@@ -528,8 +528,8 @@ def bmcsetup_change(**args):
 
     return True
 
-def bmcsetup_delete(name):
-    bmcsetup = luna.BMCSetup(name)
+def bmcsetup_delete(**args):
+    bmcsetup = luna.BMCSetup(args['name'])
     return bmcsetup.delete()
 
 def bmcsetup_rename(**args):
@@ -548,7 +548,10 @@ def network_list():
     print_table(header, content)
     return True
 
-def network_show(name, raw, reservedips, out_format = '%20s%60s\n'):
+def network_show(**args):
+    name = args['name']
+    raw = args['raw']
+    reservedips = args['reservedips']
     net = luna.Network(name = name)
     if raw:
         print(net.nice_json)
@@ -620,8 +623,8 @@ def network_change(**args):
 
     return net.set(scr_type, script)
 
-def network_delete(name):
-    net = luna.Network(name)
+def network_delete(**args):
+    net = luna.Network(args['name'])
     return net.delete()
 
 def network_rename(**args):
@@ -1077,7 +1080,9 @@ def otherdev_list():
     print_table(header, content)
     return True
 
-def otherdev_show(name, raw, out_format = def_format):
+def otherdev_show(**args):
+    name = args['name']
+    raw = args['raw']
     for devname in hostlist.expand_hostlist(name):
         dev = luna.OtherDev(name = devname)
         if raw:
@@ -1118,7 +1123,8 @@ def otherdev_change(**args):
         out &= bool(dev)
     return out
 
-def otherdev_delete(name):
+def otherdev_delete(**args):
+    name = args['name']
     out = True
     for devname in hostlist.expand_hostlist(name):
         dev = luna.OtherDev(devname)
