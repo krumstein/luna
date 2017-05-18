@@ -680,6 +680,10 @@ class NodeBootInstallTests(unittest.TestCase):
         )
 
     def test_boot_params_w_net_and_mac_assigned(self):
+        if self.sandbox.dbtype != 'mongo':
+            raise unittest.SkipTest(
+                'This test can be run only with MondoDB as a backend.'
+            )
 
         mac = '00:11:22:33:44:55'
         self.group.set_net_to_if('eth0', self.net1.name)
