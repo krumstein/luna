@@ -114,6 +114,11 @@ class AddNetToGroupTests(unittest.TestCase):
             )
 
     def test_add_net_group_net4_node_net6(self):
+        if self.sandbox.dbtype != 'mongo':
+            raise unittest.SkipTest(
+                'This test can be run only with MondoDB as a backend.'
+            )
+
 
         self.node.delete()
         self.group = luna.Group(name=self.group.name, mongo_db=self.db)
