@@ -13,7 +13,7 @@ command to edit Luna cluster configuration.
 SYNOPSIS
 ========
 
-**luna** [ *--help* | *-h* ]
+**luna** [ *--help* | *-h* ] [ *--debug* | *-d* ]
 
 **luna** *object* [ *--help* | *-h* ]
 
@@ -55,6 +55,8 @@ Object **node** represents the actual physical (or virtual) host.
 
 **cluster** is the central object that stores configuration parameters.
 
+**--debug** shows debug information.
+
 OBJECTS, ACTIONS AND OPTIONS
 ============================
 
@@ -63,6 +65,9 @@ OBJECTS, ACTIONS AND OPTIONS
 
     **init**
         Initialize cluster configuration.
+
+        **--frontend_address**
+            IP address of the provisioning interface of the master node.
 
         **--nodeprefix**, **--prefix**, **-p**
             Prefix for newly created nodes: nodeXXX, hostXXX, nXXX, etc. Default is "*node*".
@@ -170,13 +175,10 @@ OBJECTS, ACTIONS AND OPTIONS
             End of the DHCP range.
 
     **delete**
-        Delete cluster object from MongoDB. Command requires all the other cluster objects to be deleted already. If you need to wipe cluster and know what you are doing, use MongoDB commands to nuke Luna config::
+        Delete cluster object from MongoDB. Command requires all the other cluster objects to be deleted already. Please note, it will not affect any files on disks. So all osimages, torrent files, configs, templates will be untouched.
 
-            # mongo
-            > use luna
-            > db.dropDatabase()
-
-        Please note, it will not affect any files on disks. So all osimages, torrent files, configs, templates will be untouched.
+        **--force**
+            Detele (drop) DB from Mongo.
 
 **osimage**
     Object represents the OS files that need to be delivered to the nodes.
@@ -187,7 +189,7 @@ OBJECTS, ACTIONS AND OPTIONS
     **show**
         Detailed information about object.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
         **--raw**, **-R**
@@ -226,7 +228,7 @@ OBJECTS, ACTIONS AND OPTIONS
     **change**
         Change parameters of the **osimage** object.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
         **--kernver**, **-k**
@@ -250,7 +252,7 @@ OBJECTS, ACTIONS AND OPTIONS
     **pack**
         Command to 'pack' **osimage**, i.e., make it available for nodes to boot. Under the hood it creates tarball from directory tree, creates torrent file, moves them to *~luna/torrents/*, then builds initrd and copies it, along with the kernel, to *~luna/boot/*. It also fills values for *initrdfile*, *kernfile*, *tarball* and *torrent* variables in ``luna osimage show`` output. In addition, if Luna is configured to work in a HA environment (**--cluster_ips**) this subcommand syncronizes data for the osimage across all the master nodes.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
         **--image**, **-i**
@@ -265,7 +267,7 @@ OBJECTS, ACTIONS AND OPTIONS
     **grab**
         Command to sync data from host to osimage.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
         **--host**, **-H**
@@ -280,13 +282,13 @@ OBJECTS, ACTIONS AND OPTIONS
     **sync**
         Command to synchronize images between the master nodes (**--cluster_ips**).
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
     **clone**
         Command to clone **osimage** object including underlying files. As a result, a second identical object will be created with copy of all the files in another path. A convenient way not to recreate **osimage** from scratch or take a snapshot of what was already done.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
         **--to**, **-t**
@@ -298,7 +300,7 @@ OBJECTS, ACTIONS AND OPTIONS
     **rename**
         Rename object in Luna database.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
         **--newname**, **--nn**
@@ -307,7 +309,7 @@ OBJECTS, ACTIONS AND OPTIONS
     **delete**
         Delete object from Luna database.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
 **bmcsetup**
@@ -319,7 +321,7 @@ OBJECTS, ACTIONS AND OPTIONS
     **show**
         Detailed information about object.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
         **--raw**, **-R**
@@ -349,7 +351,7 @@ OBJECTS, ACTIONS AND OPTIONS
     **change**
         Change **bmcsetup** object to Luna database.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
         **--user**, **-u**
@@ -370,7 +372,7 @@ OBJECTS, ACTIONS AND OPTIONS
     **rename**
         Rename object in Luna database.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
         **--newname**, **--nn**
@@ -379,7 +381,7 @@ OBJECTS, ACTIONS AND OPTIONS
     **delete**
         Delete object from Luna database.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
 **network**
@@ -391,7 +393,7 @@ OBJECTS, ACTIONS AND OPTIONS
     **show**
         Detailed information about object.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
         **--raw**, **-R**
@@ -404,21 +406,21 @@ OBJECTS, ACTIONS AND OPTIONS
             Name of the object.
 
         **--network**, **-N**
-            Network. Can be any IP address. Resulting network address will be calculated based on **--prefix**. For example 10.30.4.1/16 will be converted to 10.30.0.0.
+            Network. Can be any IPv4 or IPv6 address. Resulting network address will be calculated based on **--prefix**. For example 10.30.4.1/16 will be converted to 10.30.0.0.
 
         **--prefix**, **-P**
             Network prefix.
 
         **--ns_hostname**
-            Nameserver for zone file (IN NS). See *templ_zone.cfg* and *templ_zone_arpa.cfg* for details.
+            Nameserver for zone file (IN NS). See *templ_zone\*.cfg* files for details.
 
         **--ns_ip**
-            IP address of the nameserver. Most likely will be one of the IP addresses (in corresponding IP range) assigned to master node. See *templ_zone.cfg* and *templ_zone_arpa.cfg* for details.
+            IP address of the nameserver. Most likely will be one of the IP addresses (in corresponding IP range) assigned to master node. See *templ_zone\*.cfg* files for details.
 
     **change**
         Change **network** object to Luna database.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
         **--network**, **-N**
@@ -428,10 +430,16 @@ OBJECTS, ACTIONS AND OPTIONS
             Network prefix.
 
         **--ns_hostname**
-            Nameserver for zone file (IN NS). See *templ_zone.cfg* and *templ_zone_arpa.cfg* for details.
+            Nameserver for zone file (IN NS). See *templ_zone\*.cfg* files  for details.
 
         **--ns_ip**
-            IP address of the nameserver. Most likely will be one of the IP addresses (in the corresponding IP range) assigned to master node. See *templ_zone.cfg* and *templ_zone_arpa.cfg* for details.
+            IP address of the nameserver. Most likely will be one of the IP addresses (in the corresponding IP range) assigned to master node. See *templ_zone\*.cfg* files  for details.
+
+        **--include**
+            Strings to include in zone file during **luna cluster makedns** process. Examples are MX, TXT, SRV records, etc.
+
+        **--rev_include**
+            Strings to include in reverse zone file during **luna cluster makedns** process.
 
         **--reserve**
             *For advanced usage.* Locks IP from being assigned to any of the cluster's devices or hosts. This option will mark a particular IP as 'occupied'. Please, consider to use *otherdev* first. This option will not assign any name for IP, so IP address will be ignored during zone creation.
@@ -441,7 +449,7 @@ OBJECTS, ACTIONS AND OPTIONS
     **rename**
         Rename object in Luna database.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
         **--newname**, **--nn**
@@ -450,7 +458,7 @@ OBJECTS, ACTIONS AND OPTIONS
     **delete**
         Delete object from Luna database.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
 **group**
@@ -462,7 +470,7 @@ OBJECTS, ACTIONS AND OPTIONS
     **show**
         Detailed information about object.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
         **--raw**, **-R**
@@ -486,9 +494,6 @@ OBJECTS, ACTIONS AND OPTIONS
         **--interface**, **-i**
             Shows additional interface parameters assigned to interface.
 
-        **--bmcnetwork**, **--bn**
-            Shows network assigned to group.
-
     **add**
         Add **group** object to Luna configuration.
 
@@ -498,32 +503,16 @@ OBJECTS, ACTIONS AND OPTIONS
         **--osimage**, **-o**
             Name of the **osimage** to be assigned to group of nodes.
 
+        **--network**, **-N**
+            Network for BOOTIF interface. BOOTIF is a special placeholder for interface. This interface will be determined by luna based on mac address of the node. Usually this is provisioning interface.
+
         **--bmcsetup**, **-b**
             Name of the **bmcsetup** object to configure BMC of nodes.
-
-        **--bmcnetwork**, **--bn**
-            Name of the **network** object. IP addresses from this network will be assigned to BMC. See *templ_install.cfg* for details.
-
-        **--interface**, **-i**
-            Name of the interface of the node in group. It is assumed that all nodes in a group have the same (or similar) hardware configuration, which is typical for the HPC cluster: *em1*, *p2p1*, *eno1*, etc.
-
-            **PLEASE NOTE** On the early stage of the cluster install process it is hard or not possible to figure out the proper name of the interfaces and other hardware configuration, so the best scenario here is to create group with name of the interface picked up by random, for instance *eth0*. Then add one **node** object to the group and configure to boot it in service mode (see below). In the following example an **osimage** named *compute*, as well as 2 networks, *cluster* and *ipmi*, need to be created upfront.
-
-            Example::
-
-                # luna group add --name service --osimage compute --interface eth0
-                # luna group change --name service --interface eth0 --setnet cluster
-                # luna group change --name service --bmcnetwork --setnet ipmi
-                # luna node add --name servicenode --group service
-                # luna node change --name servicenode --setupbmc n
-                # luna node change --name servicenode --service n
-
-            Then boot a node and inspect hardware configuration in dracut environment: interface naming, physical disk location and proceed with **group** configuration.
 
     **change**
         Change configuration for the group of nodes.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
         **--osimage**, **-o**
@@ -534,7 +523,7 @@ OBJECTS, ACTIONS AND OPTIONS
 
             Example::
 
-                # echo "echo 'do something'" | luna group change --name service --prescript -e
+                # echo "echo 'do something'" | luna group change grpname --prescript -e
 
         **--partscript**, **--part**
             Display/edit bash partitioning script. Luna does not support partitioning definitions (like anaconda, for example), so this is where **--partscript** comes into play. In conjunction with **-e** this parameter opens text editor (defined in **EDITOR** environment or **vi**). Parameters supports I/O redirection (pipes). By default, the following commands exist in installer environment: parted, partx, mkfs.ext2, mkfs.ext3, mkfs.ext4, mkfs.xfs (See *95luna/module-setup.sh*). It is expected that partscript will perform partitioning and creation of the filesystems and mount filesystems under */sysroot* where image of the operation system (**osimage**) will be unpacked. By default group has **--partscript** for diskless boot:
@@ -612,17 +601,14 @@ OBJECTS, ACTIONS AND OPTIONS
         **--bmcsetup**, **-b**
             Name of the **bmcsetup** object to configure BMC of nodes.
 
-        **--boot_if**, **--bi**
-            Boot interface. This is used in initrd environment to find out which interface should be configured. Also it is used to add domain to hostname. This parameter is implemented for convenience to allow administrator to login to node on install step for inventory and/or debug purposes. Parameter should match one of the configured interfaces. This parameter can be omitted. It that case node will try to configure all interfaces to acquire IP by DHCP, and administrator will need to find the proper IP looking to lease file. Known limitations: does not work with bond, vLAN or bridged interfaces.
+        **--domain**, **-d**
+            Domain for nodes' hostnames.
 
         **--torrent_if**, **-ti**
             Torrent interface. Optional parameter which interface torrent client on nodes should report as in use for seeding. If specified should match **--boot_if**. Known limitations: does not work with bond, vLAN or bridged interfaces.
 
         **--interface**, **-i**
-            Interface to operate with. Following operations are supported: **--add**, **--delete**, **--setnet**, **--delnet**, **--edit**.
-
-        **--bmcnetwork**, **--bn**
-            Supports **--setnet**, **--delnet** operations.
+            Interface to operate with. Following operations are supported: **--add**, **--delete**, **--rename**, **--setnet**, **--delnet**, **--edit**. Currenty 2 special namess are reserved: **BMC** and **BOOTIF**. First represenst network config for IPMI (IPv4 only) and latter - is a place holder for interface which mac address is the same as defined for node.
 
         **--add**, **-A**
             Adds interface.
@@ -645,7 +631,7 @@ OBJECTS, ACTIONS AND OPTIONS
     **rename**
         Rename object in Luna database.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
         **--newname**, **--nn**
@@ -654,7 +640,7 @@ OBJECTS, ACTIONS AND OPTIONS
     **delete**
         Delete object from Luna database.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
 **node**
@@ -666,7 +652,7 @@ OBJECTS, ACTIONS AND OPTIONS
     **show**
         Detailed information about object.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
         **--raw**, **-R**
@@ -684,7 +670,7 @@ OBJECTS, ACTIONS AND OPTIONS
     **change**
         Change properties of the node.
 
-        **--name**, **-n**
+        **name**
             Name of the node.
 
         **--group**, **-g**
@@ -716,7 +702,7 @@ OBJECTS, ACTIONS AND OPTIONS
     **rename**
         Rename object in Luna database. To update DNS **luna cluster makedns** should be executer afterwards.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
         **--newname**, **--nn**
@@ -725,7 +711,7 @@ OBJECTS, ACTIONS AND OPTIONS
     **delete**
         Delete object from Luna database.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
 
@@ -738,7 +724,7 @@ OBJECTS, ACTIONS AND OPTIONS
     **show**
         Detailed information about object.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
         **--raw**, **-R**
@@ -789,7 +775,7 @@ OBJECTS, ACTIONS AND OPTIONS
     **change**
         Change **switch** object property.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
         **--network**, **-N**
@@ -810,7 +796,7 @@ OBJECTS, ACTIONS AND OPTIONS
     **rename**
         Rename object in Luna database. To update DNS **luna cluster makedns** should be executer afterwards.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
         **--newname**, **--nn**
@@ -819,7 +805,7 @@ OBJECTS, ACTIONS AND OPTIONS
     **delete**
         Delete object from Luna database.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
 **otherdev**
@@ -831,7 +817,7 @@ OBJECTS, ACTIONS AND OPTIONS
     **show**
         Detailed information about object.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
         **--raw**, **-R**
@@ -852,7 +838,7 @@ OBJECTS, ACTIONS AND OPTIONS
    **change**
         Change **otherdev** properties.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
         **--network**, **-N**
@@ -864,7 +850,7 @@ OBJECTS, ACTIONS AND OPTIONS
     **rename**
         Rename object in Luna database. To update DNS **luna cluster makedns** should be executer afterwards.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
         **--newname**, **--nn**
@@ -873,7 +859,7 @@ OBJECTS, ACTIONS AND OPTIONS
     **delete**
         Delete object from Luna database.
 
-        **--name**, **-n**
+        **name**
             Name of the object.
 
 
@@ -894,10 +880,14 @@ templ_nodeboot.cfg
     Template for iPXE boot script.
 templ_nodeboot_syslinux.cfg
     Template to generate boot config in syslinux (pxelinux) format.
-templ_zone_arpa.cfg
-    Template for ISC BIND (named) reverse-zone file.
-templ_zone.cfg
-    Template for ISC BIND (named) zone-file.
+templ_zone_ipv4.cfg
+    Template for ISC BIND (named) zone-file (IPv4).
+templ_zone_ipv6.cfg
+    Template for ISC BIND (named) zone-file (IPv6).
+templ_zone_ipv4_arpa.cfg
+    Template for ISC BIND (named) reverse-zone file (IPv4).
+templ_zone_ipv6_arpa.cfg
+    Template for ISC BIND (named) reverse-zone file (IPv6).
 grab_default_centos.lst
     Template for initial config of the exclude list for host grabbing.
 /var/log/luna/ltorrent.log
