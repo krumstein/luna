@@ -128,6 +128,7 @@ def cluster_show(**args):
     out_json = cluster.show()
     out_str = []
     name = out_json.pop('name')
+    db_version = out_json.pop('db_version')
     if bool(cluster.get('dhcp_net')):
         dhcp_net = out_json.pop('dhcp_net')
         dhcp_range_start = out_json.pop('dhcp_range_start')
