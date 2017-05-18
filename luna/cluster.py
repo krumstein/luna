@@ -89,6 +89,11 @@ class Cluster(Base):
 
         cluster = self._get_object('general', mongo_db, create, id)
 
+        if cluster and cluster.get('db_version') != db_version:
+            self.log.error("DB version mismatch. Expecting {}"
+                .format(db_version))
+            raise RuntimeError
+
         if create:
             try:
                 path = os.path.abspath(path)
@@ -140,7 +145,9 @@ class Cluster(Base):
                        'named_zone_dir': '/var/named',
                        'dhcp_range_start': None,
                        'dhcp_range_end': None,
-                       'dhcp_net': None}
+                       'dhcp_net': None,
+                       'db_version': db_version}
+
 
             self.log.debug("Saving cluster '{}' to the datastore"
                            .format(cluster))
