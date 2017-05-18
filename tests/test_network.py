@@ -327,6 +327,9 @@ class ZoneDataIPv4(unittest.TestCase):
             'ns_hostname': 'master',
             'ns_ip': '10.50.255.254',
             'zone_name': 'testnet',
+            'version': 4,
+            'include': '',
+            'rev_include': '',
             'hosts': {
                     'node001': '10.50.0.1',
                     'node002': '10.50.0.2',
@@ -365,6 +368,9 @@ class ZoneDataIPv4(unittest.TestCase):
             'ns_hostname': 'master',
             'ns_ip': '10.50.34.254',
             'zone_name': 'testnet',
+            'version': 4,
+            'include': '',
+            'rev_include': '',
             'hosts': {
                     'node001': '10.50.32.1',
                     'node002': '10.50.32.2',
@@ -404,6 +410,9 @@ class ZoneDataIPv4(unittest.TestCase):
             'ns_hostname': 'master',
             'ns_ip': '10.50.32.254',
             'zone_name': 'testnet',
+            'version': 4,
+            'include': '',
+            'rev_include': '',
             'hosts': {
                     'node001': '10.50.32.1',
                     'node002': '10.50.32.2',
@@ -432,7 +441,7 @@ class ZoneDataIPv4(unittest.TestCase):
                 '254.32': 'master.testnet.',
             },
         }
-        self.assertEqual(self.net.zone_data, expected_dict)
+        self.assertEqual (self.net.zone_data, expected_dict)
 
 
 class ZoneDataIPv6(unittest.TestCase):
@@ -500,6 +509,9 @@ class ZoneDataIPv6(unittest.TestCase):
             'ns_hostname': 'master',
             'ns_ip': 'fe80::ffff:ffff:ffff:fffe',
             'zone_name': 'testnet',
+            'version': 6,
+            'include': '',
+            'rev_include': '',
             'hosts': {
                 'node001': 'fe80::1',
                 'node002': 'fe80::2',
