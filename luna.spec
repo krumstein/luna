@@ -1,5 +1,5 @@
 Name: luna
-Version: 1.1
+Version: 1.2
 Release: 2%{?dist}
 
 Summary: Luna is a baremetal provisioning tool uses image-based approach
