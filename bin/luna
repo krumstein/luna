@@ -370,12 +370,18 @@ def osimage_pack(**args):
 
     def pack_boot(osimage, copy):
         if not copy:
-           log.info('Copying kernel & packing inirtd.')
-           osimage.pack_boot()
+            log.info('Copying kernel & packing inirtd.')
+            res = osimage.pack_boot()
         else:
             log.info('Copying kernel and initrd from image.')
-            osimage.copy_boot()
+            res = osimage.copy_boot()
+
+        if not res:
+            log.error('Error occured')
+            return False
+
         log.info('Done.')
+        return True
 
     def update_ltorrent():
         try:
@@ -397,17 +403,23 @@ def osimage_pack(**args):
 
 
     osimage = luna.OsImage(args['name'])
+
     if args['boot']:
         pack_boot(osimage, args['copy_boot'])
         return update_ltorrent()
+
     if args['image']:
         return pack_image(osimage)
+
     if not pack_image(osimage):
         return False
+
     if not pack_boot(osimage, args['copy_boot']):
         return False
+
     if not update_ltorrent():
         return False
+
     return osimage_sync(args['name'])
 
 def osimage_grab(**args):
