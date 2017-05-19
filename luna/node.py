@@ -20,10 +20,9 @@ along with Luna.  If not, see <http://www.gnu.org/licenses/>.
 
 '''
 
-from config import *
+from config import use_key, usedby_key
 
 import re
-import socket
 import logging
 import datetime
 
@@ -75,7 +74,8 @@ class Node(Base):
         if create:
 
             if not group:
-                self.log.error("Group needs to be specified when creating node.")
+                self.log.error(
+                    "Group needs to be specified when creating node.")
                 raise RuntimeError
 
             cluster = Cluster(mongo_db=self._mongo_db)
@@ -113,7 +113,9 @@ class Node(Base):
 
     def _get_group(self):
         if not self.group:
-            self.group = Group(id=self._json['group'].id, mongo_db=self._mongo_db)
+            self.group = Group(
+                id=self._json['group'].id, mongo_db=self._mongo_db
+            )
         return True
 
     def _generate_name(self, cluster, mongo_db):
@@ -206,9 +208,9 @@ class Node(Base):
         new_interfaces = {}
 
         if interfaces[interface_uuid]['4'] or interfaces[interface_uuid]['6']:
-            self.log.error(("IP addresses are configured for interface {}. "
-                + "Unable to delete.")
-                .format(interface_uuid))
+            self.log.error(("IP addresses are configured for interface {}. " +
+                            "Unable to delete.")
+                           .format(interface_uuid))
 
         for key in interfaces:
             new_interfaces[key] = interfaces[key].copy()
@@ -284,7 +286,7 @@ class Node(Base):
             return False
 
         # Finally we can acquire IPs
-        ips = {} # for rolling back if needed
+        ips = {}  # for rolling back if needed
         for ver in versions_to_assign:
             ip = self.group.manage_ip(interface_uuid, new_ip, version=ver)
             interface_ips[ver] = ip
@@ -340,7 +342,7 @@ class Node(Base):
 
         if not uuid or uuid not in interfaces:
             self.log.error('Unable to find UUID for interface {}'
-                    .format(interface_name))
+                    .format(name))
             return (None, None, {})
 
         if_dict = interfaces[uuid]
@@ -418,7 +420,7 @@ class Node(Base):
         for ver in versions:
             if_ip_assigned = if_dict[ver]
             res = self.group.manage_ip(interface_uuid, if_ip_assigned,
-                release=True, version=ver)
+                                       release=True, version=ver)
 
             if not res:
 
@@ -429,7 +431,7 @@ class Node(Base):
 
                 for v in released_ips:
                     self.group.manage_ip(interface_uuid, released_ips[v],
-                        release=False, version=v)
+                                         release=False, version=v)
 
                 return False
             released_ips[ver] = if_ip_assigned
@@ -521,7 +523,7 @@ class Node(Base):
         params['localboot'] = int(self.get('localboot'))
 
         interfaces = self.list_ifs()
-        bootif_uuid = None
+        boot_if_uuid = None
 
         params['mac'] = self.get_mac()
 
@@ -561,7 +563,7 @@ class Node(Base):
             params['hostname'] = self.name
 
         for interface in params['interfaces']:
-            for ver in ['4','6']:
+            for ver in ['4', '6']:
 
                 ip = self.get_ip(
                     interface_name=interface,
@@ -609,20 +611,18 @@ class Node(Base):
         old_group_interfaces = self.group._json['interfaces']
 
         # Dictionary to store old IPs
-        old_ips = {'4':{}, '6':{}}
+        old_ips = {'4': {}, '6': {}}
         old_interfaces = self._json['interfaces']
 
         for if_uuid in old_interfaces:
-           for ver in ['4', '6']:
-               old_ip = old_interfaces[if_uuid][ver]
-               if old_ip:
-                   old_if_name = old_group_interfaces[if_uuid]['name']
-                   old_ip = self.get_ip(interface_uuid=if_uuid, version=ver)
-                   old_net = old_group_interfaces[if_uuid]['network'][ver]
-                   old_ips[ver][old_if_name] = {
-                                                'ip': old_ip,
-                                                'network': old_net,
-                                               }
+            for ver in ['4', '6']:
+                old_ip = old_interfaces[if_uuid][ver]
+                if old_ip:
+                    old_if_name = old_group_interfaces[if_uuid]['name']
+                    old_ip = self.get_ip(interface_uuid=if_uuid, version=ver)
+                    old_net = old_group_interfaces[if_uuid]['network'][ver]
+                    old_ips[ver][old_if_name] = {'ip': old_ip,
+                                                 'network': old_net}
 
         self.log.debug('Old IPs dictionary: {}'.format(old_ips))
 
@@ -634,6 +634,10 @@ class Node(Base):
 
         self.log.debug('Set new group')
         res = self.set('group', new_group.DBRef)
+
+        if not res:
+            self.log.error('Unable to set new group. Please delete node.')
+            return False
 
         self.log.debug('Link with new group')
         self.link(new_group)
@@ -658,8 +662,7 @@ class Node(Base):
                     self.add_ip(new_if_name, version=ver)
 
         self.log.debug('Automatically assigned IPs: {}'
-                       .format(self._json['interfaces'])
-        )
+                       .format(self._json['interfaces']))
 
         self.log.debug('Restore IPs')
 
@@ -684,7 +687,6 @@ class Node(Base):
                     )
 
                     new_net = new_group_interfaces[if_uuid]['network'][ver]
-
 
                     if not new_net:
                         self.log.debug(
@@ -721,8 +723,7 @@ class Node(Base):
                     self.set_ip(interface_name=old_if_name, ip=old_ip)
 
                     self.log.debug('Modified node interface dictionary: {}'
-                                   .format(self._json['interfaces'])
-                    )
+                                   .format(self._json['interfaces']))
 
                     old_ips[ver].pop(old_if_name)
 
@@ -756,7 +757,7 @@ class Node(Base):
 
                         self.log.debug(
                             "New/old {}/{} have the same net {}"
-                            .format( new_if_name, old_if_name, new_net)
+                            .format(new_if_name, old_if_name, new_net)
                         )
 
                         old_ip = tmp_dict[ver][old_if_name]['ip']
@@ -888,7 +889,7 @@ class Node(Base):
         # if 'version' is unspecified we can proceed only if IPv6 or IPv4
         # configured. Not both.
         if if_dict['4'] and if_dict['6'] and not version:
-            self.log.error('Both IPv4 and IPv6 IP addresses are configured.'+
+            self.log.error('Both IPv4 and IPv6 IP addresses are configured.' +
                            'Version should be specified.')
             return False
 
@@ -904,7 +905,7 @@ class Node(Base):
             if not quiet:
                 self.log.error(
                     ('No IP addresses or networks ' +
-                    'are configured for interface {}')
+                     'are configured for interface {}')
                     .format(interface_name)
                 )
             return False
@@ -1010,27 +1011,37 @@ class Node(Base):
         return True
 
     def render_script(self, name):
+
         scripts = ['boot', 'install']
+
         if name not in scripts:
+
             self.log.error(
-                    "'{}' is not correct script. Valid options are: '{}'"
-                    .format(name, scripts)
-                    )
+                "'{}' is not correct script. Valid options are: '{}'"
+                .format(name, scripts)
+            )
+
             return None
+
         cluster = Cluster(mongo_db=self._mongo_db)
         self._get_group()
         path = cluster.get('path')
         server_ip = cluster.get('frontend_address')
         server_port = cluster.get('frontend_port')
         tloader = template.Loader(path + '/templates')
+
         if name == 'boot':
             p = self.boot_params
             p['server_ip'] = server_ip
             p['server_port'] = server_port
             return tloader.load('templ_nodeboot.cfg').generate(p=p)
+
         if name == 'install':
-            return tloader.load('templ_install.cfg').generate(
-                    p=self.install_params,
-                    server_ip=server_ip,
-                    server_port=server_port
-                    )
+
+            res = tloader.load('templ_install.cfg').generate(
+                p=self.install_params,
+                server_ip=server_ip,
+                server_port=server_port
+            )
+
+            return res
