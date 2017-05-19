@@ -577,6 +577,8 @@ class Cluster(Base):
 
             self.log.info("Created '{}'".format(zonefilepath))
 
+        return True
+
     def delete(self, force=False):
 
         if force:
