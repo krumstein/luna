@@ -114,8 +114,8 @@ class Network(Base):
 
             if ns_ip is None:
                 ns_ip = utils.ip.reltoa(num_subnet,
-                                            int(flist[0]['end']),
-                                            self.version)
+                                        int(flist[0]['end']),
+                                        self.version)
 
             self.set('ns_ip', ns_ip)
 
@@ -343,7 +343,7 @@ class Network(Base):
                 for gid in rev_links[elem]:
                     try:
                         group = Group(id=ObjectId(gid),
-                            mongo_db=self._mongo_db)
+                                      mongo_db=self._mongo_db)
                     except RuntimeError:
                         self.log.error('No group with id={} found.'
                             .format(gid))
@@ -369,7 +369,6 @@ class Network(Base):
 
         return out_dict
 
-
     @property
     def zone_data(self):
         zone_dict = {}
@@ -384,7 +383,6 @@ class Network(Base):
                 zone_dict[key] = self._json[key]
             else:
                 zone_dict[key] = ''
-
 
         if self.version == 4:
 
@@ -448,7 +446,7 @@ class Network(Base):
         # master_nibbles in fe80:0000:0000:0000:ffff:ffff:ffff:fffe format
         # need to get it in f.e.8.0.0.0.0.0 ... format
         master_nibbles_list = "".join(master_nibbles.split(':'))
-        master_nibbles_list =  list(master_nibbles_list)
+        master_nibbles_list = list(master_nibbles_list)
         tmp = master_nibbles_list[:mutable_octet]
         zone_dict['rev_zone_name'] = '.'.join(reversed(tmp))
         zone_dict['rev_hosts'] = {}
@@ -465,7 +463,3 @@ class Network(Base):
             zone_dict['rev_hosts'][ptr] = ptr_hostname
 
         return zone_dict
-
-
-
-
