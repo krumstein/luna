@@ -20,7 +20,7 @@ along with Luna.  If not, see <http://www.gnu.org/licenses/>.
 
 '''
 
-from config import *
+from config import usedby_key, db_name, db_version
 
 import os
 import pwd
@@ -31,7 +31,6 @@ import logging
 import subprocess
 
 from bson.objectid import ObjectId
-from bson.dbref import DBRef
 from tornado import template
 
 from luna.base import Base
@@ -148,7 +147,6 @@ class Cluster(Base):
                        'dhcp_net': None,
                        'db_version': db_version}
 
-
             self.log.debug("Saving cluster '{}' to the datastore"
                            .format(cluster))
 
@@ -192,8 +190,8 @@ class Cluster(Base):
 
             net = Network(id=ObjectId(netid), mongo_db=self._mongo_db)
             return utils.ip.reltoa(net._json['NETWORK'],
-                    super(Cluster, self).get(key),
-                    ver=net.version)
+                                   super(Cluster, self).get(key),
+                                   ver=net.version)
 
         return super(Cluster, self).get(key)
 
@@ -317,11 +315,22 @@ class Cluster(Base):
         objnet = Network(name=netname, mongo_db=self._mongo_db)
         c['NETMASK'] = objnet.get('NETMASK')
         c['NETWORK'] = objnet.get('NETWORK')
-        c['hmac_key'] = str(base64.b64encode(bytearray(os.urandom(32))).decode())
+
+        c['hmac_key'] = str(
+            base64.b64encode(bytearray(os.urandom(32))).decode()
+        )
         tloader = template.Loader(self.get('path') + '/templates')
+
         if self.is_ha() and not no_ha:
-            dhcpd_conf_primary = tloader.load('templ_dhcpd.cfg').generate(c=c, conf_primary=conf_primary, conf_secondary=None)
-            dhcpd_conf_secondary = tloader.load('templ_dhcpd.cfg').generate(c=c, conf_primary=None, conf_secondary=conf_secondary)
+
+            dhcpd_conf_primary = tloader.load('templ_dhcpd.cfg').generate(
+                c=c, conf_primary=conf_primary,
+                conf_secondary=None)
+
+            dhcpd_conf_secondary = tloader.load('templ_dhcpd.cfg').generate(
+                c=c, conf_primary=None,
+                conf_secondary=conf_secondary)
+
             f1 = open('/etc/dhcp/dhcpd.conf', 'w')
             f2 = open('/etc/dhcp/dhcpd-secondary.conf', 'w')
             f1.write(dhcpd_conf_primary)
@@ -329,7 +338,10 @@ class Cluster(Base):
             f1.close()
             f2.close()
         else:
-            dhcpd_conf = tloader.load('templ_dhcpd.cfg').generate(c=c, conf_primary=None, conf_secondary=None)
+
+            dhcpd_conf = tloader.load('templ_dhcpd.cfg').generate(
+                c=c, conf_primary=None, conf_secondary=None)
+
             f1 = open('/etc/dhcp/dhcpd.conf', 'w')
             f2 = open('/etc/dhcp/dhcpd-secondary.conf', 'w')
             f1.write(dhcpd_conf)
@@ -419,7 +431,6 @@ class Cluster(Base):
         for netid in rlinks['network']:
             netids.append(netid)
 
-
         zone_data = {
             4: {'direct': {}, 'reverse': {}},
             6: {'direct': {}, 'reverse': {}}
@@ -451,7 +462,8 @@ class Cluster(Base):
 
                 for rev_host in rev_zone_hosts:
                     if rev_host in old_rev_hosts:
-                        self.log.error("Duplicate records for {}.{}.*.arpa: {} and {}"
+                        self.log.error(
+                            "Duplicate records for {}.{}.*.arpa: {} and {}"
                             .format(
                                 rev_host,
                                 rev_zone_name,
@@ -461,8 +473,15 @@ class Cluster(Base):
                         )
                     old_rev_hosts[rev_host] = rev_zone_hosts[rev_host]
 
-                zone_data[version]['reverse'][rev_zone_name]['include'] += rev_include
-                zone_data[version]['reverse'][rev_zone_name]['hosts'] = old_rev_hosts
+                (zone_data[version]
+                          ['reverse']
+                          [rev_zone_name]
+                          ['include']) += rev_include
+
+                (zone_data[version]
+                          ['reverse']
+                          [rev_zone_name]
+                          ['hosts']) = old_rev_hosts
 
             if rev_zone_name not in zone_data[version]['reverse']:
                 rev_zone_dict = {
@@ -482,11 +501,7 @@ class Cluster(Base):
             }
             zone_data[version]['direct'][direct_name] = direct_zone_dict
 
-
         self.log.debug('zone_data: {}'.format(zone_data))
-
-        #import json
-        #print json.dumps(zone_data, sort_keys=True, indent=4, separators=(',', ': '))
 
         zones = []
         fsuffix = '.luna.zone'
@@ -524,11 +539,15 @@ class Cluster(Base):
             zones.append(zone)
 
         tloader = template.Loader(self.get('path') + '/templates',
-            autoescape=None)
+                                  autoescape=None)
 
         # create include file for named.conf
         namedconffile = open(includefile, 'w')
-        namedconffile.write(tloader.load('templ_named_conf.cfg').generate(z=zones))
+
+        namedconffile.write(
+            tloader.load('templ_named_conf.cfg').generate(z=zones)
+        )
+
         namedconffile.close()
 
         nameduid, namedgid = None, None
