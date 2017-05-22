@@ -20,7 +20,7 @@ along with Luna.  If not, see <http://www.gnu.org/licenses/>.
 
 '''
 
-from luna.config import *
+from luna.config import db_name
 import logging
 import pymongo
 import ConfigParser
@@ -30,7 +30,8 @@ import os
 import errno
 import subprocess
 
-def set_mac_node(mac, node, mongo_db = None):
+
+def set_mac_node(mac, node, mongo_db=None):
     logging.basicConfig(level=logging.INFO)
 #    logging.basicConfig(level=logging.DEBUG)
     logger = logging.getLogger(__name__)
@@ -46,6 +47,7 @@ def set_mac_node(mac, node, mongo_db = None):
     mongo_collection.remove({'mac': mac})
     mongo_collection.remove({'node': node})
     mongo_collection.insert({'mac': mac, 'node': node})
+
 
 def get_con_options():
     conf = ConfigParser.ConfigParser()
@@ -70,14 +72,21 @@ def get_con_options():
         user = None
         password = None
     if user and password and replicaset:
-        auth_str = 'mongodb://' + user + ':' + password + '@' + server + '/' + authdb + '?replicaSet=' + replicaset
+
+        auth_str = ('mongodb://' + user + ':' + password + '@' + server + '/' +
+                    authdb + '?replicaSet=' + replicaset)
+
         return auth_str
     if user and password:
-        auth_str = 'mongodb://' + user + ':' + password + '@' + server + '/' + authdb
+
+        auth_str = ('mongodb://' + user + ':' + password + '@' + server + '/' +
+                    authdb)
+
         return auth_str
     return "localhost"
 
-def clone_dirs(path1 = None, path2 = None):
+
+def clone_dirs(path1=None, path2=None):
 
     if not path1 or not path2:
         sys.stderr.write("Source and target paths need to be specified.\n")
@@ -94,7 +103,7 @@ def clone_dirs(path1 = None, path2 = None):
     # check if someone run rsync already
     pidfile = "/run/luna_rsync.pid"
     try:
-        pf = file(pidfile,'r')
+        pf = file(pidfile, 'r')
         pid = int(pf.read().strip())
         pf.close()
     except IOError:
@@ -112,7 +121,7 @@ def clone_dirs(path1 = None, path2 = None):
             sys.stderr.write(message % pid)
             sys.exit(1)
 
-    pf = file(pidfile,'w+')
+    pf = file(pidfile, 'w+')
     pid = os.getppid()
     pf.write("%s\n" % pid)
     pf.close()
@@ -128,7 +137,8 @@ def clone_dirs(path1 = None, path2 = None):
 
     cmd = r'''/usr/bin/rsync -av -HAX --progress ''' + path1 + r''' ''' + path2
     try:
-        rsync_out = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        rsync_out = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
+                                     stderr=subprocess.STDOUT)
         stat_symb = ['\\', '|', '/', '-']
         i = 0
         while True:
@@ -146,7 +156,8 @@ def clone_dirs(path1 = None, path2 = None):
     os.remove(pidfile)
     return True
 
-def rsync_data(host = None, lpath = None, rpath = None):
+
+def rsync_data(host=None, lpath=None, rpath=None):
 
     if not host or not lpath:
         sys.stderr.write("Hostname or path did not specified")
@@ -158,7 +169,7 @@ def rsync_data(host = None, lpath = None, rpath = None):
     # check if someone run rsync already
     pidfile = "/run/luna_rsync.pid"
     try:
-        pf = file(pidfile,'r')
+        pf = file(pidfile, 'r')
         pid = int(pf.read().strip())
         pf.close()
     except IOError:
@@ -176,30 +187,39 @@ def rsync_data(host = None, lpath = None, rpath = None):
             sys.stderr.write(message % pid)
             sys.exit(1)
 
-    pf = file(pidfile,'w+')
+    pf = file(pidfile, 'w+')
     pid = os.getppid()
     pf.write("%s\n" % pid)
     pf.close()
 
     # check if someone run rsync on other node to prevent circular syncing
-    ssh_proc = subprocess.Popen(['/usr/bin/ssh',
-        '-o', 'StrictHostKeyChecking=no',
-        '-o', 'UserKnownHostsFile=/dev/null', host,
-            'ls', pidfile],
+    ssh_proc = subprocess.Popen(
+        ['/usr/bin/ssh',
+         '-o', 'StrictHostKeyChecking=no',
+         '-o', 'UserKnownHostsFile=/dev/null', host,
+         'ls', pidfile
+         ],
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
-        close_fds=True)
-    streamdata = ssh_proc.communicate()[0]
+        close_fds=True
+    )
+    ssh_proc.communicate()[0]
 
     if not ssh_proc.returncode:
-        message = "Pidfile %s exists on node %s. Probably syncronization is going from remote to local node. Exiting.\n"
+
+        message = ("Pidfile %s exists on node %s. " +
+                   "Probably syncronization is going from " +
+                   "remote to local node. Exiting.\n")
+
         sys.stderr.write(message % (pidfile, host))
         os.remove(pidfile)
         sys.exit(1)
 
     cmd = r'''/usr/bin/rsync -avz -HAX -e "/usr/bin/ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" --progress --delete ''' + lpath + r''' root@''' + host + r''':''' + rpath
     try:
-        rsync_out = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        rsync_out = subprocess.Popen(
+            cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+        )
         stat_symb = ['\\', '|', '/', '-']
         i = 0
         while True:
@@ -217,6 +237,7 @@ def rsync_data(host = None, lpath = None, rpath = None):
     os.remove(pidfile)
     return True
 
+
 def format_output(out):
     # get number of columns
     num_col = len(out['header'])
@@ -227,14 +248,16 @@ def format_output(out):
             num_col = len(elem)
     # get max length of line and
     # create new array out of input
-    lengths=[0] * num_col
+    lengths = [0] * num_col
     header_tmp = [[]] * (num_col + 1)
-    content_tmp = [[[] for x in range(num_col + 1)] for y in range(len_content)]
+    content_tmp = [[[] for x in range(num_col + 1)]
+                   for y in range(len_content)]
 
-    # last element of the array will contain the maximum number of the new lines
+    # last element of the array will contain
+    # the maximum number of the new lines
     header_tmp[-1] = 1
     for i in range(len(out['header'])):
-        elem=out['header'][i]
+        elem = out['header'][i]
         lines = str(elem).split('\n')
         header_tmp[i] = lines
         newlines = 1
@@ -249,7 +272,7 @@ def format_output(out):
     for out_line in out['content']:
         content_tmp[content_line][-1] = 1
         for i in range(len(out_line)):
-            elem=out_line[i]
+            elem = out_line[i]
             lines = str(elem).split('\n')
             content_tmp[content_line][i] = lines
             newlines = 1
@@ -263,8 +286,10 @@ def format_output(out):
         content_line += 1
 
     # need to have transponded matrix to ease output
-    header_array = [['' for x in range(num_col)] for y in range(header_tmp[-1] - 1)]
-    content_array = [['' for x in range(num_col)] for y in range(total_num_of_new_lines - 1)]
+    header_array = [['' for x in range(num_col)]
+                    for y in range(header_tmp[-1] - 1)]
+    content_array = [['' for x in range(num_col)]
+                     for y in range(total_num_of_new_lines - 1)]
 
     for i in range(num_col):
         for j in range(len(header_tmp[i])):
