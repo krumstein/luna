@@ -22,7 +22,6 @@ along with Luna.  If not, see <http://www.gnu.org/licenses/>.
 
 import re
 import socket
-import struct
 from binascii import hexlify, unhexlify
 import logging
 
@@ -48,7 +47,11 @@ def ntoa(num_ip, ver=4):
 
     try:
 
-        ip = socket.inet_ntop(af[ver], unhexlify(format(num_ip, hex_format[ver])))
+        ip = socket.inet_ntop(
+            af[ver],
+            unhexlify(format(num_ip, hex_format[ver]))
+        )
+
         return ip
 
     except:
@@ -133,7 +136,7 @@ def get_num_subnet(ip, prefix, ver=4):
             raise RuntimeError
 
     num_mask = (((1 << maxbits) - 1)
-            ^ ((1 << (maxbits+1 - prefix) - 1) - 1))
+                ^ ((1 << (maxbits+1 - prefix) - 1) - 1))
 
     num_subnet = long(num_ip & num_mask)
 
@@ -152,7 +155,7 @@ def ip_in_net(ip, num_net, prefix, ver=4):
         num_ip = aton(ip, ver)
 
     num_subnet1 = get_num_subnet(num_net, prefix, ver)
-    num_subnet2 = get_num_subnet(ip, prefix, ver)
+    num_subnet2 = get_num_subnet(num_ip, prefix, ver)
 
     return num_subnet1 == num_subnet2
 
@@ -187,15 +190,16 @@ def guess_ns_hostname():
     # be resolved
     return ns_hostname
 
+
 def get_ip_version(ip):
-    import sys
     for ver in [4, 6]:
         try:
-            absnum = int(hexlify(socket.inet_pton(af[ver], ip)), 16)
+            int(hexlify(socket.inet_pton(af[ver], ip)), 16)
             return ver
         except:
             pass
     return None
+
 
 def ipv6_unwrap(ip):
     """
@@ -223,4 +227,3 @@ def ipv6_unwrap(ip):
         out[i] = '{:0>4}'.format(out[i])
 
     return ":".join(out)
-
