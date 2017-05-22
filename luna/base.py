@@ -20,7 +20,7 @@ along with Luna.  If not, see <http://www.gnu.org/licenses/>.
 
 '''
 
-from config import *
+from config import db_name, use_key, usedby_key
 
 import pymongo
 import inspect
@@ -177,7 +177,6 @@ class Base(object):
             if type(value) is not DBRef:
                 return value
             dbref = value
-            mongo_db = self._mongo_db
             mongo_collection = self._mongo_db[dbref.collection]
             try:
                 name = mongo_collection.find_one({'_id': dbref.id})['name']
