@@ -53,12 +53,15 @@ def print_table(header, content):
         if key[1] is None:
             key[1] = '-'
 
-    out = {'header': header , 'content': content}
+    out = {'header': header, 'content': content}
     (lengths, header_array, content_array) = utils.helpers.format_output(out)
 
     spaces = 4
-    fmt_str = [ "| %-" + str(spaces + lengths[i]) + "s" for i in range(len(lengths))]
-    out_len = sum(lengths) + (spaces + 2) * len(lengths) + 1
+    fmt_str = [
+        "| %-" + str(spaces + lengths[i]) + "s" for i in range(len(lengths))
+    ]
+
+    #out_len = sum(lengths) + (spaces + 2) * len(lengths) + 1
     format_string = "".join(fmt_str)+"|"
 
     separator = "+" + "+".join(["-" * (i + spaces + 1) for i in lengths]) + "+"
@@ -73,8 +76,8 @@ def print_table(header, content):
     for i in range(len(content_array)):
         print(format_string % tuple(content_array[i]))
 
-
     print(separator)
+
 
 def check_active_node():
     if not luna.Cluster().is_active():
@@ -82,6 +85,7 @@ def check_active_node():
         exit(1)
 
 #################### Cluster
+
 
 def cluster_init(**args):
     cluster = luna.Cluster(
@@ -103,6 +107,7 @@ def cluster_init(**args):
 
     return ret
 
+
 def cluster_delete(**args):
     cluster = luna.Cluster()
     return cluster.delete(args['force'])
@@ -111,7 +116,7 @@ def cluster_delete(**args):
 def cluster_change(**args):
     cluster = luna.Cluster()
     for key in args:
-        if args[key] == None:
+        if args[key] is None:
             continue
         res = cluster.set(key, args[key])
         if not bool(res):
@@ -120,6 +125,7 @@ def cluster_change(**args):
 
     return True
 
+
 def cluster_show(**args):
     cluster = luna.luna.Cluster()
     if args['raw']:
@@ -127,12 +133,12 @@ def cluster_show(**args):
         return True
     out_json = cluster.show()
     out_str = []
-    name = out_json.pop('name')
-    db_version = out_json.pop('db_version')
+    out_json.pop('name')
+    out_json.pop('db_version')
     if bool(cluster.get('dhcp_net')):
-        dhcp_net = out_json.pop('dhcp_net')
-        dhcp_range_start = out_json.pop('dhcp_range_start')
-        dhcp_range_end = out_json.pop('dhcp_range_end')
+        out_json.pop('dhcp_net')
+        out_json.pop('dhcp_range_start')
+        out_json.pop('dhcp_range_end')
         out_json['dhcp_net'] = '[' + cluster.get('dhcp_net') + ']'
         out_json['dhcp_range_start'] = cluster.get('dhcp_range_start')
         out_json['dhcp_range_end'] = cluster.get('dhcp_range_end')
@@ -140,6 +146,7 @@ def cluster_show(**args):
         out_str.append([key, out_json[key]])
     print_table(['Parameter', 'Value'], out_str)
     return True
+
 
 def cluster_sync(**args):
     cluster = luna.Cluster()
@@ -153,18 +160,24 @@ def cluster_sync(**args):
         utils.helpers.rsync_data(ip, path)
     print("Done. Luna daemons probably need to be restarted manually.")
 
+
 def cluster_makedns(**args):
     cluster = luna.Cluster()
     res = cluster.makedns()
     if not res:
         return False
     log.info("Reloading local named.")
-    proc = subprocess.Popen(['/usr/bin/systemctl',
-        'reload', "named"], stdout=subprocess.PIPE, close_fds=True)
-    streamdata = proc.communicate()[0]
+    proc = subprocess.Popen(
+        ['/usr/bin/systemctl', 'reload', "named"],
+        stdout=subprocess.PIPE,
+        close_fds=True
+    )
+    proc.communicate()[0]
     if proc.returncode:
-        log.error("Unable to reload named. Exit code is non-zero: {}."
-            .format(proc.returncode))
+        log.error(
+            "Unable to reload named. Exit code is non-zero: {}."
+            .format(proc.returncode)
+        )
         return False
     log.info("Success.")
     if not cluster.is_ha():
@@ -180,60 +193,81 @@ def cluster_makedns(**args):
             log.info("%s:%s => %s:%s" % (ips[0], path, ip, path))
             utils.helpers.rsync_data(ip, path)
         log.info("Reloading remote namded on " + ip + ".")
-        ssh_proc = subprocess.Popen(['/usr/bin/ssh',
-            '-o', 'StrictHostKeyChecking=no',
-            '-o', 'UserKnownHostsFile=/dev/null', ip,
-            'systemctl', "reload", "named"], stdout=subprocess.PIPE, close_fds=True)
-        streamdata = ssh_proc.communicate()[0]
+        ssh_proc = subprocess.Popen(
+            ['/usr/bin/ssh',
+             '-o', 'StrictHostKeyChecking=no',
+             '-o', 'UserKnownHostsFile=/dev/null', ip,
+             'systemctl', "reload", "named"],
+            stdout=subprocess.PIPE,
+            close_fds=True
+        )
+        ssh_proc.communicate()[0]
         if ssh_proc.returncode:
-            log.info("Unable to reload named on " + ip + ". Exit code is non-zero.")
+            log.info(
+                "Unable to reload named on " +
+                ip + ". Exit code is non-zero."
+            )
             return False
         log.info("Success.")
     return True
 
+
 def cluster_makedhcp(**args):
     cluster = luna.Cluster()
-    res = cluster.makedhcp(args['network'], args['start_ip'], args['end_ip'], args['no_ha'])
+    res = cluster.makedhcp(args['network'], args['start_ip'],
+                           args['end_ip'], args['no_ha'])
     if not res:
         log.error('Error on creating DHCP config.')
         return False
-    _run_command(['/usr/bin/systemctl', 'stop', "dhcpd"],
+    _run_command(
+        ['/usr/bin/systemctl', 'stop', "dhcpd"],
         "Stopping local dhcpd.",
-        "Unable to stop named. Exit code is non-zero.")
+        "Unable to stop named. Exit code is non-zero."
+    )
     if cluster.is_ha():
         ips = cluster.get_cluster_ips()
         for ip in ips:
-            _run_command(['/usr/bin/ssh',
-                    '-o', 'StrictHostKeyChecking=no',
-                    '-o', 'UserKnownHostsFile=/dev/null', ip,
-                    'systemctl', "stop", "dhcpd"],
+            _run_command(
+                ['/usr/bin/ssh',
+                 '-o', 'StrictHostKeyChecking=no',
+                 '-o', 'UserKnownHostsFile=/dev/null', ip,
+                 'systemctl', "stop", "dhcpd"],
                 "Stop dhcpd on " + ip + ".",
-                "Unable to stop dhcpd.")
-            _run_command(['/usr/bin/scp',
-                    '-o', 'StrictHostKeyChecking=no',
-                    '-o', 'UserKnownHostsFile=/dev/null',
-                    '/etc/dhcp/dhcpd-secondary.conf',
-                    ip + ":/etc/dhcp/dhcpd.conf"],
+                "Unable to stop dhcpd."
+            )
+            _run_command(
+                ['/usr/bin/scp',
+                 '-o', 'StrictHostKeyChecking=no',
+                 '-o', 'UserKnownHostsFile=/dev/null',
+                 '/etc/dhcp/dhcpd-secondary.conf',
+                 ip + ":/etc/dhcp/dhcpd.conf"],
                 "Copy dhcpd config file to " + ip + ".",
-                "Unable to copy file.")
-            _run_command(['/usr/bin/ssh',
-                    '-o', 'StrictHostKeyChecking=no',
-                    '-o', 'UserKnownHostsFile=/dev/null', ip,
-                    'systemctl', "stop", "dhcpd"],
+                "Unable to copy file."
+            )
+            _run_command(
+                ['/usr/bin/ssh',
+                 '-o', 'StrictHostKeyChecking=no',
+                 '-o', 'UserKnownHostsFile=/dev/null', ip,
+                 'systemctl', "stop", "dhcpd"],
                 "Stop dhcpd on " + ip + ".",
-                "Unable to stop dhcpd.")
-            _run_command(['/usr/bin/ssh',
-                    '-o', 'StrictHostKeyChecking=no',
-                    '-o', 'UserKnownHostsFile=/dev/null', ip,
-                    'rm', "-rf", "/var/lib/dhcpd/dhcpd.*"],
+                "Unable to stop dhcpd."
+            )
+            _run_command(
+                ['/usr/bin/ssh',
+                 '-o', 'StrictHostKeyChecking=no',
+                 '-o', 'UserKnownHostsFile=/dev/null', ip,
+                 'rm', "-rf", "/var/lib/dhcpd/dhcpd.*"],
                 "Removing lease files on " + ip + ".",
-                "Unable to remove.")
-            _run_command(['/usr/bin/ssh',
-                    '-o', 'StrictHostKeyChecking=no',
-                    '-o', 'UserKnownHostsFile=/dev/null', ip,
-                    'touch', "/var/lib/dhcpd/dhcpd.leases"],
+                "Unable to remove."
+            )
+            _run_command(
+                ['/usr/bin/ssh',
+                 '-o', 'StrictHostKeyChecking=no',
+                 '-o', 'UserKnownHostsFile=/dev/null', ip,
+                 'touch', "/var/lib/dhcpd/dhcpd.leases"],
                 "Create lease file on " + ip + ".",
-                "Unable to create.")
+                "Unable to create."
+            )
     log.info("Remove lease files")
     try:
         f = open('/var/lib/dhcpd/dhcpd.leases', 'w')
@@ -244,32 +278,36 @@ def cluster_makedhcp(**args):
         os.remove('/var/lib/dhcpd/dhcpd.leases~')
     except:
         log.warning('Erron on removing dhcpd.leases~. Trying to proceed.')
-    _run_command(['/usr/bin/systemctl', 'start', "dhcpd"],
+    _run_command(
+        ['/usr/bin/systemctl', 'start', "dhcpd"],
         "Starting local dhcpd.",
-        "Unable to start dhcpd. Exit code is non-zero.")
+        "Unable to start dhcpd. Exit code is non-zero."
+    )
     time.sleep(3)
     if not cluster.is_ha() or args['no_ha']:
         return True
     for ip in ips:
-        _run_command(['/usr/bin/ssh',
-                '-o', 'StrictHostKeyChecking=no',
-                '-o', 'UserKnownHostsFile=/dev/null', ip,
-                'systemctl', "start", "dhcpd"],
+        _run_command(
+            ['/usr/bin/ssh',
+             '-o', 'StrictHostKeyChecking=no',
+             '-o', 'UserKnownHostsFile=/dev/null', ip,
+             'systemctl', "start", "dhcpd"],
             "Start dhcpd on " + ip + ".",
-            "Unable to start dhcpd.")
+            "Unable to start dhcpd."
+        )
     return True
-
 
 
 def _run_command(cmd, descr, err):
     log.info(descr)
     ssh_proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, close_fds=True)
-    streamdata = ssh_proc.communicate()[0]
+    ssh_proc.communicate()[0]
     if ssh_proc.returncode:
         log.error(err)
         sys.exit(1)
 
 #################### OsImage
+
 
 def osimage_list():
     lst = luna.list('osimage')
@@ -284,8 +322,9 @@ def osimage_list():
     print_table(header, content)
     return True
 
+
 def osimage_show(**args):
-    osimage = luna.OsImage(name = args['name'])
+    osimage = luna.OsImage(name=args['name'])
     if args['raw']:
         print(osimage.nice_json)
         return True
@@ -293,7 +332,7 @@ def osimage_show(**args):
         print(osimage.get('path'))
         return True
     if args['grab_filesystems']:
-        _safe_print(osimage.get('grab_filesystems'))
+        print(osimage.get('grab_filesystems'))
         return True
     if args['kernver']:
         for elem in osimage.list_kernels():
@@ -303,10 +342,10 @@ def osimage_show(**args):
             print(elem)
         return True
     if args['grab_exclude_list']:
-        _safe_print(osimage.get('grab_exclude_list'))
+        print(osimage.get('grab_exclude_list'))
         return True
     out_json = osimage.show()
-    out_str = ''
+    #out_str = ''
     header = ['Parameter', 'Value']
     content = []
     name = out_json.pop('name')
@@ -316,11 +355,13 @@ def osimage_show(**args):
     print_table(header, content)
     return True
 
+
 def osimage_listkerns(**args):
     osimage = luna.OsImage(name=args['name'])
     for elem in osimage.list_kernels():
         print(elem)
     return True
+
 
 def osimage_add(**args):
     args['create'] = True
@@ -330,9 +371,11 @@ def osimage_add(**args):
         return False
     return True
 
+
 def osimage_delete(**args):
     osimage = luna.OsImage(args['name'])
     return osimage.delete()
+
 
 def osimage_change(**args):
     osimage = luna.OsImage(args['name'])
@@ -350,18 +393,19 @@ def osimage_change(**args):
         if not (ret):
             log.error("Error changing '{}'".format(key))
 
+
 def osimage_pack(**args):
     def pack_image(osimage):
         try:
             log.info('Creating tarball.')
-            res = osimage.create_tarball()
+            osimage.create_tarball()
             log.info('Done.')
         except:
             log.error("Error on creating tarball")
             return False
         try:
             log.error('Creating torrent.')
-            res = osimage.create_torrent()
+            osimage.create_torrent()
             log.error('Done.')
         except:
             log.error("Error on creating torrent.")
@@ -394,13 +438,12 @@ def osimage_pack(**args):
             try:
                 os.kill(pid, SIGHUP)
             except OSError:
-                log.error(("No such process with pid %i. "+
-                    "Is ltorrent running?") % pid)
+                log.error(("No such process with pid %i. " +
+                           "Is ltorrent running?") % pid)
                 return False
         else:
             log.error("Ltorrent is not running")
             return False
-
 
     osimage = luna.OsImage(args['name'])
 
@@ -422,12 +465,16 @@ def osimage_pack(**args):
 
     return osimage_sync(args['name'])
 
+
 def osimage_grab(**args):
     osimage = luna.OsImage(args['name'])
-    res = osimage.grab_host(host = args['host'],
-        dry_run = args['dry_run'],
-        verbose = args['verbose'])
+    res = osimage.grab_host(
+        host=args['host'],
+        dry_run=args['dry_run'],
+        verbose=args['verbose']
+    )
     return res
+
 
 def osimage_sync(**args):
     name = args['name']
@@ -457,38 +504,42 @@ def osimage_sync(**args):
             stdout=subprocess.PIPE,
             close_fds=True
         )
-        streamdata = ssh_proc.communicate()[0]
+        ssh_proc.communicate()[0]
         if ssh_proc.returncode:
             log.error("Exit code is non-zero")
             sys.exit(1)
     log.info("Done.")
     return True
 
+
 def osimage_clone(**args):
     osimage = luna.OsImage(args['name'])
     # check if osimage we need to create exists already
     lst = luna.list('osimage')
     if args['to'] in lst:
-        sys.stderr.write("OsImage {} already exists.\n".format(args['to']) )
+        sys.stderr.write("OsImage {} already exists.\n".format(args['to']))
         return False
     osimagepath = osimage.get("path")
     targetpath = os.path.abspath(args['path'])
     if os.path.exists(targetpath):
-        sys.stderr.write("Path {} already exists.\n".format(targetpath) )
+        sys.stderr.write("Path {} already exists.\n".format(targetpath))
         return False
     print("%s => %s" % (osimagepath, targetpath))
     utils.helpers.clone_dirs(osimagepath, targetpath)
     # create osimage
-    newosimage = luna.OsImage(name = args['to'],
-        create = True,
-        path = targetpath,
-        kernver = osimage.get('kernver'))
+    newosimage = luna.OsImage(
+        name=args['to'],
+        create=True,
+        path=targetpath,
+        kernver=osimage.get('kernver')
+    )
     # copy params
     params = ['dracutmodules', 'kernmodules', 'kernopts',
-        'grab_filesystems', 'grab_exclude_list']
+              'grab_filesystems', 'grab_exclude_list']
     for param in params:
         newosimage.set(param, osimage.get(param))
     return True
+
 
 def osimage_rename(**args):
     osimage = luna.OsImage(args['name'])
@@ -496,6 +547,7 @@ def osimage_rename(**args):
 
 
 #################### BMCSetup
+
 
 def bmcsetup_list(**args):
     lst = luna.list('bmcsetup')
@@ -506,6 +558,7 @@ def bmcsetup_list(**args):
         content.append([elem, bmcsetup.get('user'), bmcsetup.get('password')])
     print_table(header, content)
     return True
+
 
 def bmcsetup_show(**args):
 
@@ -523,10 +576,12 @@ def bmcsetup_show(**args):
     print_table(header, content)
     return True
 
+
 def bmcsetup_add(**args):
     args['create'] = True
     bmcsetup = luna.BMCSetup(**args)
     return bool(bmcsetup)
+
 
 def bmcsetup_change(**args):
     bmcsetup = luna.BMCSetup(args['name'])
@@ -540,9 +595,11 @@ def bmcsetup_change(**args):
 
     return True
 
+
 def bmcsetup_delete(**args):
     bmcsetup = luna.BMCSetup(args['name'])
     return bmcsetup.delete()
+
 
 def bmcsetup_rename(**args):
     bmcsetup = luna.BMCSetup(args['name'])
@@ -550,28 +607,31 @@ def bmcsetup_rename(**args):
 
 #################### Network
 
+
 def network_list():
     networks = luna.list('network')
     header = ['Name', 'Network']
     content = []
     for elem in networks:
         net = luna.Network(elem)
-        content.append([elem, net.get('NETWORK') + "/" + str(net.get('PREFIX'))])
+        content.append(
+            [elem, net.get('NETWORK') + "/" + str(net.get('PREFIX'))])
     print_table(header, content)
     return True
+
 
 def network_show(**args):
     name = args['name']
     raw = args['raw']
     reservedips = args['reservedips']
-    net = luna.Network(name = name)
+    net = luna.Network(name=name)
     if raw:
         print(net.nice_json)
         return None
     if reservedips:
         nonfree = utils.freelist.get_nonfree(net['freelist'])
         ips = [utils.ip.reltoa(net['NETWORK'], elem) for elem in nonfree]
-        print("\n".join(["%s" % i for i in ips ]))
+        print("\n".join(["%s" % i for i in ips]))
         return None
     out_json = net.show()
     header = ['Parameter', 'Value']
@@ -586,6 +646,7 @@ def network_show(**args):
     print_table(header, content)
     return True
 
+
 def network_add(**args):
     net = luna.Network(
         name=args['name'],
@@ -596,6 +657,7 @@ def network_add(**args):
         ns_ip=args['ns_ip'],
     )
     return bool(net)
+
 
 def network_change(**args):
     parm_sum = 0
@@ -635,15 +697,18 @@ def network_change(**args):
 
     return net.set(scr_type, script)
 
+
 def network_delete(**args):
     net = luna.Network(args['name'])
     return net.delete()
+
 
 def network_rename(**args):
     net = luna.Network(args['name'])
     return net.rename(args['newname'])
 
 #################### Group
+
 
 def _get_group_interfaces(group):
     """
@@ -656,7 +721,7 @@ def _get_group_interfaces(group):
     # get the longest if name
     if_padding = 0
     for k in if_names:
-        if len(k)> if_padding:
+        if len(k) > if_padding:
             if_padding = len(k)
 
     for k in if_names:
@@ -688,6 +753,7 @@ def _get_group_interfaces(group):
 
     return interfaces
 
+
 def group_list(**args):
     groups = luna.list('group')
     groups.sort()
@@ -700,8 +766,9 @@ def group_list(**args):
     print_table(header, content)
     return True
 
+
 def group_show(**args):
-    group = luna.Group(name = args['name'])
+    group = luna.Group(name=args['name'])
     if args['raw']:
         print(group.nice_json)
         return True
@@ -714,7 +781,7 @@ def group_show(**args):
         print(group.show_bmc_if())
         return True
 
-    scr_type =''
+    scr_type = ''
 
     if bool(args['prescript']):
         scr_type = 'prescript'
@@ -740,7 +807,7 @@ def group_show(**args):
     out_json = group.show()
 
     grpname = out_json.pop('name')
-    if_names = group.list_ifs().keys()
+    #if_names = group.list_ifs().keys()
     out_json['interfaces'] = _get_group_interfaces(group)
     header = ['Parameter', 'Value']
     content = []
@@ -751,6 +818,7 @@ def group_show(**args):
 
     print_table(header, content)
     return True
+
 
 def group_add(**args):
     net_name = args.pop('network')
@@ -766,6 +834,7 @@ def group_add(**args):
     group = luna.Group(**args)
     group.set_net_to_if('BOOTIF', network.name)
     return True
+
 
 def group_change(**args):
     parm_sum = 0
@@ -790,7 +859,10 @@ def group_change(**args):
         elif bool(args['rename']):
             group.rename_interface(args['interface'], args['rename'])
         elif args['edit']:
-            group.set_if_params(args['interface'], _edit_script(group.get_if_params(args['interface'])))
+            group.set_if_params(
+                args['interface'],
+                _edit_script(group.get_if_params(args['interface']))
+            )
         else:
             print(group.show_if(args['interface']))
     elif bool(args['bmcnetwork']):
@@ -800,9 +872,9 @@ def group_change(**args):
             group.del_bmcnetwork()
         else:
             print(group.show_bmc_if())
-    if type(args['boot_if']) == type(''):
+    if isinstance(args['boot_if'], str):
         group.set('boot_if', args['boot_if'])
-    if type(args['torrent_if']) == type(''):
+    if isinstance(args['torrent_if'], ''):
         group.set('torrent_if', args['torrent_if'])
     if bool(args['osimage']):
         group.osimage(args['osimage'])
@@ -830,6 +902,7 @@ def group_change(**args):
 
     return group.set(scr_type, script)
 
+
 def _edit_script(old_script):
     # old_script can be None
     if not bool(old_script):
@@ -839,7 +912,7 @@ def _edit_script(old_script):
         for line in sys.stdin:
             script += line
     else:
-        EDITOR = os.environ.get('EDITOR','vi')
+        EDITOR = os.environ.get('EDITOR', 'vi')
         tmpfile = tempfile.NamedTemporaryFile(suffix=".tmp")
         tmpfile.write(old_script)
         tmpfile.flush()
@@ -849,16 +922,19 @@ def _edit_script(old_script):
             script += line
     return script
 
+
 def group_delete(**args):
 
     group = luna.Group(args['name'])
     return group.delete()
+
 
 def group_rename(**args):
     grp = luna.Group(args['name'])
     return grp.rename(args['newname'])
 
 #################### Node
+
 
 def _get_node_interfaces(node):
 
@@ -888,12 +964,12 @@ def _get_node_interfaces(node):
 
     return if_str
 
+
 def node_list(**args):
     nodes = luna.list('node')
     header = ['Name', 'Group', 'MAC', 'IPs']
     content = []
     for elem in nodes:
-        ips = ''
         node = luna.Node(elem)
         out_json = node.show()
         group = out_json['group']
@@ -903,6 +979,7 @@ def node_list(**args):
         content.append([elem, group, mac, if_str])
     print_table(header, content)
     return True
+
 
 def node_show(**args):
     name = args['name']
@@ -928,7 +1005,6 @@ def node_show(**args):
         header = ['Parameter', 'Value']
         content = []
         content.append(['name', curent_node_name])
-        out_str = ''
         for key in ['localboot', 'service', 'setupbmc']:
             if out_json[key]:
                 out_json[key] = 'yes'
@@ -939,6 +1015,7 @@ def node_show(**args):
         print_table(header, content)
     return True
 
+
 def node_add(**args):
     name = args['name']
     group = args['group']
@@ -948,6 +1025,7 @@ def node_add(**args):
     else:
         node = luna.Node(name=name, group=group, create=True)
     return bool(node)
+
 
 def node_change(**args):
     out = True
@@ -988,27 +1066,30 @@ def node_delete(**args):
         out &= bool(res)
     return out
 
+
 def node_rename(**args):
     node = luna.Node(args['name'])
     return node.rename(args['newname'])
 
 #################### Switch
 
+
 def switch_list(**args):
     switches = luna.list('switch')
-    header =  ['Name', 'IP']
+    header = ['Name', 'IP']
     content = []
     for elem in switches:
         switch = luna.Switch(elem)
         content.append([elem, switch.get('ip')])
-    print_table(header , content)
+    print_table(header, content)
     return True
+
 
 def switch_show(**args):
     raw = args['raw']
     name = args['name']
     for switchname in hostlist.expand_hostlist(name):
-        switch = luna.Switch(name = switchname)
+        switch = luna.Switch(name=switchname)
         if raw:
             print(switch.nice_json)
             return None
@@ -1022,6 +1103,7 @@ def switch_show(**args):
         print_table(header, content)
     return True
 
+
 def switch_add(**args):
     name = args.pop('name')
     args['create'] = True
@@ -1031,6 +1113,7 @@ def switch_add(**args):
         switch = luna.Switch(**args)
         out &= bool(switch)
     return out
+
 
 def switch_change(**args):
     out = True
@@ -1044,6 +1127,7 @@ def switch_change(**args):
             out &= bool(ret)
     return out
 
+
 def switch_delete(**args):
     out = True
     name = args['name']
@@ -1053,11 +1137,13 @@ def switch_delete(**args):
         out &= bool(ret)
     return out
 
+
 def switch_rename(**args):
     sw = luna.Switch(args['name'])
     return sw.rename(args['newname'])
 
 #################### Otherdev
+
 
 def _list_otherdev_interfaces(dev):
 
@@ -1092,11 +1178,12 @@ def otherdev_list():
     print_table(header, content)
     return True
 
+
 def otherdev_show(**args):
     name = args['name']
     raw = args['raw']
     for devname in hostlist.expand_hostlist(name):
-        dev = luna.OtherDev(name = devname)
+        dev = luna.OtherDev(name=devname)
         if raw:
             print(dev.nice_json)
             return None
@@ -1116,6 +1203,7 @@ def otherdev_show(**args):
         print_table(header, content)
     return True
 
+
 def otherdev_add(**args):
     name = args .pop('name')
     args['create'] = True
@@ -1126,14 +1214,17 @@ def otherdev_add(**args):
         out &= bool(dev)
     return out
 
+
 def otherdev_change(**args):
     out = True
     for devname in hostlist.expand_hostlist(args['name']):
         dev = luna.OtherDev(devname)
         args.pop('name')
-        ret = dev.set_ip(network = args['network'], ip = args['ip'])
         out &= bool(dev)
+        ret = dev.set_ip(network=args['network'], ip=args['ip'])
+        out &= bool(ret)
     return out
+
 
 def otherdev_delete(**args):
     name = args['name']
@@ -1144,13 +1235,14 @@ def otherdev_delete(**args):
         out &= bool(ret)
     return out
 
+
 def otherdev_rename(**args):
     otherdev = luna.OtherDev(args['name'])
     return otherdev.rename(args['newname'])
 
-parser = ArgumentParser(prog='luna',description='Manage Luna Cluster')
+parser = ArgumentParser(prog='luna', description='Manage Luna Cluster')
 parser.add_argument('--debug', '-d', action='store_true',
-    help='Show debug information')
+                    help='Show debug information')
 subparsers = parser.add_subparsers(help='Items to operate on', dest='item')
 
 cluster_p = subparsers.add_parser('cluster', help='Basic cluster operations')
@@ -1182,12 +1274,13 @@ otherdev_a = otherdev_p.add_subparsers(dest='action')
 #
 
 # show
-cmd = cluster_a.add_parser('show',help='Show options')
+cmd = cluster_a.add_parser('show', help='Show options')
 cmd.add_argument('--raw', '-R', action='store_true', help='JSON output')
 
 # init
 cmd = cluster_a.add_parser('init', help='Create Luna Cluster')
-cmd.add_argument('--frontend_address', required=True, help='Prefix for new nodes')
+cmd.add_argument('--frontend_address', required=True,
+                 help='Prefix for new nodes')
 cmd.add_argument('--nodeprefix', default='node', help='Prefix for new nodes')
 cmd.add_argument('--nodedigits', type=int, default=3, help='Zero-autopadding')
 cmd.add_argument('--user', default='luna', help='Username to run services as')
@@ -1234,7 +1327,7 @@ cmd = cluster_a.add_parser('makedns', help='Configure named')
 # makedhcp
 cmd = cluster_a.add_parser('makedhcp', help='Configure dhcpd')
 cmd.add_argument('--no_ha', action='store_true',
-    help='Create high available DHCP config.')
+                 help='Create high available DHCP config.')
 cmd.add_argument('--network', '-N', required=True, help='Network name')
 cmd.add_argument('--start_ip', '-s', required=True,
                  help='First ip in dynamic range')
@@ -1276,7 +1369,11 @@ cmd_group.add_argument('--grab_filesystems', '-f', action='store_true',
 cmd = osimage_a.add_parser('add', help='Add osimage')
 cmd.add_argument('--name', '-n', required=True, help='Name of the OsImage')
 cmd.add_argument('--path', '-p', required=True, help='Path to OsImage')
-cmd.add_argument('--kernver', '-k', help='Kernel version. Can be "ANY" keyword (will be used when parameter is ommited)')
+cmd.add_argument(
+    '--kernver', '-k',
+    help=('Kernel version. Can be "ANY" keyword ' +
+          '(will be used when parameter is ommited)')
+)
 cmd.add_argument('--kernopts', '-o', help='Kernel options')
 
 # change
@@ -1407,11 +1504,11 @@ cmd.add_argument('--reserve', '-R', metavar='X.X.X.X', help='Reserve IP')
 cmd.add_argument('--release', metavar='X.X.X.X', help='Release IP')
 cmd.add_argument('--ns_hostname', help='Name server for zone file')
 cmd.add_argument('--ns_ip', metavar='N.N.N.N',
-    help='Name server\'s IP for zone file')
+                 help='Name server\'s IP for zone file')
 cmd.add_argument('--include', action='store_true',
-    help='Include data for zone file')
+                 help='Include data for zone file')
 cmd.add_argument('--rev_include', action='store_true',
-    help='Include data for reverse zone file')
+                 help='Include data for reverse zone file')
 # rename
 cmd = network_a.add_parser('rename', help='Rename Network')
 cmd.add_argument('name', help='Name of the Network')
@@ -1439,7 +1536,11 @@ cmd_group.add_argument('--prescript', '--pre', action='store_true',
                        help='Set prescript')
 cmd_group.add_argument('--postscript', '--post', action='store_true',
                        help='Set postscript.')
-cmd_group.add_argument('--partscript', '--part', action='store_true', help='Set partition script. Localdisk should be mounted under /sysimage')
+cmd_group.add_argument(
+    '--partscript', '--part',
+    action='store_true',
+    help='Set partition script. Localdisk should be mounted under /sysimage'
+)
 cmd_group.add_argument('--bmcsetup', '-b', action='store_true',
                        help='BMCSetup assigned to Group.')
 cmd_group.add_argument('--interface', '-i', help='Interface')
@@ -1464,7 +1565,11 @@ cmd.add_argument('--prescript', '--pre', action='store_true',
                  help='Set prescript')
 cmd.add_argument('--postscript', '--post', action='store_true',
                  help='Set postscript.')
-cmd.add_argument('--partscript', '--part', action='store_true', help='Set partition script. Localdisk should be mounted under /sysimage')
+cmd.add_argument(
+    '--partscript', '--part',
+    action='store_true',
+    help='Set partition script. Localdisk should be mounted under /sysimage'
+)
 cmd.add_argument('--bmcsetup', '-b', help='BMCSetup assigned to Group')
 cmd.add_argument('--boot_if', '--bi', help='Boot interface')
 cmd.add_argument('--torrent_if', '--ti', help='High-speed interface')
@@ -1506,7 +1611,8 @@ cmd = node_a.add_parser('list', help='List Nodes')
 cmd = node_a.add_parser('show', help='Show Node')
 cmd.add_argument('name', help='Name of the Node')
 cmd.add_argument('--raw', '-R', action='store_true', help='Raw JSON output')
-cmd.add_argument('--script', '-s', choices=['boot', 'install'], help='Show script for node')
+cmd.add_argument('--script', '-s', choices=['boot', 'install'],
+                 help='Show script for node')
 
 # add
 cmd = node_a.add_parser('add', help='Add Node')
@@ -1562,7 +1668,7 @@ cmd.add_argument('--network', '-N', required=True,
 cmd.add_argument('--ip', '-i', required=True, help='IP of the Switch')
 cmd.add_argument('--read', '-r', default='public', help='Read community')
 cmd.add_argument('--rw', '-w', default='private', help='Write community')
-cmd.add_argument('--oid', '-o', default = '.1.3.6.1.2.1.17.7.1.2.2.1.2',
+cmd.add_argument('--oid', '-o', default='.1.3.6.1.2.1.17.7.1.2.2.1.2',
                  help='OID of the Switch')
 
 # change
