@@ -874,7 +874,7 @@ def group_change(**args):
             print(group.show_bmc_if())
     if isinstance(args['boot_if'], str):
         group.set('boot_if', args['boot_if'])
-    if isinstance(args['torrent_if'], ''):
+    if isinstance(args['torrent_if'], str):
         group.set('torrent_if', args['torrent_if'])
     if bool(args['osimage']):
         group.osimage(args['osimage'])
