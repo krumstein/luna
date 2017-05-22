@@ -20,8 +20,6 @@ along with Luna.  If not, see <http://www.gnu.org/licenses/>.
 
 '''
 
-from config import *
-
 import logging
 
 from bson.objectid import ObjectId
@@ -161,6 +159,7 @@ class OtherDev(Base):
 
         if link:
             self.link(net)
+        return res
 
     def release_resources(self):
         connected = self.get('connected')
