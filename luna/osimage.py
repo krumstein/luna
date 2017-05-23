@@ -326,11 +326,14 @@ class OsImage(Base):
         real_root = os.open("/", os.O_RDONLY)
         os.chroot(image_path)
 
+        dracut_succeed = True
+
         try:
             dracut_modules = subprocess.Popen(['/usr/sbin/dracut', '--kver',
                                                kernver, '--list-modules'],
                                               stdout=subprocess.PIPE)
             luna_exists = False
+
             while dracut_modules.poll() is None:
                 line = dracut_modules.stdout.readline()
                 if line.strip() == 'luna':
@@ -350,21 +353,33 @@ class OsImage(Base):
                 line = create.stdout.readline()
 
         except:
-            self.log.error("Error while building initrd.")
-            os.fchdir(real_root)
-            os.chroot(".")
-            os.close(real_root)
-            cleanup_mounts(image_path)
-            return False
+            dracut_succeed = False
+
+        if create.returncode:
+            dracut_succeed = False
 
         os.fchdir(real_root)
         os.chroot(".")
         os.close(real_root)
         cleanup_mounts(image_path)
 
-        shutil.copy(image_path + tmp_path + '/' + initrdfile, path_to_store)
-        shutil.copy(image_path + '/boot/vmlinuz-' + kernver,
-                    path_to_store + '/' + kernfile)
+        if not dracut_succeed:
+            self.log.error("Error while building initrd.")
+            return False
+
+        initrd_path = image_path + tmp_path + '/' + initrdfile
+        kernel_path = image_path + '/boot/vmlinuz-' + kernver
+
+        if not os.path.isfile(kernel_path):
+            self.log.error("Unable to find kernel in {}".format(kernel_path))
+            return False
+
+        if not os.path.isfile(initrd_path):
+            self.log.error("Unable to find initrd in {}".format(initrd_path))
+            return False
+
+        shutil.copy(initrd_path, path_to_store)
+        shutil.copy(kernel_path, path_to_store + '/' + kernfile)
         os.chown(path_to_store + '/' + initrdfile, user_id, grp_id)
         os.chmod(path_to_store + '/' + initrdfile, 0644)
         os.chown(path_to_store + '/' + kernfile, user_id, grp_id)
@@ -391,14 +406,25 @@ class OsImage(Base):
         path = cluster.get('path')
         path_to_store = path + "/boot"
 
+        initrd_path = image_path + '/boot/initramfs-' + kernver + '.img'
+        kernel_path = image_path + '/boot/vmlinuz-' + kernver
+
+        if not os.path.isfile(kernel_path):
+            self.log.error("Unable to find kernel in {}".format(kernel_path))
+            return False
+
+        if not os.path.isfile(initrd_path):
+            self.log.error("Unable to find initrd in {}".format(initrd_path))
+            return False
+
+
         if not os.path.exists(path_to_store):
             os.makedirs(path_to_store)
             os.chown(path_to_store, user_id, grp_id)
 
-        shutil.copy(image_path + '/boot/initramfs-' + kernver + '.img',
-                    path_to_store + '/' + initrdfile)
-        shutil.copy(image_path + '/boot/vmlinuz-' + kernver,
-                    path_to_store + '/' + kernfile)
+        shutil.copy(initrd_path, path_to_store + '/' + initrdfile)
+        shutil.copy(kernel_path, path_to_store + '/' + kernfile)
+
         os.chown(path_to_store + '/' + initrdfile, user_id, grp_id)
         os.chmod(path_to_store + '/' + initrdfile, 0644)
         os.chown(path_to_store + '/' + kernfile, user_id, grp_id)
