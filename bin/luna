@@ -902,6 +902,55 @@ def group_change(**args):
 
     return group.set(scr_type, script)
 
+def group_clone(**args):
+    source_group = luna.Group(name=args['name'])
+
+    osimage_dbref = source_group.get('osimage')
+    osimage = luna.OsImage(id=osimage_dbref.id)
+
+    bmcsetup_name = None
+    bmcsetup_dbref = source_group.get('bmcsetup')
+    if bmcsetup_dbref:
+        bmcsetup = luna.BMCSetup(id=bmcsetup_dbref.id)
+        bmcsetup_name = bmcsetup.name
+
+    pre = source_group.get('prescript')
+    post = source_group.get('postscript')
+    part = source_group.get('partscript')
+
+    if_list =  source_group.list_ifs().keys()
+
+    domain_dbref = source_group.get('domain')
+    domain_name = None
+    if domain_dbref:
+        domain_net = luna.Network(id=domain_dbref.id)
+        domain_name = domain_net.name
+
+    torrent_if = source_group.get('torrent_if')
+
+    group = luna.Group(
+        name=args['to'],
+        create=True,
+        prescript=pre,
+        bmcsetup=bmcsetup_name,
+        partscript=part,
+        osimage=osimage.name,
+        interfaces=if_list,
+        postscript=post,
+        torrent_if=torrent_if,
+        domain=domain_name
+    )
+
+    for if_name in if_list:
+        if_dict = source_group.show_if(if_name)
+        if_net_str = ""
+        first_interface = True
+
+        for ver in ['4', '6']:
+            if not if_dict['network'][ver]['name']:
+                continue
+            group.set_net_to_if(if_name, if_dict['network'][ver]['name'])
+    return True
 
 def _edit_script(old_script):
     # old_script can be None
@@ -1591,6 +1640,11 @@ cmd.add_argument('--edit', '-e', action='store_true',
                  help='Edit interface parameters or edit scripts')
 cmd.add_argument('--rename', '--nn', metavar='NEW_NAME',
                  help='Rename interface')
+
+# clone
+cmd = group_a.add_parser('clone', help='Clone Group.')
+cmd.add_argument('name', help='Name of the Group')
+cmd.add_argument('--to', '-t', required=True, help='Name of the clone group')
 
 # rename
 cmd = group_a.add_parser('rename', help='Rename Group.')
