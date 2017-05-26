@@ -580,6 +580,84 @@ class Group(Base):
 
         return ips
 
+    def get_macs(self, net):
+
+        interfaces = self.get('interfaces')
+
+        if type(net) != Network:
+            self.log.error("net should be Network class. Unable to preceed.")
+            return False
+
+        ver = net.version
+
+        if not 'node' in self.get(usedby_key):
+            self.log.warning(
+                'No nodes are configured in provisioning network.')
+            # No nodes in group. Returning empty list
+            return {}
+
+        # get all the interfaces with desired net configured in format:
+        # {'uuid1': 'eth0', 'uuid2': 'BMC'}
+        interfaces_with_net = {}
+        for ifuuid in interfaces:
+            interface = interfaces[ifuuid]
+            if interface['network'][str(ver)] == net.DBRef:
+                if interface['name'] == 'BMC':
+                    self.log.info('Can\'t use BMC interface for provisioning.')
+                    continue
+                interfaces_with_net[ifuuid] = interface['name']
+
+        if not interfaces_with_net:
+            self.log.warning('No interfaces configured ' +
+                             'in provisioning network')
+            return {}
+
+        if_uuids = interfaces_with_net.keys()
+        if_name = None
+        # First try to find BOOTIF
+        for if_uuid in if_uuids:
+            if interfaces_with_net[if_uuid] == 'BOOTIF':
+                self.log.info('Group has BOOTIF configured ' +
+                              'in provisioning network.')
+                if_name = 'BOOTIF'
+                break
+
+        # Then try to find any (first) interface with desired net configured
+        if not if_name:
+            if len(interfaces_with_net.keys()) > 1:
+                self.log.warning('Several interfaces configured in ' +
+                                 'provisioning network. Taking arbitrary.')
+                # just take the first one
+            if_uuid = interfaces_with_net.keys()[0]
+            if_name = interfaces_with_net[if_uuid]
+
+        # Should never happen
+        if not (if_uuid and if_name):
+            self.log.error('Unable to find UUID for provisionining interface.')
+            return {}
+
+        reverse_links = self.get_back_links()
+
+        nodes = {}
+
+        for link in reverse_links:
+            if link['collection'] == 'node':
+                node_obj = Node(
+                    id=link['DBRef'].id, group=self, mongo_db=self._mongo_db)
+
+                ip = node_obj.get_ip(
+                    interface_uuid=if_uuid, version=str(net.version))
+
+                mac = node_obj.get_mac()
+
+                if not (ip and mac):
+                    continue
+
+                tmp = {'ip': ip, 'mac': mac}
+                nodes[node_obj.name] = tmp
+
+        return nodes
+
     def set_net_to_if(self, interface_name, network_name):
 
         interfaces_dict = self.get('interfaces')
