@@ -903,7 +903,10 @@ def group_change(**args):
     return group.set(scr_type, script)
 
 def group_clone(**args):
+
     source_group = luna.Group(name=args['name'])
+
+    # Get all the configured parameters
 
     osimage_dbref = source_group.get('osimage')
     osimage = luna.OsImage(id=osimage_dbref.id)
@@ -928,6 +931,8 @@ def group_clone(**args):
 
     torrent_if = source_group.get('torrent_if')
 
+    # create group
+
     group = luna.Group(
         name=args['to'],
         create=True,
@@ -941,6 +946,8 @@ def group_clone(**args):
         domain=domain_name
     )
 
+    # assign networks
+
     for if_name in if_list:
         if_dict = source_group.show_if(if_name)
         if_net_str = ""
@@ -950,6 +957,7 @@ def group_clone(**args):
             if not if_dict['network'][ver]['name']:
                 continue
             group.set_net_to_if(if_name, if_dict['network'][ver]['name'])
+
     return True
 
 def _edit_script(old_script):
