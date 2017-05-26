@@ -99,5 +99,69 @@ class ClusterMakeDNSTests(unittest.TestCase):
                         )
 
 
+class ClusterMakeDNSTests(unittest.TestCase):
+
+    def setUp(self):
+
+        print
+
+        self.sandbox = Sandbox()
+        self.db = self.sandbox.db
+        self.path = self.sandbox.path
+        osimage_path = self.sandbox.create_osimage()
+
+        self.cluster = luna.Cluster(
+            mongo_db=self.db,
+            create=True,
+            path=self.path,
+            user=getpass.getuser()
+        )
+
+        self.osimage = luna.OsImage(name='testosimage', path=osimage_path,
+                                    mongo_db=self.db, create=True)
+
+        self.group1 = luna.Group(name='testgroup1', osimage=self.osimage.name,
+                                 mongo_db=self.db, interfaces=['eth0'],
+                                 create=True)
+
+        self.group2 = luna.Group(name='testgroup2', osimage=self.osimage.name,
+                                 mongo_db=self.db, interfaces=['BOOTIF'],
+                                 create=True)
+
+        self.net11 = luna.Network(name='net11',
+                                  NETWORK='10.11.0.0', PREFIX=16,
+                                  mongo_db=self.db, create=True)
+
+        self.group1.set_net_to_if('eth0', self.net11.name)
+        self.group2.set_net_to_if('BOOTIF', self.net11.name)
+
+        self.node1 = luna.Node(group=self.group1.name, mongo_db=self.db,
+                               create=True)
+
+        self.node2 = luna.Node(group=self.group2.name, mongo_db=self.db,
+                               create=True)
+
+        self.node1.set_mac('00:11:22:33:44:55')
+        self.node2.set_mac('01:11:22:33:44:55')
+
+        self.group1 = luna.Group(name=self.group1.name, mongo_db=self.db)
+        self.group2 = luna.Group(name=self.group2.name, mongo_db=self.db)
+
+        self.net11 = luna.Network(name=self.net11.name, mongo_db=self.db)
+        self.node1 = luna.Node(name=self.node1.name, mongo_db=self.db)
+        self.node2 = luna.Node(name=self.node2.name, mongo_db=self.db)
+
+    def tearDown(self):
+        self.sandbox.cleanup()
+
+    def test_get_ip_macs(self):
+        self.assertEqual(
+            self.net11.get_ip_macs(),
+            {
+                'node001': {'ip': '10.11.0.1', 'mac': '00:11:22:33:44:55'},
+                'node002': {'ip': '10.11.0.2', 'mac': '01:11:22:33:44:55'},
+            }
+        )
+
 if __name__ == '__main__':
     unittest.main()
