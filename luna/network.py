@@ -455,3 +455,49 @@ class Network(Base):
             zone_dict['rev_hosts'][ptr] = ptr_hostname
 
         return zone_dict
+
+    def get_ip_macs(self):
+
+        from luna.node import Group
+
+        net = self._json
+
+        try:
+            rev_links = net[usedby_key]
+        except:
+            self.log.error(("No IPs configured for network '{}'"
+                            .format(self.name)))
+            return {}
+
+        group_macs_list = []
+
+        for elem in rev_links:
+
+            if elem != "group":
+                continue
+
+            for gid in rev_links[elem]:
+                try:
+                    group = Group(id=ObjectId(gid),
+                                  mongo_db=self._mongo_db)
+                except RuntimeError:
+                    self.log.error('No group with id={} found.'
+                        .format(gid))
+                    continue
+
+                tmp_dict = group.get_macs(self)
+
+                if not tmp_dict:
+                    continue
+
+                group_macs_list.append(tmp_dict)
+
+        if not group_macs_list:
+            return {}
+
+        out_dict = group_macs_list.pop()
+
+        for elem in group_macs_list:
+            out_dict.update(elem)
+
+        return out_dict
