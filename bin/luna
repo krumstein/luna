@@ -214,11 +214,21 @@ def cluster_makedns(**args):
 
 def cluster_makedhcp(**args):
     cluster = luna.Cluster()
+
+    if args['network'] and not (args['start_ip'] and args['end_ip']):
+        log.error('Network range should be specified')
+        return False
+
+    if (args['start_ip'] or args['end_ip']) and not args['network']:
+        log.error('Network should be specified')
+        return False
+
     res = cluster.makedhcp(args['network'], args['start_ip'],
                            args['end_ip'], args['no_ha'])
     if not res:
         log.error('Error on creating DHCP config.')
         return False
+
     _run_command(
         ['/usr/bin/systemctl', 'stop', "dhcpd"],
         "Stopping local dhcpd.",
@@ -1386,10 +1396,10 @@ cmd = cluster_a.add_parser('makedns', help='Configure named')
 cmd = cluster_a.add_parser('makedhcp', help='Configure dhcpd')
 cmd.add_argument('--no_ha', action='store_true',
                  help='Create high available DHCP config.')
-cmd.add_argument('--network', '-N', required=True, help='Network name')
-cmd.add_argument('--start_ip', '-s', required=True,
+cmd.add_argument('--network', '-N', help='Network name')
+cmd.add_argument('--start_ip', '-s',
                  help='First ip in dynamic range')
-cmd.add_argument('--end_ip', '-e', required=True,
+cmd.add_argument('--end_ip', '-e',
                  help='Last ip in dynamic range')
 # delete
 cmd = cluster_a.add_parser('delete', help='Delete Luna Cluster')
