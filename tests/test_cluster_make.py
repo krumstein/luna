@@ -2,8 +2,6 @@ import unittest
 
 import luna
 import getpass
-import copy
-import datetime
 import socket
 from helper_utils import Sandbox
 
@@ -78,7 +76,7 @@ class ClusterMakeDNSTests(unittest.TestCase):
         self.assertEqual(self.group.get_allocated_ips(self.net11),
                          {'node001-eth0': 1, 'node001-bmc': 2})
 
-    def test_get_allocated_ips_duplicate_ifs(self):
+    def test_get_allocated_ips_duplicate_ifs_case(self):
         self.group.add_interface('BMC')
         self.group.set_net_to_if('BMC', self.net11.name)
         self.group.add_interface('Eth0')
@@ -91,15 +89,18 @@ class ClusterMakeDNSTests(unittest.TestCase):
 
     def test_resolve_used_ips_simple(self):
         hostname = socket.gethostname()
-        self.assertEqual(self.net11.resolve_used_ips(),
-                         {'node001': '10.11.0.1',
-                          'sw01': '10.11.1.1',
-                          'pdu01': '10.11.2.1',
-                          hostname: '10.11.255.254'}
-                        )
+        self.assertEqual(
+            self.net11.resolve_used_ips(),
+            {
+                'node001': '10.11.0.1',
+                'sw01': '10.11.1.1',
+                'pdu01': '10.11.2.1',
+                hostname: '10.11.255.254'
+            }
+        )
 
 
-class ClusterMakeDNSTests(unittest.TestCase):
+class ClusterMakeDHCPTests(unittest.TestCase):
 
     def setUp(self):
 
@@ -161,6 +162,203 @@ class ClusterMakeDNSTests(unittest.TestCase):
                 'node001': {'ip': '10.11.0.1', 'mac': '00:11:22:33:44:55'},
                 'node002': {'ip': '10.11.0.2', 'mac': '01:11:22:33:44:55'},
             }
+        )
+
+    def test_make_config_basic(self):
+
+        self.cluster.set('frontend_address', '10.11.255.254')
+
+        ret = self.cluster.makedhcp_config(
+            net_name=self.net11.name,
+            start_ip='10.11.128.1',
+            end_ip='10.11.129.254'
+        )
+
+        self.net11 = luna.Network(name=self.net11.name, mongo_db=self.db)
+        self.assertEqual(
+            self.net11._json['freelist'],
+            [
+                {'start': 3, 'end': 32768},
+                {'start': 33279, 'end': 65533}
+            ]
+        )
+        hmac_key = ret.pop('hmac_key')
+        self.assertTrue(len(hmac_key) > 1)
+        self.assertEqual(
+            ret,
+            {
+                'network': '10.11.0.0',
+                'dhcp_start': '10.11.128.1',
+                'dhcp_end': '10.11.129.254',
+                'reservations': {
+                    'node002': {
+                        'ip': '10.11.0.2', 'mac': '01:11:22:33:44:55'},
+                    'node001': {
+                        'ip': '10.11.0.1', 'mac': '00:11:22:33:44:55'},
+                },
+                'netmask': '255.255.0.0',
+                'frontend_ip': '10.11.255.254',
+                'frontend_port': '7050',
+            }
+        )
+
+    def test_make_config_empty(self):
+
+        self.cluster.set('frontend_address', '10.11.255.254')
+
+        self.cluster.makedhcp_config(
+            net_name=self.net11.name,
+            start_ip='10.11.128.1',
+            end_ip='10.11.129.254'
+        )
+
+        ret = self.cluster.makedhcp_config()
+
+        hmac_key = ret.pop('hmac_key')
+        self.assertTrue(len(hmac_key) > 1)
+        self.assertEqual(
+            ret,
+            {
+                'network': '10.11.0.0',
+                'dhcp_start': '10.11.128.1',
+                'dhcp_end': '10.11.129.254',
+                'reservations': {
+                    'node002': {
+                        'ip': '10.11.0.2', 'mac': '01:11:22:33:44:55'},
+                    'node001': {
+                        'ip': '10.11.0.1', 'mac': '00:11:22:33:44:55'},
+                },
+                'netmask': '255.255.0.0',
+                'frontend_ip': '10.11.255.254',
+                'frontend_port': '7050',
+            }
+        )
+
+    def test_make_config_wo_frontend_address(self):
+
+        ret = self.cluster.makedhcp_config(
+            net_name=self.net11.name,
+            start_ip='10.11.128.1',
+            end_ip='10.11.129.254'
+        )
+
+        self.assertEqual(ret, {})
+
+    def test_make_config_start_less_end(self):
+
+        self.cluster.set('frontend_address', '10.11.255.254')
+
+        ret = self.cluster.makedhcp_config(
+            net_name=self.net11.name,
+            start_ip='10.11.129.254',
+            end_ip='10.11.128.1'
+        )
+
+        self.assertEqual(ret, {})
+
+    def test_set_wrong_frontend(self):
+        self.cluster.set('frontend_address', '10.12.255.254')
+        ret = self.cluster.makedhcp_config(
+            net_name=self.net11.name,
+            start_ip='10.11.0.2',
+            end_ip='10.11.0.3'
+        )
+        self.assertEqual(ret, {})
+
+    def test_set_wrong_start(self):
+        self.cluster.set('frontend_address', '10.11.255.254')
+        ret = self.cluster.makedhcp_config(
+            net_name=self.net11.name,
+            start_ip='10.12.0.2',
+            end_ip='10.11.0.3'
+        )
+        self.assertEqual(ret, {})
+
+    def test_set_wrong_end(self):
+        self.cluster.set('frontend_address', '10.11.255.254')
+        ret = self.cluster.makedhcp_config(
+            net_name=self.net11.name,
+            start_ip='10.11.0.2',
+            end_ip='10.12.0.3'
+        )
+        self.assertEqual(ret, {})
+
+    def test_set_wrong_range(self):
+        self.cluster.set('frontend_address', '10.11.255.254')
+        ret = self.cluster.makedhcp_config(
+            net_name=self.net11.name,
+            start_ip='10.11.0.2',
+            end_ip='10.11.0.3'
+        )
+
+        self.net11 = luna.Network(name=self.net11.name, mongo_db=self.db)
+        self.assertEqual(
+            self.net11._json['freelist'],
+            [{'start': 3, 'end': 65533}]
+        )
+
+        self.assertEqual(ret, {})
+
+    def test_change_to_same_range(self):
+        self.cluster.set('frontend_address', '10.11.255.254')
+        ret = self.cluster.makedhcp_config(
+            net_name=self.net11.name,
+            start_ip='10.11.0.3',
+            end_ip='10.11.0.4'
+        )
+
+        ret = self.cluster.makedhcp_config(
+            net_name=self.net11.name,
+            start_ip='10.11.0.3',
+            end_ip='10.11.0.4'
+        )
+
+        ret.pop('hmac_key')
+        self.assertEqual(
+            ret,
+            {
+                'network': '10.11.0.0',
+                'dhcp_start': '10.11.0.3',
+                'dhcp_end': '10.11.0.4',
+                'reservations': {
+                    'node002': {
+                        'ip': '10.11.0.2', 'mac': '01:11:22:33:44:55'},
+                    'node001': {
+                        'ip': '10.11.0.1', 'mac': '00:11:22:33:44:55'},
+                },
+                'netmask': '255.255.0.0',
+                'frontend_ip': '10.11.255.254',
+                'frontend_port': '7050',
+            }
+        )
+
+    def test_change_to_wrong_range(self):
+        self.cluster.set('frontend_address', '10.11.255.254')
+        ret = self.cluster.makedhcp_config(
+            net_name=self.net11.name,
+            start_ip='10.11.128.1',
+            end_ip='10.11.129.254'
+        )
+
+        ret = self.cluster.makedhcp_config(
+            net_name=self.net11.name,
+            start_ip='10.11.0.2',
+            end_ip='10.11.0.4'
+        )
+
+        self.assertEqual(ret, {})
+
+        self.net11 = luna.Network(name=self.net11.name, mongo_db=self.db)
+
+        self.assertEqual(self.cluster.get('dhcp_range_start'), '10.11.128.1')
+        self.assertEqual(self.cluster.get('dhcp_range_end'), '10.11.129.254')
+
+        self.assertEqual(
+            self.net11._json['freelist'],
+            [
+                {'start': 3, 'end': 32768},
+                {'start': 33279, 'end': 65533}
+            ]
         )
 
 if __name__ == '__main__':
