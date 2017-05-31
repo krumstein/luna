@@ -541,6 +541,7 @@ class Node(Base):
                     params['net'][ver]['ip'] = self.get_ip(
                         interface_uuid=boot_if_uuid,
                         version=int(ver),
+                        quiet=True
                     )
 
                     params['bootproto'] = 'static'
@@ -567,7 +568,8 @@ class Node(Base):
 
                 ip = self.get_ip(
                     interface_name=interface,
-                    version=int(ver)
+                    version=int(ver),
+                    quiet=True
                 )
 
                 if not ip:
