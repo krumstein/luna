@@ -940,6 +940,8 @@ def group_clone(**args):
         domain_name = domain_net.name
 
     torrent_if = source_group.get('torrent_if')
+    if not torrent_if:
+        torrent_if = None
 
     # create group
 
