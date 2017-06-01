@@ -321,7 +321,7 @@ class Network(Base):
                                 .format(name, self.name)))
                 return False
             if not relative_ip:
-                self.log.error(("IP does not provided for '{}'"
+                self.log.error(("IP is not provided for '{}'"
                                 .format(name)))
                 return False
 
