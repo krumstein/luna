@@ -214,7 +214,7 @@ wget "http://10.30.255.254:7050/boot/compute-vmlinuz-3.10.0-327.10.1.el7.x86_64"
 curl "http://10.30.255.254:7050/luna?step=install&node=node001"
 ```
 
-Also it is posible to fetch install and boot scripts for the node usin luna CLI:
+Also it is possible to fetch install and boot scripts for the node usin luna CLI:
 
 ```
 luna node show node001 --script boot
