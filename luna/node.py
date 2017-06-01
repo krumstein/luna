@@ -209,8 +209,9 @@ class Node(Base):
 
         if interfaces[interface_uuid]['4'] or interfaces[interface_uuid]['6']:
             self.log.error(("IP addresses are configured for interface {}. " +
-                            "Unable to delete.")
+                            "Will not delete interface.")
                            .format(interface_uuid))
+            return False
 
         for key in interfaces:
             new_interfaces[key] = interfaces[key].copy()
@@ -227,8 +228,7 @@ class Node(Base):
         if interface_name:
             interface_dict = self.list_ifs()
             interface_uuid = interface_dict[interface_name]
-
-        if not interface_name:
+        else:
             self.log.error("Interface should be specified")
             return None
 
@@ -334,8 +334,8 @@ class Node(Base):
                 return (None, None, {})
             uuid = interface_dict[name]
 
-        # get interface name
-        if not name:
+        else:
+            # get interface name
             self._get_group()
             group_if = self.group._json['interfaces'][uuid]
             name = group_if['name']
@@ -368,7 +368,7 @@ class Node(Base):
             version = str(version)
 
         if version and version not in ['4', '6', 'all']:
-            self.log.error("IPv4 and IPv6 are supported only.")
+            self.log.error("Only IPv4 and IPv6 are supported.")
             return False
 
         # store all versions for which IPs are configured
@@ -482,7 +482,7 @@ class Node(Base):
         interface_uuid = interface_dict[interface_name]
         unconf_res = self._unconfigure_if(interface_uuid, version)
         if not unconf_res:
-            self.log.error("Unable to delete interface {}"
+            self.log.error("Unable to unconfigure interface {}"
                 .format(interface_name))
             return False
 
