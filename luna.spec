@@ -280,8 +280,8 @@ exit 0
  - Using RPM's macroses
  * Mon May 22 2017 Dmitry Chirikov <dmitry@chirikov.ru> 1.2
  - IPv6 support
- - BOOTIF support. 'Service' interface in group which represents the one which owns mac address defined for node.
+ - BOOTIF support. Refers to the interface that owns the mac address defined in the node object.
  - --force option for cluster delete
  - --bmcnetwork is moved to another special interface called 'BMC'
- - --debug key for luna CLI
+ - --debug option for luna CLI
  - --include and --rev_include for DNS zones to add custom records
