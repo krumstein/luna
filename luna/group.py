@@ -179,7 +179,7 @@ class Group(Base):
                 params['net'][ver]['mask'] = str(net.get('NETMASK'))
 
         if bootif_uuid and not params['net']:
-            self.log.warning('No network for BOOTIF configured')
+            self.log.warning('No network is configured for BOOTIF')
 
         return params
 
@@ -510,7 +510,7 @@ class Group(Base):
         interfaces = self.get('interfaces')
 
         if type(net) != Network:
-            self.log.error("net should be Network class. Unable to preceed.")
+            self.log.error("net should be Network class. Unable to proceed.")
             return False
 
         ver = net.version
