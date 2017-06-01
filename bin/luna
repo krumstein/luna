@@ -1280,7 +1280,7 @@ cmd.add_argument('--raw', '-R', action='store_true', help='JSON output')
 # init
 cmd = cluster_a.add_parser('init', help='Create Luna Cluster')
 cmd.add_argument('--frontend_address', required=True,
-                 help='Prefix for new nodes')
+                 help='Address of the controller\'s provisioning interface')
 cmd.add_argument('--nodeprefix', default='node', help='Prefix for new nodes')
 cmd.add_argument('--nodedigits', type=int, default=3, help='Zero-autopadding')
 cmd.add_argument('--user', default='luna', help='Username to run services as')
@@ -1292,7 +1292,8 @@ cmd.add_argument('--nodeprefix', '-p', help='Prefix for new nodes')
 cmd.add_argument('--nodedigits', '-d', type=int, help='Zero-autopadding')
 cmd.add_argument('--path', help='Path to store files')
 cmd.add_argument('--user', help='Username for running services')
-cmd.add_argument('--frontend_address', help='Server address')
+cmd.add_argument('--frontend_address',
+                 help='Address of the controller\'s provisioning interface')
 cmd.add_argument('--frontend_port', type=int, help='Server address')
 cmd.add_argument('--server_port', type=int, help='Server port')
 cmd.add_argument('--tracker_interval', type=int,
