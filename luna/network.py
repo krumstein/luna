@@ -150,14 +150,6 @@ class Network(Base):
             self._json['ns_ip'] = int(self._json['ns_ip'])
         self._json['freelist'] = flist
 
-    def _nsip_to_str(self, ip):
-        """
-        Convert ns_ip to strings for IPv6
-        """
-        if self.version == 4:
-            return ip
-        return str(ip)
-
     def _flist_to_str(self, flist):
         """
         Convert flist's interegers to strings for IPv6
