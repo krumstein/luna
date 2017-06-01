@@ -36,10 +36,12 @@ class ClusterMakeDNSTests(unittest.TestCase):
         self.net11 = luna.Network(name='net11',
                                   NETWORK='10.11.0.0', PREFIX=16,
                                   mongo_db=self.db, create=True)
+        self.net11.set('ns_hostname', 'master')
 
         self.net61 = luna.Network(name='net61',
                                   NETWORK='fe90::', PREFIX=64,
                                   mongo_db=self.db, create=True)
+        self.net61.set('ns_hostname', 'master')
 
         self.group.set_net_to_if('eth0', self.net11.name)
         self.group.set_net_to_if('eth0', self.net61.name)
@@ -90,12 +92,11 @@ class ClusterMakeDNSTests(unittest.TestCase):
                           'node001-Eth0': 3})
 
     def test_resolve_used_ips_simple(self):
-        hostname = socket.gethostname()
         self.assertEqual(self.net11.resolve_used_ips(),
                          {'node001': '10.11.0.1',
                           'sw01': '10.11.1.1',
                           'pdu01': '10.11.2.1',
-                          hostname: '10.11.255.254'}
+                          'master': '10.11.255.254'}
                         )
 
 
