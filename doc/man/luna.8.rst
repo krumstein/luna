@@ -504,7 +504,7 @@ OBJECTS, ACTIONS AND OPTIONS
             Name of the **osimage** to be assigned to group of nodes.
 
         **--network**, **-N**
-            Network for BOOTIF interface. BOOTIF is a special placeholder for interface. This interface will be determined by luna based on mac address of the node. Usually this is provisioning interface.
+            Network for BOOTIF interface. BOOTIF is a special placeholder for interface. This interface will be determined by luna based on the mac address of the node. Usually this is the provisioning interface.
 
         **--bmcsetup**, **-b**
             Name of the **bmcsetup** object to configure BMC of nodes.
@@ -608,7 +608,7 @@ OBJECTS, ACTIONS AND OPTIONS
             Torrent interface. Optional parameter which interface torrent client on nodes should report as in use for seeding. If specified should match **--boot_if**. Known limitations: does not work with bond, vLAN or bridged interfaces.
 
         **--interface**, **-i**
-            Interface to operate with. Following operations are supported: **--add**, **--delete**, **--rename**, **--setnet**, **--delnet**, **--edit**. Currenty 2 special namess are reserved: **BMC** and **BOOTIF**. First represenst network config for IPMI (IPv4 only) and latter - is a place holder for interface which mac address is the same as defined for node.
+            Interface to operate with. Following operations are supported: **--add**, **--delete**, **--rename**, **--setnet**, **--delnet**, **--edit**. Currenty 2 special names are reserved: **BMC** and **BOOTIF**. The first represensts network config for IPMI (IPv4 only) and the latter is a place holder for the interface that has the mac address defined in the node object (the provisioning interface).
 
         **--add**, **-A**
             Adds interface.
