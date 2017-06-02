@@ -138,10 +138,6 @@ class Group(Base):
         osimage = OsImage(id=self.get('osimage').id, mongo_db=self._mongo_db)
         params['kernel_file'] = osimage.get('kernfile')
         params['initrd_file'] = osimage.get('initrdfile')
-        if not params['kernel_file']:
-            params['kernel_file'] = ''
-        if not params['initrd_file']:
-            params['initrd_file'] = ''
         params['kern_opts'] = osimage.get('kernopts')
         params['domain'] = ''
         params['net'] = {}

@@ -112,6 +112,7 @@ class OsImage(Base):
 
             osimage = {'name': name, 'path': path,
                        'kernver': kernver, 'kernopts': kernopts,
+                       'kernfile': '', 'initrdfile': '',
                        'dracutmodules': 'luna,-i18n,-plymouth',
                        'kernmodules': 'ipmi_devintf,ipmi_si,ipmi_msghandler',
                        'grab_exclude_list': grab_list_content,
