@@ -535,7 +535,7 @@ class Group(Base):
 
         ips = {}
 
-        if not 'node' in self.get(usedby_key):
+        if not self.get(usedby_key) or not 'node' in self.get(usedby_key):
             # No nodes in group. Returning empty list
             return ips
 
@@ -586,7 +586,7 @@ class Group(Base):
 
         ver = net.version
 
-        if not 'node' in self.get(usedby_key):
+        if not self.get(usedby_key) or not 'node' in self.get(usedby_key):
             self.log.warning(
                 'No nodes are configured in provisioning network.')
             # No nodes in group. Returning empty list
