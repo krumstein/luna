@@ -161,6 +161,8 @@ class Node(Base):
             return False
 
         interface_uuid = None
+        # we will get group insterfaces to make sure
+        # that we can add/configure such interface
         interface_dict = self.list_ifs()
 
         if not interface_name in interface_dict:
