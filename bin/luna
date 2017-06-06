@@ -915,61 +915,45 @@ def group_change(**args):
     for elem in ['prescript', 'postscript',
                  'partscript', 'interface', 'comment']:
         parm_sum += int(bool(args[elem]))
-    if parm_sum > 1 and args['edit']:
+    if parm_sum > 1:
         log.error('Only one element can be edited')
         return None
-    #if args['interface'] == 'BMC':
-    #    args['interface'] = None
-    #    args['bmcnetwork'] = True
     group = luna.Group(args['name'])
-    if args['comment']:
-        old_comment = group.get('comment')
-        return group.set('comment', _edit_script(old_comment))
+    for txt_field in ['prescript', 'postscript',
+                      'partscript', 'comment']:
+        if args[txt_field]:
+            old_comment = group.get(txt_field)
+            return group.set(txt_field, _edit_script(old_comment))
+
     if bool(args['interface']):
         if bool(args['add']):
-            group.add_interface(args['interface'])
+            return group.add_interface(args['interface'])
         elif bool(args['delete']):
-            group.del_interface(args['interface'])
+            return group.del_interface(args['interface'])
         elif bool(args['setnet']):
-            group.set_net_to_if(args['interface'], args['setnet'])
+            return group.set_net_to_if(args['interface'], args['setnet'])
         elif bool(args['delnet']):
-            group.del_net_from_if(args['interface'])
+            return group.del_net_from_if(args['interface'])
         elif bool(args['rename']):
-            group.rename_interface(args['interface'], args['rename'])
+            return group.rename_interface(args['interface'], args['rename'])
         elif args['edit']:
-            group.set_if_params(
+            return group.set_if_params(
                 args['interface'],
                 _edit_script(group.get_if_params(args['interface']))
             )
-        else:
-            print(group.show_if(args['interface']))
-    if isinstance(args['torrent_if'], str):
-        group.set('torrent_if', args['torrent_if'])
-    if bool(args['osimage']):
-        group.osimage(args['osimage'])
-    if bool(args['domain']) or args['domain'] == '':
-        group.set_domain(args['domain'])
-    if bool(args['bmcsetup']) or args['bmcsetup'] == '':
-        group.bmcsetup(args['bmcsetup'])
-    if bool(args['prescript']):
-        scr_type = 'prescript'
-    elif bool(args['partscript']):
-        scr_type = 'partscript'
-    elif bool(args['postscript']):
-        scr_type = 'postscript'
-    else:
-        return True
-    old_script = group.show()[scr_type]
-    if not args['edit']:
-        print(old_script)
+        log.error('Action for interfaces should be specified.')
         return False
 
-    script = _edit_script(old_script)
+    if isinstance(args['torrent_if'], str):
+        return group.set('torrent_if', args['torrent_if'])
+    if bool(args['osimage']):
+        return group.osimage(args['osimage'])
+    if bool(args['domain']) or args['domain'] == '':
+        return group.set_domain(args['domain'])
+    if bool(args['bmcsetup']) or args['bmcsetup'] == '':
+        return group.bmcsetup(args['bmcsetup'])
 
-    if not bool(script):
-        script = ''
-
-    return group.set(scr_type, script)
+    return True
 
 def group_clone(**args):
 
