@@ -161,20 +161,25 @@ class OsImage(Base):
             os.chown(path_to_store, user_id, grp_id)
             os.chmod(path_to_store, 0644)
 
-        uid = str(uuid.uuid4())
-        tarfile = path_to_store + "/" + uid + ".tgz"
         image_path = self.get('path')
+
+        real_root = os.open("/", os.O_RDONLY)
+        os.chroot(image_path)
+
+        uid = str(uuid.uuid4())
+        tarfile = uid + ".tgz"
 
         try:
             # dirty, but 4 times faster
             tar_out = subprocess.Popen(['/usr/bin/tar',
-                                        '-C', image_path + '/.',
+                                        '-C', '/',
                                         '--one-file-system',
                                         '--xattrs',
                                         '--selinux',
                                         '--acls',
                                         '--checkpoint=100',
-                                        '-c', '-z', '-f', tarfile, '.'],
+                                        '--exclude=./tmp/' + tarfile,
+                                        '-c', '-z', '-f', '/tmp/' + tarfile, '.'],
                                        stderr=subprocess.PIPE)
 
             stat_symb = ['\\', '|', '/', '-']
@@ -188,12 +193,22 @@ class OsImage(Base):
                 sys.stdout.write('\r')
 
         except:
-            os.remove(tarfile)
+            os.remove('/tmp/' + tarfile)
             sys.stdout.write('\r')
+
+            os.fchdir(real_root)
+            os.chroot(".")
+            os.close(real_root)
+
             return None
 
-        os.chown(tarfile, user_id, grp_id)
-        os.chmod(tarfile, 0644)
+        os.fchdir(real_root)
+        os.chroot(".")
+        os.close(real_root)
+
+        shutil.move(image_path + '/tmp/' + tarfile, path_to_store)
+        os.chown(path_to_store + '/' + tarfile, user_id, grp_id)
+        os.chmod(path_to_store + '/' + tarfile, 0644)
         self.set('tarball', str(uid))
 
         return True
