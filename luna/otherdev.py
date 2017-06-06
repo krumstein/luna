@@ -20,8 +20,6 @@ along with Luna.  If not, see <http://www.gnu.org/licenses/>.
 
 '''
 
-from config import *
-
 import logging
 
 from bson.objectid import ObjectId
@@ -98,8 +96,9 @@ class OtherDev(Base):
         elif type(network) is str:
             for rec in nets:
                 net = Network(id=ObjectId(rec), mongo_db=self._mongo_db)
-                if net.name == network:
-                    return utils.ip.reltoa(net._json['NETWORK'], nets[rec])
+                if net.name == network and nets[rec]:
+                    return utils.ip.reltoa(
+                        net._json['NETWORK'], nets[rec], net.version)
 
         else:
             self.log.error("Device '{}' is not attached to network '{}'"
@@ -160,6 +159,7 @@ class OtherDev(Base):
 
         if link:
             self.link(net)
+        return res
 
     def release_resources(self):
         connected = self.get('connected')

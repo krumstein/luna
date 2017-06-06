@@ -32,8 +32,8 @@ Let's assume you have a server using the IP address `10.30.255.254` to provision
 ```
 yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 yum -y install wget python-docutils gcc-c++ rb_libtorrent-devel boost-devel make rpm-build redhat-rpm-config
-wget https://github.com/clustervision/luna/archive/v1.1.tar.gz
-rpmbuild -ta v1.1.tar.gz
+wget https://github.com/clustervision/luna/archive/v1.2.tar.gz
+rpmbuild -ta v1.2.tar.gz
 ```
 ### Install hostlist
 Source code is available [here](https://www.nsc.liu.se/~kent/python-hostlist/)
@@ -44,7 +44,7 @@ yum -y install python-hostlist-1.17-1.noarch.rpm
 ```
 ### Install Luna
 ```
-yum -y install luna-1.1-2.el7.centos.x86_64.rpm
+yum -y install luna-1.2-1.el7.centos.x86_64.rpm
 ```
 
 ### Setup environment
@@ -93,8 +93,9 @@ yum -y install yum-utils
 yumdownloader centos-release
 rpm --root /opt/luna/os/compute -ivh centos-release\*.rpm
 yum --installroot=/opt/luna/os/compute -y groupinstall Base
+yum --installroot=/opt/luna/os/compute -y install kernel
 yum --installroot=/opt/luna/os/compute -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
-yum --installroot=/opt/luna/os/compute -y install luna-client-1.1-2.el7.centos.x86_64.rpm
+yum --installroot=/opt/luna/os/compute -y install luna-client-1.2-1.el7.centos.x86_64.rpm
 ```
 
 #### Setup sshd, paswordless access and password for the root user in osimage
@@ -119,35 +120,33 @@ chmod 600 /opt/luna/os/compute/root/.ssh/authorized_keys
 ### Configure a new luna cluster
 
 ```
-luna cluster init
-luna cluster change --frontend_address 10.30.255.254
+luna cluster init --frontend_address 10.30.255.254
 luna network add -n cluster -N 10.30.0.0 -P 16
 luna cluster makedhcp --network cluster --start_ip 10.30.128.1 --end_ip 10.30.140.255
 systemctl start lweb ltorrent
 systemctl enable lweb ltorrent
 luna osimage add -n compute -p /opt/luna/os/compute
-luna osimage pack -n compute
+luna osimage pack compute
 luna bmcsetup add -n base
 luna network add -n ipmi -N 10.31.0.0 -P 16
 luna switch add -n switch01 --oid .1.3.6.1.2.1.17.7.1.2.2.1.2 --network ipmi --ip 10.31.253.21
-luna group add -n compute -i eth0 -o compute
-luna group change -n compute -b base
-luna group change -n compute --boot_if eth0
-luna group change -n compute --interface eth0 --setnet cluster
-echo -e "DEVICE=eth0\nONBOOT=yes" | luna group change  --name compute --interface eth0 -e
+luna group add -n compute -o compute -N cluster
+luna group change compute -b base
 luna group change -n compute --bmcnetwork --setnet ipmi
+luna group change compute -i BMC -A
+luna group change compute -i BMC --setnet ipmi
 luna node add -g compute
 luna cluster makedns
 ```
 
-Please note that in this case we assume that the nodes can reach the cluster using an interface called `eth0`.
-To figure out the proper name of the interface you can specify any interface name (e.g. eth0) then boot a node in service mode using:
+Please note that group and corresponding node has interface named BOOTIF. This is special placeholder for interface connected to provision network. If interface is know it can be renamed or recreated. Another placeholde is BMC. It is used in ipmitool commands to set up BMC interface.
+
+In service mode you can perform an inventory of the interfaces, local disks, BMC features
 
 ```
 luna node change -n node001 --service y
 ```
 
-In service mode you can perform an inventory of the interfaces, local disks, BMC features
 
 ##### (Optional) Configure storage partitioning
 
@@ -203,8 +202,8 @@ luna node change -n node001 -p 1
 ## Start luna's services
 
 ```
-ltorrent start
-lweb start
+systemctl ltorrent start
+systemctl lweb start
 ```
 
 ## Check that everything is working properly
@@ -215,10 +214,17 @@ wget "http://10.30.255.254:7050/boot/compute-vmlinuz-3.10.0-327.10.1.el7.x86_64"
 curl "http://10.30.255.254:7050/luna?step=install&node=node001"
 ```
 
+Also it is possible to fetch install and boot scripts for the node usin luna CLI:
+
+```
+luna node show node001 --script boot
+luna node show node001 --script install
+```
+
 ## Update DHCP and DNS configurations
 
 ```
-luna cluster makedhcp -N cluster -s 10.30.128.1 -e 10.30.255.200
+luna cluster makedhcp -N cluster -s 10.30.128.1 -e 10.30.140.255
 luna cluster makedns
 ```
 

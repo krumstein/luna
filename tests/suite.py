@@ -48,6 +48,10 @@ logging.basicConfig(format=log_format)
 if options.verbose < 3:
     logging.disable(logging.CRITICAL)
 
+if options.verbose > 3:
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)
+
 if args:
     for elem in args:
         suite.addTests(

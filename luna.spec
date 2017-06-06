@@ -1,6 +1,6 @@
 Name: luna
-Version: 1.1
-Release: 2%{?dist}
+Version: 1.2
+Release: 1%{?dist}
 
 Summary: Luna is a baremetal provisioning tool uses image-based approach
 Packager: ClusterVision
@@ -278,3 +278,10 @@ exit 0
  - Cleanup
  - Migrating to 1.1
  - Using RPM's macroses
+ * Mon May 22 2017 Dmitry Chirikov <dmitry@chirikov.ru> 1.2
+ - IPv6 support
+ - BOOTIF support. Refers to the interface that owns the mac address defined in the node object.
+ - --force option for cluster delete
+ - --bmcnetwork is moved to another special interface called 'BMC'
+ - --debug option for luna CLI
+ - --include and --rev_include for DNS zones to add custom records

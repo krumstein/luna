@@ -8,6 +8,7 @@ from luna.utils import freelist
 class UtilsFreelistTests(unittest.TestCase):
 
     def setUp(self):
+        print
         self.flist0 = []
         self.flist1 = [{'start': 1, 'end': 254}]
         self.flist2 = [{'start': 10, 'end': 18}, {'start': 20, 'end': 254}]
@@ -158,13 +159,13 @@ class UtilsFreelistTests(unittest.TestCase):
 
         # Update upper limit with no conflicts
 
-        flist = freelist.set_upper_limit(self.flist1, 15)
+        flist = freelist.set_upper_limit(self.flist1, 15, 254)
         self.assertEqual(flist, [{'start': 1, 'end': 15}])
 
         # Update upper limit with conflicts
 
         self.assertRaises(RuntimeError,
-                          freelist.set_upper_limit, self.flist2, 15)
+                          freelist.set_upper_limit, self.flist2, 15, 254)
 
     def test_get_nonfree(self):
 

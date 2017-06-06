@@ -21,7 +21,7 @@ class Sandbox(object):
 
     def __init__(self, path = None, dbtype = 'auto'):
         """
-        path   - Path to store sandbox files. 
+        path   - Path to store sandbox files.
         dbtype - Type of the dabatabse. [auto|mongo|ming]
         """
         if 'LUNA_TEST_DBTYPE' in os.environ:
@@ -34,6 +34,7 @@ class Sandbox(object):
                 os.makedirs(path)
             self.path = path
         self._dbconn = None
+        self._mingdatastore = None
         self._mongopath = self.path + "/mongo"
         if not os.path.exists(self._mongopath):
             os.makedirs(self._mongopath)
@@ -82,7 +83,7 @@ Provides:               kernel
                 return rpmtsCallback_fd
             elif reason == rpm.RPMCALLBACK_INST_START:
                 os.close(rpmtsCallback_fd)
-        
+
         # create dir for osimage
         if not os.path.exists(self.path + '/os'):
             os.makedirs(self.path + '/os')
@@ -245,6 +246,6 @@ Provides:               kernel
             self._mongoprocess.terminate()
             self._mongoprocess.wait()
             self._mongoprocess = None
-        else:
+        elif self._mingdatastore:
             self._mingdatastore.conn.drop_all()
         shutil.rmtree(self.path, ignore_errors=True)

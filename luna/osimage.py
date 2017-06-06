@@ -112,6 +112,7 @@ class OsImage(Base):
 
             osimage = {'name': name, 'path': path,
                        'kernver': kernver, 'kernopts': kernopts,
+                       'kernfile': '', 'initrdfile': '',
                        'dracutmodules': 'luna,-i18n,-plymouth',
                        'kernmodules': 'ipmi_devintf,ipmi_si,ipmi_msghandler',
                        'grab_exclude_list': grab_list_content,
@@ -339,7 +340,7 @@ class OsImage(Base):
             os.chroot(".")
             os.close(real_root)
             cleanup_mounts(image_path)
-            return None
+            return False
 
         os.fchdir(real_root)
         os.chroot(".")
@@ -356,6 +357,8 @@ class OsImage(Base):
 
         self.set('kernfile', kernfile)
         self.set('initrdfile', initrdfile)
+
+        return True
 
     def copy_boot(self):
         tmp_path = '/tmp'  # in chroot env
