@@ -50,9 +50,13 @@ class Network(Base):
         # Define the schema used to represent network objects
 
         self._collection_name = 'network'
-        self._keylist = {'PREFIX': int,
-                         'ns_hostname': type(''),
-                         'include': str, 'rev_include': str}
+        self._keylist = {
+            'PREFIX': type(0),
+            'ns_hostname': type(''),
+            'include': type(''),
+            'rev_include': type(''),
+            'comment': type(''),
+        }
 
         # Check if this network is already present in the datastore
         # Read it if that is the case

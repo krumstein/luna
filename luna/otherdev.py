@@ -47,7 +47,7 @@ class OtherDev(Base):
         # Define the schema used to represent otherdev objects
 
         self._collection_name = 'otherdev'
-        self._keylist = {}
+        self._keylist = {'comment': type('')}
 
         # Check if this device is already present in the datastore
         # Read it if that is the case
@@ -69,7 +69,7 @@ class OtherDev(Base):
 
             # Store the new device in the datastore
 
-            dev = {'name': name, 'connected': connected}
+            dev = {'name': name, 'connected': connected, 'comment': None}
 
             self.log.debug("Saving dev '{}' to the datastore".format(dev))
 

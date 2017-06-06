@@ -20,12 +20,11 @@ along with Luna.  If not, see <http://www.gnu.org/licenses/>.
 
 '''
 
-from config import *
+from config import torrent_key
 
 import os
 import sys
 import pwd
-import grp
 import rpm
 import uuid
 import shutil
@@ -33,8 +32,6 @@ import logging
 import tempfile
 import subprocess
 import libtorrent
-
-from bson.dbref import DBRef
 
 from luna.base import Base
 from luna.cluster import Cluster
@@ -65,7 +62,7 @@ class OsImage(Base):
                          'dracutmodules': type(''), 'tarball': type(''),
                          'torrent': type(''), 'kernfile': type(''),
                          'initrdfile': type(''), 'grab_exclude_list': type(''),
-                         'grab_filesystems': type('')}
+                         'grab_filesystems': type(''), 'comment': type('')}
 
         # Check if this osimage is already present in the datastore
         # Read it if that is the case
@@ -116,7 +113,7 @@ class OsImage(Base):
                        'dracutmodules': 'luna,-i18n,-plymouth',
                        'kernmodules': 'ipmi_devintf,ipmi_si,ipmi_msghandler',
                        'grab_exclude_list': grab_list_content,
-                       'grab_filesystems': '/,/boot'}
+                       'grab_filesystems': '/,/boot', 'comment': None}
 
             self.log.debug("Saving osimage '{}' to the datastore"
                            .format(osimage))
@@ -171,16 +168,20 @@ class OsImage(Base):
 
         try:
             # dirty, but 4 times faster
-            tar_out = subprocess.Popen(['/usr/bin/tar',
-                                        '-C', '/',
-                                        '--one-file-system',
-                                        '--xattrs',
-                                        '--selinux',
-                                        '--acls',
-                                        '--checkpoint=100',
-                                        '--exclude=./tmp/' + tarfile,
-                                        '-c', '-z', '-f', '/tmp/' + tarfile, '.'],
-                                       stderr=subprocess.PIPE)
+            tar_out = subprocess.Popen(
+                [
+                    '/usr/bin/tar',
+                    '-C', '/',
+                    '--one-file-system',
+                    '--xattrs',
+                    '--selinux',
+                    '--acls',
+                    '--checkpoint=100',
+                    '--exclude=./tmp/' + tarfile,
+                    '-c', '-z', '-f', '/tmp/' + tarfile, '.'
+                ],
+                stderr=subprocess.PIPE
+            )
 
             stat_symb = ['\\', '|', '/', '-']
             i = 0
@@ -391,7 +392,6 @@ class OsImage(Base):
         return True
 
     def copy_boot(self):
-        tmp_path = '/tmp'  # in chroot env
         image_path = self.get('path')
         kernver = self.get('kernver')
         initrdfile = self.name + '-initramfs-' + kernver
@@ -416,7 +416,6 @@ class OsImage(Base):
         if not os.path.isfile(initrd_path):
             self.log.error("Unable to find initrd in {}".format(initrd_path))
             return False
-
 
         if not os.path.exists(path_to_store):
             os.makedirs(path_to_store)

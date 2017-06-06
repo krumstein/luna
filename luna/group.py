@@ -58,8 +58,13 @@ class Group(Base):
         # Define the schema used to represent group objects
 
         self._collection_name = 'group'
-        self._keylist = {'prescript': type(''), 'partscript': type(''),
-                         'postscript': type(''), 'torrent_if': type('')}
+        self._keylist = {
+            'prescript': type(''),
+            'partscript': type(''),
+            'postscript': type(''),
+            'torrent_if': type(''),
+            'comment': type(''),
+        }
 
         # Check if this group is already present in the datastore
         # Read it if that is the case
@@ -110,7 +115,7 @@ class Group(Base):
                 'bmcsetup': bmcobj, 'partscript': partscript,
                 'osimage': osimageobj.DBRef, 'interfaces': if_dict,
                 'postscript': postscript, 'domain': domainobj,
-                'torrent_if': torrent_if
+                'torrent_if': torrent_if, 'comment': None,
             }
 
             self.log.debug("Saving group '{}' to the datastore".format(group))
