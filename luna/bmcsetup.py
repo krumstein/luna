@@ -20,8 +20,6 @@ along with Luna.  If not, see <http://www.gnu.org/licenses/>.
 
 '''
 
-from config import *
-
 import logging
 
 from luna.base import Base
@@ -53,9 +51,14 @@ class BMCSetup(Base):
         # Define the schema used to represent BMC configuration objects
 
         self._collection_name = 'bmcsetup'
-        self._keylist = {'userid': type(0),
-                         'user': type(''), 'password': type(''),
-                         'netchannel': type(0), 'mgmtchannel': type(0)}
+        self._keylist = {
+            'userid': type(0),
+            'user': type(''),
+            'password': type(''),
+            'netchannel': type(0),
+            'mgmtchannel': type(0),
+            'comment': type(''),
+        }
 
         # Check if this BMC config is already present in the datastore
         # Read it if that is the case
@@ -80,7 +83,7 @@ class BMCSetup(Base):
 
             bmc = {'name': name, 'userid': userid, 'user': user,
                    'password': password, 'netchannel': netchannel,
-                   'mgmtchannel': mgmtchannel}
+                   'mgmtchannel': mgmtchannel, 'comment': None}
 
             self.log.debug("Saving BMC conf '{}' to the datastore".format(bmc))
 

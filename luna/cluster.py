@@ -84,7 +84,8 @@ class Cluster(Base):
                          'named_zone_dir': type(''),
                          'dhcp_range_start': long,
                          'dhcp_range_end': long,
-                         'dhcp_net': type('')}
+                         'dhcp_net': type(''),
+                         'comment': type('')}
 
         cluster = self._get_object('general', mongo_db, create, id)
 
@@ -145,7 +146,8 @@ class Cluster(Base):
                        'dhcp_range_start': None,
                        'dhcp_range_end': None,
                        'dhcp_net': None,
-                       'db_version': db_version}
+                       'db_version': db_version,
+                       'comment': None}
 
             self.log.debug("Saving cluster '{}' to the datastore"
                            .format(cluster))
