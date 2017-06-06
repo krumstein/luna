@@ -111,6 +111,7 @@ def migrate_group(json):
 
     json['interfaces'] = interfaces
     json['domain'] = None
+    json['comment'] = None
 
     return json
 
@@ -125,6 +126,7 @@ def migrate_network(json):
     json['version'] = 4
     json['include'] = None
     json['rev_include'] = None
+    json['comment'] = None
 
     return json
 
@@ -170,6 +172,7 @@ def migrate_node(json):
     if 'bmcnetwork' in json:
         json.pop('bmcnetwork')
 
+    json['comment'] = None
 
     return json
 
@@ -182,6 +185,7 @@ def migrate_cluster(json):
         return False
 
     json['db_version'] = 1.2
+    json['comment'] = None
     return json
 
 
@@ -205,11 +209,23 @@ def migrate_osimage(json):
 
     json['grab_exclude_list'] = grab_list_content
     json['grab_filesystems'] = '/,/boot'
+    json['comment'] = None
 
     return json
+
+def add_comment(json):
+    if 'comment' in json:
+        log.warning('Do not need to migrate {}'.format(json['name']))
+        return False
+    json['comment'] = None
+    return json
+
 
 modify_objects(mdb, 'group', migrate_group)
 modify_objects(mdb, 'network', migrate_network)
 modify_objects(mdb, 'node', migrate_node)
 modify_objects(mdb, 'cluster', migrate_cluster)
 modify_objects(mdb, 'osimage', migrate_osimage)
+modify_objects(mdb, 'switch', add_comment)
+modify_objects(mdb, 'otherdev', add_comment)
+modify_objects(mdb, 'bmcsetup', add_comment)
