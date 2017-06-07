@@ -37,7 +37,7 @@ class BMCSetup(Base):
 
     def __init__(self, name=None, mongo_db=None, create=False, id=None,
                  userid=3, user='ladmin', password='ladmin',
-                 netchannel=1, mgmtchannel=1):
+                 netchannel=1, mgmtchannel=1, comment=''):
         """
         userid      - default user id
         user        - username
