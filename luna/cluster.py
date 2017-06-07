@@ -667,6 +667,11 @@ class Cluster(Base):
     def delete(self, force=False):
 
         if force:
-            return self._mongo_db.connection.drop_database(db_name)
+            # this will return None
+            self._mongo_db.connection.drop_database(db_name)
+            if db_name in self._mongo_db.connection.database_names():
+                self.log.error('Unable to delete DB \'{}\''.format(db_name))
+                return False
+            return True
 
         return super(Cluster, self).delete()
