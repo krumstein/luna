@@ -588,7 +588,7 @@ def osimage_clone(**args):
     )
     # copy params
     params = ['dracutmodules', 'kernmodules', 'kernopts',
-              'grab_filesystems', 'grab_exclude_list']
+              'grab_filesystems', 'grab_exclude_list', 'comment']
     for param in params:
         newosimage.set(param, osimage.get(param))
     return True
@@ -974,6 +974,8 @@ def group_clone(**args):
     post = source_group.get('postscript')
     part = source_group.get('partscript')
 
+    comment = source_group.get('comment')
+
     if_list =  source_group.list_ifs().keys()
 
     domain_dbref = source_group.get('domain')
@@ -1000,6 +1002,8 @@ def group_clone(**args):
         torrent_if=torrent_if,
         domain=domain_name
     )
+
+    group.set('comment', comment)
 
     # assign networks
 
