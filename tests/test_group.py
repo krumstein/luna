@@ -62,7 +62,8 @@ class GroupCreateTests(unittest.TestCase):
                 'cluster': {str(self.cluster._id): 1},
                 'osimage': {str(self.osimage._id): 1}
             },
-            'osimage': self.osimage.DBRef
+            'osimage': self.osimage.DBRef,
+            'comment': None
         }
 
         for attr in expected:
@@ -150,7 +151,8 @@ class GroupCreateTests(unittest.TestCase):
                 },
                 'bmcsetup': {str(bmcsetup._id): 1},
             },
-            'osimage': self.osimage.DBRef
+            'osimage': self.osimage.DBRef,
+            'comment': None,
         }
 
         for attr in expected:
@@ -780,8 +782,8 @@ class GroupBootInstallParamsTests(unittest.TestCase):
 
         # mocking osimage boot stuff
         self.osimage.copy_boot()
-        self.osimage.create_tarball()
-        self.osimage.create_torrent()
+        #self.osimage.create_tarball()
+        #self.osimage.create_torrent()
 
         group_json = self.db['group'].find_one({'_id': self.group._id})
         osimage_json = self.db['osimage'].find_one({'_id': self.osimage._id})
@@ -789,7 +791,8 @@ class GroupBootInstallParamsTests(unittest.TestCase):
         self.install_expected_dict = {
             'torrent_if': '',
             'partscript': group_json['partscript'],
-            'tarball': osimage_json['tarball'] + '.tgz',
+            #'tarball': osimage_json['tarball'] + '.tgz',
+            'tarball': '',
             'bmcsetup': {},
             'interfaces': {
                 'BOOTIF': {
@@ -811,7 +814,8 @@ class GroupBootInstallParamsTests(unittest.TestCase):
             'postscript': group_json['postscript'],
             'kernopts': '',
             'kernver': '1.0.0-1.el7.x86_64',
-            'torrent': osimage_json['torrent'] + '.torrent'
+            #'torrent': osimage_json['torrent'] + '.torrent'
+            'torrent': ''
         }
 
     def tearDown(self):
@@ -856,6 +860,7 @@ class GroupBootInstallParamsTests(unittest.TestCase):
 
 
     def test_install_params_default(self):
+        self.maxDiff = None
 
         self.assertEqual(self.group.install_params, self.install_expected_dict)
 
