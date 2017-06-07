@@ -955,6 +955,7 @@ def group_change(**args):
 
     return True
 
+
 def group_clone(**args):
 
     source_group = luna.Group(name=args['name'])
@@ -976,7 +977,7 @@ def group_clone(**args):
 
     comment = source_group.get('comment')
 
-    if_list =  source_group.list_ifs().keys()
+    if_list = source_group.list_ifs().keys()
 
     domain_dbref = source_group.get('domain')
     domain_name = None
@@ -1009,8 +1010,6 @@ def group_clone(**args):
 
     for if_name in if_list:
         if_dict = source_group.show_if(if_name)
-        if_net_str = ""
-        first_interface = True
 
         for ver in ['4', '6']:
             if not if_dict['network'][ver]['name']:
@@ -1062,18 +1061,47 @@ def _get_node_interfaces(node):
     return if_str
 
 
+def _format_node_interfaces(interfaces):
+
+    if_str = ''
+    padding = 0
+    for interface in interfaces:
+        if len(interface) > padding:
+            padding = len(interface)
+
+    for interface in interfaces:
+        first_ip = True
+        for ver in [4, 6]:
+            ip = interfaces[interface][ver]
+            if not ip:
+                continue
+            if first_ip:
+                if_str += '{:<{}}{}\n'.format(
+                    interface+":", padding+1, ip or '-')
+                first_ip = False
+            else:
+                if_str += '{:<{}}{}\n'.format(" ", padding+1, ip or '-')
+    if_str = if_str[:-1]
+
+    return if_str
+
+
 def node_list(**args):
-    nodes = luna.list('node')
     header = ['Name', 'Group', 'MAC', 'IPs']
     content = []
-    for elem in nodes:
-        node = luna.Node(elem)
-        out_json = node.show()
-        group = out_json['group']
-        mac = node.get_mac() or '-'
-        if_str = _get_node_interfaces(node)
-
-        content.append([elem, group, mac, if_str])
+    groups = luna.list('group')
+    db = None
+    for group_name in groups:
+        group = luna.Group(group_name, mongo_db=db)
+        if not db:
+            db = group._mongo_db
+        nodes = group.list_nodes()
+        sorted_keys = nodes.keys()
+        sorted_keys.sort()
+        for node in sorted_keys:
+            if_str = _format_node_interfaces(nodes[node]['interfaces'])
+            mac = nodes[node]['mac']
+            content.append([node, '[' + group_name + ']', mac, if_str])
     print_table(header, content)
     return True
 

@@ -135,6 +135,7 @@ class Group(Base):
             self.link(osimageobj)
 
         self.log = logging.getLogger('group.' + self._name)
+        self._networks = {}
 
     @property
     def boot_params(self):
@@ -150,10 +151,7 @@ class Group(Base):
 
         if domaindbref:
 
-            domainnet = Network(
-                id=domaindbref.id,
-                mongo_db=self._mongo_db
-            )
+            domainnet = self._get_network(netid=domaindbref.id)
 
             params['domain'] = domainnet.name
 
@@ -175,7 +173,7 @@ class Group(Base):
             if interfaces[bootif_uuid]['network'][ver]:
                 params['net'][ver] = {}
                 net_id = interfaces[bootif_uuid]['network'][ver].id
-                net = Network(id=net_id, mongo_db=self._mongo_db)
+                net = self._get_network(netid=net_id)
                 params['net'][ver]['prefix'] = str(net.get('PREFIX'))
                 params['net'][ver]['mask'] = str(net.get('NETMASK'))
 
@@ -196,10 +194,7 @@ class Group(Base):
         domaindbref = self.get('domain')
 
         if domaindbref:
-            domainnet = Network(
-                id=domaindbref.id,
-                mongo_db=self._mongo_db
-            )
+            domainnet = self._get_network(netid=domaindbref.id)
 
             params['domain'] = domainnet.name
 
@@ -244,8 +239,7 @@ class Group(Base):
 
                     net_id = interfaces[nic_uuid]['network'][ver].id
 
-                    net = Network(id=net_id,
-                                  mongo_db=self._mongo_db)
+                    net = self._get_network(netid=net_id)
 
                     net_prefix = str(net.get('PREFIX'))
                     net_mask = str(net.get('NETMASK'))
@@ -329,7 +323,7 @@ class Group(Base):
         nic = interfaces_dict[nic_uuid]
         if nic['network'][version]:
             net_id = nic['network'][version].id
-            net = Network(id=net_id, mongo_db=self._mongo_db)
+            net = self._get_network(netid=net_id)
             return net.name
         else:
             return ''
@@ -427,10 +421,7 @@ class Group(Base):
             if not assigned_net_dbref:
                 continue
 
-            assigned_net_obj = Network(
-                id=assigned_net_dbref.id,
-                mongo_db=self._mongo_db
-            )
+            assigned_net_obj = self._get_network(netid=assigned_net_dbref.id)
 
             params['network'][ver]['name'] = assigned_net_obj.name
 
@@ -694,6 +685,7 @@ class Group(Base):
             return False
 
         self.link(network_obj)
+        self._invalidate_network(network_obj.id)
 
         reverse_links = self.get_back_links()
 
@@ -830,6 +822,7 @@ class Group(Base):
             return False
 
         net_obj = Network(id=net_dbref.id, mongo_db=self._mongo_db)
+        self._invalidate_network(net_obj)
 
         if release and ip:
             return net_obj.release_ip(ip)
@@ -871,7 +864,7 @@ class Group(Base):
                              .format(interface_name))
             return None
 
-        net_obj = Network(id=net_dbref.id, mongo_db=self._mongo_db)
+        net_obj = self._get_network(net_dbref.id)
 
         if ip and format is 'human':
             iphuman = utils.ip.reltoa(
@@ -894,20 +887,19 @@ class Group(Base):
         newnet_dbref = None
 
         if domain_name:
-            newnet = Network(name=domain_name, mongo_db=self._mongo_db)
+            newnet = self._get_network(netname=domain_name)
             newnet_dbref = newnet.DBRef
 
         if 'domain' in self._json and self._json['domain']:
-            oldnet = Network(
-                id=self._json['domain'].id,
-                mongo_db=self._mongo_db
-            )
+            oldnet = self._get_network(self._json['domain'].id)
 
         if oldnet:
             self.unlink(oldnet)
+            self._invalidate_network(oldnet.id)
 
         if newnet:
             self.link(newnet)
+            self._invalidate_network(newnet.id)
 
         self.set('domain', newnet_dbref)
 
@@ -915,5 +907,57 @@ class Group(Base):
 
     def release_resources(self):
         self.set_domain(domain_name=None)
+
+    def list_nodes(self):
+        reverse_links = self.get_back_links()
+        interfaces = self.list_ifs().keys()
+        nodes = {}
+        cursor = self._mongo_db['mac'].find()
+        macs = {}
+        for elem in cursor:
+            macs[elem['node'].id] = str(elem['mac'])
+        for link in reverse_links:
+            if link['collection'] == 'node':
+                node = Node(
+                    id=link['DBRef'].id,
+                    mongo_db=self._mongo_db,
+                    group=self
+                )
+                nodes[node.name] = {}
+                if node.id in macs:
+                    nodes[node.name]['mac'] = macs[node.id]
+                else:
+                    nodes[node.name]['mac'] = None
+                tmp = {}
+                for interface in interfaces:
+                    tmp[interface] = {}
+                    for ver in [4, 6]:
+                        ip = node.get_ip(interface, version=ver, quiet=True)
+                        tmp[interface][ver] = ip
+                nodes[node.name]['interfaces'] = tmp
+        return nodes
+
+    def _get_network(self, netid=None, netname=None):
+        if not (netid or netname):
+            self.log.error('netid or netname should be specified')
+            return False
+        if netid and netid in self._networks:
+            return self._networks[netid]['object']
+        if netname:
+            for elem in self._networks:
+                if self._networks[elem]['name'] == netname:
+                    return self._networks[elem]['object']
+        netobj = Network(name=netname, id=netid, mongo_db=self._mongo_db)
+        tmp = {'name': netobj.name, 'object': netobj}
+        self._networks[netid] = tmp
+
+        return self._networks[netid]['object']
+
+    def _invalidate_network(self, netid):
+        if netid in self._networks:
+            self._networks.pop(netid)
+            return True
+        return False
+
 
 from luna.node import Node
