@@ -363,6 +363,9 @@ class GetIPTests(unittest.TestCase):
             version=6
         )
 
+    def tearDown(self):
+        self.sandbox.cleanup()
+
     def test_get_ip_wrong_ver(self):
         self.assertFalse(self.node.get_ip('eth0', version=5))
 
@@ -519,6 +522,9 @@ class SetIPTests(unittest.TestCase):
             version=6
         )
 
+    def tearDown(self):
+        self.sandbox.cleanup()
+
     def test_get_ip_wrong_name(self):
         self.assertFalse(self.node.set_ip(interface_name='wrong-interface',
                                           ip='10.50.0.2'))
@@ -658,6 +664,9 @@ class ChangeGroupTests(unittest.TestCase):
         self.network61 = luna.Network(name="net61", mongo_db=self.db,
                                       create=True, NETWORK='fe80::',
                                       PREFIX=64, version=6)
+
+    def tearDown(self):
+        self.sandbox.cleanup()
 
     def test_wo_interfaces_configured(self):
 
@@ -982,6 +991,9 @@ class GetMacTests(unittest.TestCase):
         self.node.set_mac('00:11:22:33:44:55')
 
         self.group = luna.Group(name=self.group.name, mongo_db=self.db)
+
+    def tearDown(self):
+        self.sandbox.cleanup()
 
     def test_wo_net_configured(self):
         self.assertEqual(self.group.get_macs(self.network), {})
