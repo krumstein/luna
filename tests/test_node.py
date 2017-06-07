@@ -63,6 +63,7 @@ class NodeCreateTests(unittest.TestCase):
                 'group': {str(self.group._id): 1},
             },
             'group': self.group.DBRef,
+            'comment': None
         }
 
         if_uuid = None
