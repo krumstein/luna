@@ -92,7 +92,7 @@ def _edit_script(old_script):
         tmpfile = tempfile.NamedTemporaryFile(suffix=".tmp")
         tmpfile.write(old_script)
         tmpfile.flush()
-        subprocess.call([EDITOR, '+":set syn=sh"', tmpfile.name])
+        subprocess.call([EDITOR, tmpfile.name])
         tmpfile.file.seek(0)
         for line in tmpfile.file:
             script += line
