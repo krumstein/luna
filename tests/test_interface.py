@@ -1,6 +1,7 @@
 import unittest
 
 import luna
+import mock
 import getpass
 from helper_utils import Sandbox
 
@@ -10,14 +11,23 @@ class AddNetToGroupTests(unittest.TestCase):
     Add network to group with nodes
     """
 
-    def setUp(self):
+    @mock.patch('rpm.TransactionSet')
+    @mock.patch('rpm.addMacro')
+    def setUp(self,
+              mock_rpm_addmacro,
+              mock_rpm_transactionset,
+              ):
 
         print
+
+        packages = [
+            {'VERSION': '3.10', 'RELEASE': '999-el0', 'ARCH': 'x86_64'},
+        ]
+        mock_rpm_transactionset.return_value.dbMatch.return_value = packages
 
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
-        osimage_path = self.sandbox.create_osimage()
 
         self.cluster = luna.Cluster(
             mongo_db=self.db,
@@ -28,7 +38,7 @@ class AddNetToGroupTests(unittest.TestCase):
 
         self.osimage = luna.OsImage(
             name='testosimage',
-            path=osimage_path,
+            path=self.path,
             mongo_db=self.db,
             create=True
         )
@@ -154,14 +164,23 @@ class DeleteIPTests(unittest.TestCase):
     Test for delete ip addresses from node
     """
 
-    def setUp(self):
+    @mock.patch('rpm.TransactionSet')
+    @mock.patch('rpm.addMacro')
+    def setUp(self,
+              mock_rpm_addmacro,
+              mock_rpm_transactionset,
+              ):
 
         print
+
+        packages = [
+            {'VERSION': '3.10', 'RELEASE': '999-el0', 'ARCH': 'x86_64'},
+        ]
+        mock_rpm_transactionset.return_value.dbMatch.return_value = packages
 
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
-        osimage_path = self.sandbox.create_osimage()
 
         self.cluster = luna.Cluster(
             mongo_db=self.db,
@@ -172,7 +191,7 @@ class DeleteIPTests(unittest.TestCase):
 
         self.osimage = luna.OsImage(
             name='testosimage',
-            path=osimage_path,
+            path=self.path,
             mongo_db=self.db,
             create=True
         )
@@ -309,14 +328,23 @@ class GetIPTests(unittest.TestCase):
     Test for Node.get_ip
     """
 
-    def setUp(self):
+    @mock.patch('rpm.TransactionSet')
+    @mock.patch('rpm.addMacro')
+    def setUp(self,
+              mock_rpm_addmacro,
+              mock_rpm_transactionset,
+              ):
 
         print
+
+        packages = [
+            {'VERSION': '3.10', 'RELEASE': '999-el0', 'ARCH': 'x86_64'},
+        ]
+        mock_rpm_transactionset.return_value.dbMatch.return_value = packages
 
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
-        osimage_path = self.sandbox.create_osimage()
 
         self.cluster = luna.Cluster(
             mongo_db=self.db,
@@ -327,7 +355,7 @@ class GetIPTests(unittest.TestCase):
 
         self.osimage = luna.OsImage(
             name='testosimage',
-            path=osimage_path,
+            path=self.path,
             mongo_db=self.db,
             create=True
         )
@@ -468,14 +496,23 @@ class SetIPTests(unittest.TestCase):
     Test for Node.get_ip
     """
 
-    def setUp(self):
+    @mock.patch('rpm.TransactionSet')
+    @mock.patch('rpm.addMacro')
+    def setUp(self,
+              mock_rpm_addmacro,
+              mock_rpm_transactionset,
+              ):
 
         print
+
+        packages = [
+            {'VERSION': '3.10', 'RELEASE': '999-el0', 'ARCH': 'x86_64'},
+        ]
+        mock_rpm_transactionset.return_value.dbMatch.return_value = packages
 
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
-        osimage_path = self.sandbox.create_osimage()
 
         self.cluster = luna.Cluster(
             mongo_db=self.db,
@@ -486,7 +523,7 @@ class SetIPTests(unittest.TestCase):
 
         self.osimage = luna.OsImage(
             name='testosimage',
-            path=osimage_path,
+            path=self.path,
             mongo_db=self.db,
             create=True
         )
@@ -631,19 +668,28 @@ class ChangeGroupTests(unittest.TestCase):
     Test for Node.get_ip
     """
 
-    def setUp(self):
+    @mock.patch('rpm.TransactionSet')
+    @mock.patch('rpm.addMacro')
+    def setUp(self,
+              mock_rpm_addmacro,
+              mock_rpm_transactionset,
+              ):
 
         print
+
+        packages = [
+            {'VERSION': '3.10', 'RELEASE': '999-el0', 'ARCH': 'x86_64'},
+        ]
+        mock_rpm_transactionset.return_value.dbMatch.return_value = packages
 
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
-        osimage_path = self.sandbox.create_osimage()
 
         self.cluster = luna.Cluster(mongo_db=self.db, create=True,
                                     path=self.path, user=getpass.getuser())
 
-        self.osimage = luna.OsImage(name='testosimage', path=osimage_path,
+        self.osimage = luna.OsImage(name='testosimage', path=self.path,
                                     mongo_db=self.db, create=True)
 
         self.group = luna.Group(name='testgroup',
@@ -963,19 +1009,28 @@ class GetMacTests(unittest.TestCase):
     Test for Group.get_macs()
     """
 
-    def setUp(self):
+    @mock.patch('rpm.TransactionSet')
+    @mock.patch('rpm.addMacro')
+    def setUp(self,
+              mock_rpm_addmacro,
+              mock_rpm_transactionset,
+              ):
 
         print
+
+        packages = [
+            {'VERSION': '3.10', 'RELEASE': '999-el0', 'ARCH': 'x86_64'},
+        ]
+        mock_rpm_transactionset.return_value.dbMatch.return_value = packages
 
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
-        osimage_path = self.sandbox.create_osimage()
 
         self.cluster = luna.Cluster(mongo_db=self.db, create=True,
                                     path=self.path, user=getpass.getuser())
 
-        self.osimage = luna.OsImage(name='testosimage', path=osimage_path,
+        self.osimage = luna.OsImage(name='testosimage', path=self.path,
                                     mongo_db=self.db, create=True)
 
         self.group = luna.Group(name='testgroup',

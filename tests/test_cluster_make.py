@@ -1,20 +1,30 @@
 import unittest
 
 import luna
+import mock
 import getpass
 from helper_utils import Sandbox
 
 
 class ClusterMakeDNSTests(unittest.TestCase):
 
-    def setUp(self):
+    @mock.patch('rpm.TransactionSet')
+    @mock.patch('rpm.addMacro')
+    def setUp(self,
+              mock_rpm_addmacro,
+              mock_rpm_transactionset,
+              ):
 
         print
+
+        packages = [
+            {'VERSION': '3.10', 'RELEASE': '999-el0', 'ARCH': 'x86_64'},
+        ]
+        mock_rpm_transactionset.return_value.dbMatch.return_value = packages
 
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
-        osimage_path = self.sandbox.create_osimage()
 
         self.cluster = luna.Cluster(
             mongo_db=self.db,
@@ -23,7 +33,7 @@ class ClusterMakeDNSTests(unittest.TestCase):
             user=getpass.getuser()
         )
 
-        self.osimage = luna.OsImage(name='testosimage', path=osimage_path,
+        self.osimage = luna.OsImage(name='testosimage', path=self.path,
                                     mongo_db=self.db, create=True)
 
         self.group = luna.Group(name='testgroup', osimage=self.osimage.name,
@@ -102,14 +112,23 @@ class ClusterMakeDNSTests(unittest.TestCase):
 
 class ClusterMakeDHCPTests(unittest.TestCase):
 
-    def setUp(self):
+    @mock.patch('rpm.TransactionSet')
+    @mock.patch('rpm.addMacro')
+    def setUp(self,
+              mock_rpm_addmacro,
+              mock_rpm_transactionset,
+              ):
 
         print
+
+        packages = [
+            {'VERSION': '3.10', 'RELEASE': '999-el0', 'ARCH': 'x86_64'},
+        ]
+        mock_rpm_transactionset.return_value.dbMatch.return_value = packages
 
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
-        osimage_path = self.sandbox.create_osimage()
 
         self.cluster = luna.Cluster(
             mongo_db=self.db,
@@ -118,7 +137,7 @@ class ClusterMakeDHCPTests(unittest.TestCase):
             user=getpass.getuser()
         )
 
-        self.osimage = luna.OsImage(name='testosimage', path=osimage_path,
+        self.osimage = luna.OsImage(name='testosimage', path=self.path,
                                     mongo_db=self.db, create=True)
 
         self.group1 = luna.Group(name='testgroup1', osimage=self.osimage.name,

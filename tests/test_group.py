@@ -1,22 +1,30 @@
 import unittest
 
-import os
-import sys
 import luna
+import mock
 import getpass
 from helper_utils import Sandbox
 
 
 class GroupCreateTests(unittest.TestCase):
 
-    def setUp(self):
+    @mock.patch('rpm.TransactionSet')
+    @mock.patch('rpm.addMacro')
+    def setUp(self,
+              mock_rpm_addmacro,
+              mock_rpm_transactionset,
+              ):
 
         print
+
+        packages = [
+            {'VERSION': '3.10', 'RELEASE': '999-el0', 'ARCH': 'x86_64'},
+        ]
+        mock_rpm_transactionset.return_value.dbMatch.return_value = packages
 
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
-        osimage_path = self.sandbox.create_osimage()
 
         self.cluster = luna.Cluster(
             mongo_db=self.db,
@@ -27,14 +35,13 @@ class GroupCreateTests(unittest.TestCase):
 
         self.osimage = luna.OsImage(
             name='testosimage',
-            path=osimage_path,
+            path=self.path,
             mongo_db=self.db,
             create=True
         )
 
     def tearDown(self):
-       self.sandbox.cleanup()
-
+        self.sandbox.cleanup()
 
     def test_create_group_with_defaults(self):
 
@@ -169,14 +176,24 @@ class GroupCreateTests(unittest.TestCase):
 
 class GroupConfigTests(unittest.TestCase):
 
-    def setUp(self):
+    @mock.patch('rpm.TransactionSet')
+    @mock.patch('rpm.addMacro')
+    def setUp(self,
+              mock_rpm_addmacro,
+              mock_rpm_transactionset,
+              ):
 
         print
+
+        packages = [
+            {'VERSION': '3.10', 'RELEASE': '999-el0', 'ARCH': 'x86_64'},
+        ]
+        mock_rpm_transactionset.return_value.dbMatch.return_value = packages
 
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
-        osimage_path = self.sandbox.create_osimage()
+        #osimage_path = self.sandbox.create_osimage()
 
         self.cluster = luna.Cluster(
             mongo_db=self.db,
@@ -189,7 +206,7 @@ class GroupConfigTests(unittest.TestCase):
 
         self.osimage = luna.OsImage(
             name='testosimage',
-            path=osimage_path,
+            path=self.path,
             mongo_db=self.db,
             create=True
         )
@@ -298,8 +315,6 @@ class GroupConfigTests(unittest.TestCase):
             version=6,
         )
 
-        net6_dict = self.db['network'].find_one({'_id': net6._id})
-
         show_if_expected = {
             'name': 'eth0',
             'options': '',
@@ -337,15 +352,25 @@ class GroupConfigTests(unittest.TestCase):
         end_dict = self.db['group'].find_one({'_id': self.group._id})
         self.assertEqual(start_dict, end_dict)
 
-    def test_osimage(self):
+    @mock.patch('rpm.TransactionSet')
+    @mock.patch('rpm.addMacro')
+    def test_osimage(self,
+                     mock_rpm_addmacro,
+                     mock_rpm_transactionset,
+                     ):
+
+        packages = [
+            {'VERSION': '3.10', 'RELEASE': '999-el0', 'ARCH': 'x86_64'},
+        ]
+        mock_rpm_transactionset.return_value.dbMatch.return_value = packages
+
         start_dict = self.db['group'].find_one({'_id': self.group._id})
 
         osimage_name = 'osimage2'
-        osimage_path = self.sandbox.create_osimage()
 
         osimage = luna.OsImage(
             name=osimage_name,
-            path=osimage_path,
+            path='',
             mongo_db=self.db,
             create=True
         )
@@ -601,7 +626,7 @@ class GroupConfigTests(unittest.TestCase):
         for k in group_json['interfaces']:
             if_uuid = k
 
-        ret = self.group.manage_ip(if_uuid, version = 5)
+        ret = self.group.manage_ip(if_uuid, version=5)
         self.assertFalse(ret)
 
     def test_manage_ip_wo_net_reserve(self):
@@ -713,16 +738,26 @@ class GroupConfigTests(unittest.TestCase):
             [{'start': '3', 'end': '18446744073709551613'}]
         )
 
+
 class GroupBootInstallParamsTests(unittest.TestCase):
 
-    def setUp(self):
+    @mock.patch('rpm.TransactionSet')
+    @mock.patch('rpm.addMacro')
+    def setUp(self,
+              mock_rpm_addmacro,
+              mock_rpm_transactionset,
+              ):
 
         print
+
+        packages = [
+            {'VERSION': '3.10', 'RELEASE': '999-el0', 'ARCH': 'x86_64'},
+        ]
+        mock_rpm_transactionset.return_value.dbMatch.return_value = packages
 
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
-        osimage_path = self.sandbox.create_osimage()
 
         self.cluster = luna.Cluster(
             mongo_db=self.db,
@@ -735,7 +770,7 @@ class GroupBootInstallParamsTests(unittest.TestCase):
 
         self.osimage = luna.OsImage(
             name='testosimage',
-            path=osimage_path,
+            path=self.path,
             mongo_db=self.db,
             create=True
         )
@@ -781,9 +816,26 @@ class GroupBootInstallParamsTests(unittest.TestCase):
             create=True)
 
         # mocking osimage boot stuff
-        self.osimage.copy_boot()
-        #self.osimage.create_tarball()
-        #self.osimage.create_torrent()
+        with mock.patch('os.path'), \
+                mock.patch('shutil.copy'), \
+                mock.patch('os.chown'), \
+                mock.patch('os.chmod'), \
+                mock.patch('subprocess.Popen') as mock_subprocess_popen, \
+                mock.patch('os.open'), \
+                mock.patch('os.chroot'), \
+                mock.patch('os.fchdir'), \
+                mock.patch('os.close'), \
+                mock.patch('os.chdir'), \
+                mock.patch('shutil.move'), \
+                mock.patch('libtorrent.add_files'), \
+                mock.patch('libtorrent.set_piece_hashes'):
+
+            (mock_subprocess_popen.return_value
+                .stderr.readline.return_value) = ''
+
+            self.osimage.copy_boot()
+            self.osimage.create_tarball()
+            self.osimage.create_torrent()
 
         group_json = self.db['group'].find_one({'_id': self.group._id})
         osimage_json = self.db['osimage'].find_one({'_id': self.osimage._id})
@@ -791,8 +843,7 @@ class GroupBootInstallParamsTests(unittest.TestCase):
         self.install_expected_dict = {
             'torrent_if': '',
             'partscript': group_json['partscript'],
-            #'tarball': osimage_json['tarball'] + '.tgz',
-            'tarball': '',
+            'tarball': osimage_json['tarball'] + '.tgz',
             'bmcsetup': {},
             'interfaces': {
                 'BOOTIF': {
@@ -813,9 +864,8 @@ class GroupBootInstallParamsTests(unittest.TestCase):
             'domain': '',
             'postscript': group_json['postscript'],
             'kernopts': '',
-            'kernver': '1.0.0-1.el7.x86_64',
-            #'torrent': osimage_json['torrent'] + '.torrent'
-            'torrent': ''
+            'kernver': '3.10-999-el0.x86_64',
+            'torrent': osimage_json['torrent'] + '.torrent'
         }
 
     def tearDown(self):
@@ -823,12 +873,18 @@ class GroupBootInstallParamsTests(unittest.TestCase):
 
     def test_boot_params_default(self):
 
-        self.assertEqual(self.group.boot_params,
-                {'net': {},
-                'kernel_file': self.osimage.name + '-vmlinuz-1.0.0-1.el7.x86_64',
+        self.assertEqual(
+            self.group.boot_params,
+            {
+                'net': {},
+                'kernel_file': (
+                    self.osimage.name + '-vmlinuz-3.10-999-el0.x86_64'
+                ),
                 'kern_opts': '',
                 'domain': '',
-                'initrd_file': self.osimage.name + '-initramfs-1.0.0-1.el7.x86_64',
+                'initrd_file': (
+                    self.osimage.name + '-initramfs-3.10-999-el0.x86_64'
+                ),
             }
         )
 
@@ -836,12 +892,18 @@ class GroupBootInstallParamsTests(unittest.TestCase):
 
         self.group.set_domain(self.net1.name)
 
-        self.assertEqual(self.group.boot_params,
-                {'net': {},
-                'kernel_file': self.osimage.name + '-vmlinuz-1.0.0-1.el7.x86_64',
+        self.assertEqual(
+            self.group.boot_params,
+            {
+                'net': {},
+                'kernel_file': (
+                    self.osimage.name + '-vmlinuz-3.10-999-el0.x86_64'
+                ),
                 'kern_opts': '',
                 'domain': self.net1.name,
-                'initrd_file': self.osimage.name + '-initramfs-1.0.0-1.el7.x86_64',
+                'initrd_file': (
+                    self.osimage.name + '-initramfs-3.10-999-el0.x86_64'
+                ),
             }
         )
 
@@ -849,15 +911,20 @@ class GroupBootInstallParamsTests(unittest.TestCase):
 
         self.group.set_net_to_if('BOOTIF', self.net1.name)
 
-        self.assertEqual(self.group.boot_params,
-                {'net': {'4': {'prefix': '16', 'mask': '255.255.0.0'} },
-                'kernel_file': self.osimage.name + '-vmlinuz-1.0.0-1.el7.x86_64',
+        self.assertEqual(
+            self.group.boot_params,
+            {
+                'net': {'4': {'prefix': '16', 'mask': '255.255.0.0'}},
+                'kernel_file': (
+                    self.osimage.name + '-vmlinuz-3.10-999-el0.x86_64'
+                ),
                 'kern_opts': '',
                 'domain': '',
-                'initrd_file': self.osimage.name + '-initramfs-1.0.0-1.el7.x86_64',
+                'initrd_file': (
+                    self.osimage.name + '-initramfs-3.10-999-el0.x86_64'
+                ),
             }
         )
-
 
     def test_install_params_default(self):
         self.maxDiff = None
@@ -884,14 +951,12 @@ class GroupBootInstallParamsTests(unittest.TestCase):
         }
         self.assertEqual(self.group.install_params, self.install_expected_dict)
 
-
     def test_install_params_w_domain(self):
 
         self.group.set_domain(self.net1.name)
         self.install_expected_dict['domain'] = self.net1.name
 
         self.assertEqual(self.group.install_params, self.install_expected_dict)
-
 
     def test_install_params_w_bmconfig_wo_net(self):
 
