@@ -909,19 +909,33 @@ def group_show(**args):
 
 
 def group_add(**args):
+
+    res = True
     net_name = args.pop('network')
+    bmcnet_name = args.pop('bmcnetwork')
 
     # we don't need it actually, but we will be sure
     # network exists before creating group
     network = luna.Network(net_name)
+    if bmcnet_name:
+        bmcnetwork = luna.Network(bmcnet_name)
 
     args['create'] = True
-    args['interfaces'] = ['BOOTIF']
+
+    if bmcnet_name:
+        args['interfaces'] = ['BOOTIF', 'BMC']
+    else:
+        args['interfaces'] = ['BOOTIF']
+
     args['domain'] = network.name
 
     group = luna.Group(**args)
-    group.set_net_to_if('BOOTIF', network.name)
-    return True
+    res &= group.set_net_to_if('BOOTIF', network.name)
+
+    if bmcnet_name:
+        res &= group.set_net_to_if('BMC', bmcnetwork.name)
+
+    return res
 
 
 def group_change(**args):
@@ -1178,8 +1192,7 @@ def node_change(**args):
 
         if args['comment']:
             old_comment = node.get('comment')
-            # change only first node
-            return node.set('comment', _edit_script(old_comment))
+            out &= node.set('comment', _edit_script(old_comment))
 
         for attr in ['group', 'mac', 'switch']:
             if args[attr] is not None:
@@ -1731,6 +1744,7 @@ cmd.add_argument('--name', '-n', required=True, help='Name of the Group')
 cmd.add_argument('--osimage', '-o', required=True,
                  help='Osimage assigned to Group')
 cmd.add_argument('--bmcsetup', '-b', help='BMCSetup assigned to Group')
+cmd.add_argument('--bmcnetwork', '-bn', help='Network for BMC interface')
 cmd.add_argument('--network', '-N', required=True,
                  help='Network for boot interface')
 
