@@ -1,22 +1,33 @@
 import unittest
 
 import luna
-import getpass
 import copy
+import mock
+import getpass
 import datetime
+
 from helper_utils import Sandbox
 
 
 class NodeCreateTests(unittest.TestCase):
 
-    def setUp(self):
+    @mock.patch('rpm.TransactionSet')
+    @mock.patch('rpm.addMacro')
+    def setUp(self,
+              mock_rpm_addmacro,
+              mock_rpm_transactionset,
+              ):
 
         print
+
+        packages = [
+            {'VERSION': '3.10', 'RELEASE': '999-el0', 'ARCH': 'x86_64'},
+        ]
+        mock_rpm_transactionset.return_value.dbMatch.return_value = packages
 
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
-        osimage_path = self.sandbox.create_osimage()
 
         self.cluster = luna.Cluster(
             mongo_db=self.db,
@@ -27,7 +38,7 @@ class NodeCreateTests(unittest.TestCase):
 
         self.osimage = luna.OsImage(
             name='testosimage',
-            path=osimage_path,
+            path=self.path,
             mongo_db=self.db,
             create=True
         )
@@ -118,14 +129,23 @@ class NodeCreateTests(unittest.TestCase):
 
 class NodeChangeTests(unittest.TestCase):
 
-    def setUp(self):
+    @mock.patch('rpm.TransactionSet')
+    @mock.patch('rpm.addMacro')
+    def setUp(self,
+              mock_rpm_addmacro,
+              mock_rpm_transactionset,
+              ):
+
+        packages = [
+            {'VERSION': '3.10', 'RELEASE': '999-el0', 'ARCH': 'x86_64'},
+        ]
+        mock_rpm_transactionset.return_value.dbMatch.return_value = packages
 
         print
 
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
-        osimage_path = self.sandbox.create_osimage()
 
         self.cluster = luna.Cluster(
             mongo_db=self.db,
@@ -137,7 +157,7 @@ class NodeChangeTests(unittest.TestCase):
 
         self.osimage = luna.OsImage(
             name='testosimage',
-            path=osimage_path,
+            path=self.path,
             mongo_db=self.db,
             create=True
         )
@@ -543,14 +563,24 @@ class NodeChangeTests(unittest.TestCase):
 
 class NodeBootInstallTests(unittest.TestCase):
 
-    def setUp(self):
+    @mock.patch('rpm.TransactionSet')
+    @mock.patch('rpm.addMacro')
+    def setUp(self,
+              mock_rpm_addmacro,
+              mock_rpm_transactionset,
+              ):
 
         print
+
+        packages = [
+            {'VERSION': '3.10', 'RELEASE': '999-el0', 'ARCH': 'x86_64'},
+        ]
+        mock_rpm_addmacro.return_value = True
+        mock_rpm_transactionset.return_value.dbMatch.return_value = packages
 
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
-        osimage_path = self.sandbox.create_osimage()
 
         self.cluster = luna.Cluster(
             mongo_db=self.db,
@@ -563,7 +593,7 @@ class NodeBootInstallTests(unittest.TestCase):
 
         self.osimage = luna.OsImage(
             name='testosimage',
-            path=osimage_path,
+            path=self.path,
             mongo_db=self.db,
             create=True
         )
@@ -664,7 +694,7 @@ class NodeBootInstallTests(unittest.TestCase):
                 + 'EOF'
             ),
             'kernopts': '',
-            'kernver': '1.0.0-1.el7.x86_64',
+            'kernver': '3.10-999-el0.x86_64',
             'torrent': '',
             'mac': '',
         }
