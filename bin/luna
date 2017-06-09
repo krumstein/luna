@@ -449,20 +449,34 @@ def osimage_change(**args):
 
 def osimage_pack(**args):
     def pack_image(osimage):
+
+        res = True
+
         try:
             log.info('Creating tarball.')
-            osimage.create_tarball()
-            log.info('Done.')
+            res = osimage.create_tarball()
         except:
+            res = False
+
+        if not res:
             log.error("Error on creating tarball")
             return False
+
+        log.info('Done.')
+
+        res = True
+
         try:
             log.error('Creating torrent.')
-            osimage.create_torrent()
-            log.error('Done.')
+            res = osimage.create_torrent()
         except:
+            res = False
+
+        if not res:
             log.error("Error on creating torrent.")
             return False
+
+        log.error('Done.')
         return True
 
     def pack_boot(osimage, copy):

@@ -30,8 +30,10 @@ import uuid
 import shutil
 import logging
 import tempfile
+import traceback
 import subprocess
 import libtorrent
+import exceptions
 
 from luna.base import Base
 from luna.cluster import Cluster
@@ -194,14 +196,23 @@ class OsImage(Base):
                 sys.stdout.write('\r')
 
         except:
-            os.remove('/tmp/' + tarfile)
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            if exc_type == exceptions.KeyboardInterrupt:
+                self.log.error('Keyboard interrupt.')
+            else:
+                self.log.error(exc_value)
+                self.log.debug(traceback.format_exc())
+
+            if os.path.isfile('/tmp/' + tarfile):
+                os.remove('/tmp/' + tarfile)
+
             sys.stdout.write('\r')
 
             os.fchdir(real_root)
             os.chroot(".")
             os.close(real_root)
 
-            return None
+            return False
 
         os.fchdir(real_root)
         os.chroot(".")
