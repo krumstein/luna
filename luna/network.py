@@ -306,7 +306,7 @@ class Network(Base):
     def resolve_used_ips(self):
         from luna.switch import Switch
         from luna.otherdev import OtherDev
-        from luna.node import Group
+        from luna.group import Group
 
         net = self._json
 
@@ -462,7 +462,7 @@ class Network(Base):
 
     def get_ip_macs(self):
 
-        from luna.node import Group
+        from luna.group import Group
 
         net = self._json
 
