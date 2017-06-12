@@ -1187,12 +1187,16 @@ def node_add(**args):
 
 def node_change(**args):
     out = True
+    new_comment = None
+
     for nodename in hostlist.expand_hostlist(args['name']):
         node = luna.Node(nodename)
 
         if args['comment']:
-            old_comment = node.get('comment')
-            out &= node.set('comment', _edit_script(old_comment))
+            if new_comment is None:
+                old_comment = node.get('comment')
+                new_comment = _edit_script(old_comment)
+            out &= node.set('comment', new_comment)
 
         for attr in ['group', 'mac', 'switch']:
             if args[attr] is not None:
@@ -1283,17 +1287,18 @@ def switch_add(**args):
 
 def switch_change(**args):
     out = True
-    for switchname in hostlist.expand_hostlist(args['name']):
+    new_comment = None
+    for switchname in hostlist.expand_hostlist(args.pop('name')):
         switch = luna.Switch(switchname)
 
         if args['comment']:
-            old_comment = switch.get('comment')
-            # change only first switch
-            return switch.set('comment', _edit_script(old_comment))
+            if new_comment is None:
+                old_comment = switch.get('comment')
+                new_comment = _edit_script(old_comment)
+            out &= switch.set('comment', new_comment)
 
-        args.pop('name')
         for key in args:
-            if not args[key]:
+            if not args[key] or key == 'comment':
                 continue
             ret = switch.set(key, args[key])
             out &= bool(ret)
@@ -1395,18 +1400,20 @@ def otherdev_add(**args):
 
 def otherdev_change(**args):
     out = True
-    for devname in hostlist.expand_hostlist(args['name']):
+    new_comment = None
+    for devname in hostlist.expand_hostlist(args.pop('name')):
         dev = luna.OtherDev(devname)
+        out &= bool(dev)
 
         if args['comment']:
-            old_comment = dev.get('comment')
-            # change only first dev
-            return dev.set('comment', _edit_script(old_comment))
+            if new_comment is None:
+                old_comment = dev.get('comment')
+                new_comment = _edit_script(old_comment)
+            out &= dev.set('comment', new_comment)
 
-        args.pop('name')
-        out &= bool(dev)
-        ret = dev.set_ip(network=args['network'], ip=args['ip'])
-        out &= bool(ret)
+        if args['ip']:
+            ret = dev.set_ip(network=args['network'], ip=args['ip'])
+            out &= bool(ret)
     return out
 
 
