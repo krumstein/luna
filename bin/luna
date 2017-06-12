@@ -511,6 +511,7 @@ def osimage_pack(**args):
         else:
             log.error("Ltorrent is not running")
             return False
+        return True
 
     osimage = luna.OsImage(args['name'])
 
