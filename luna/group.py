@@ -364,6 +364,16 @@ class Group(Base):
             self.log.error(
                 "Could not rename interface '{}'".format(interface_name)
             )
+        if res:
+            if interface_name == 'BOOTIF':
+                self.log.info('No boot interface for nodes ' +
+                              'in the group configured. ' +
+                              'DHCP will be used during provisioning.')
+
+            elif interface_name == 'BMC':
+                self.log.warning('An interface named \'BMC\' ' +
+                                 'needs to be defined ' +
+                                 'in order to have node\'s BMC configured.')
 
         return res
 
