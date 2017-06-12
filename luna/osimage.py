@@ -390,7 +390,7 @@ class OsImage(Base):
             self.log.error("Unable to find initrd in {}".format(initrd_path))
             return False
 
-        shutil.copy(initrd_path, path_to_store)
+        shutil.move(initrd_path, path_to_store + '/' + initrdfile)
         shutil.copy(kernel_path, path_to_store + '/' + kernfile)
         os.chown(path_to_store + '/' + initrdfile, user_id, grp_id)
         os.chmod(path_to_store + '/' + initrdfile, 0644)
