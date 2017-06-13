@@ -700,11 +700,18 @@ class Group(Base):
         reverse_links = self.get_back_links()
 
         # Now we need to assign ip for every node in group
-        # TODO sort nodes
+        nodes = {}
         for link in reverse_links:
             if link['collection'] == 'node':
                 node_obj = Node(id=link['DBRef'].id, mongo_db=self._mongo_db)
+                nodes[node_obj.name] = node_obj
+
+        nodenames = nodes.keys()
+        nodenames.sort()
+        for nodename in nodenames:
+                node_obj = nodes[nodename]
                 node_obj.add_ip(interface_name)
+
 
         return True
 
