@@ -951,8 +951,8 @@ def group_change(**args):
     for txt_field in ['prescript', 'postscript',
                       'partscript', 'comment']:
         if args[txt_field]:
-            old_comment = group.get(txt_field)
-            return group.set(txt_field, _edit_script(old_comment))
+            old_txt_value = group.get(txt_field)
+            return group.set(txt_field, _edit_script(old_txt_value))
 
     if bool(args['interface']):
         if bool(args['add']):
