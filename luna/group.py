@@ -511,7 +511,7 @@ class Group(Base):
 
         interfaces = self.get('interfaces')
 
-        if type(net) != Network:
+        if not isinstance(net, Network):
             self.log.error("net should be Network class. Unable to proceed.")
             return False
 
@@ -586,7 +586,7 @@ class Group(Base):
 
         interfaces = self.get('interfaces')
 
-        if type(net) != Network:
+        if not isinstance(net, Network):
             self.log.error("net should be Network class. Unable to preceed.")
             return False
 
