@@ -55,6 +55,99 @@ class OsimageCreateTests(unittest.TestCase):
         for attr in expected:
             self.assertEqual(doc[attr], expected[attr])
 
+    @mock.patch('rpm.TransactionSet')
+    @mock.patch('rpm.addMacro')
+    def test_create_osimage_with_same_path(self,
+                                           mock_rpm_addmacro,
+                                           mock_rpm_transactionset,
+                                           ):
+        packages = [
+            {'VERSION': '3.10', 'RELEASE': '999-el0', 'ARCH': 'x86_64'},
+        ]
+        mock_rpm_transactionset.return_value.dbMatch.return_value = packages
+
+        args = {
+            'name': 'testosimage',
+            'path': self.path,
+            'mongo_db': self.db,
+            'create': True,
+        }
+        luna.OsImage(**args)
+        args['name'] = 'testosimage2'
+
+        self.assertRaises(RuntimeError, luna.OsImage, **args)
+
+    @mock.patch('rpm.TransactionSet')
+    @mock.patch('rpm.addMacro')
+    def test_create_osimage_wo_kernel(self,
+                                      mock_rpm_addmacro,
+                                      mock_rpm_transactionset,
+                                      ):
+        mock_rpm_transactionset.return_value.dbMatch.return_value = []
+
+        args = {
+            'name': 'testosimage',
+            'path': self.path,
+            'mongo_db': self.db,
+            'create': True,
+        }
+
+        self.assertRaises(RuntimeError, luna.OsImage, **args)
+
+    def test_create_osimage_wrong_path(self):
+        args = {
+            'name': 'testosimage',
+            'path': '/dev/null',
+            'mongo_db': self.db,
+            'create': True,
+        }
+
+        self.assertRaises(RuntimeError, luna.OsImage, **args)
+
+    @mock.patch('rpm.TransactionSet')
+    @mock.patch('rpm.addMacro')
+    def test_create_osimage_wrong_kernver(self,
+                                          mock_rpm_addmacro,
+                                          mock_rpm_transactionset,
+                                          ):
+        packages = [
+            {'VERSION': '3.10', 'RELEASE': '999-el0', 'ARCH': 'x86_64'},
+        ]
+
+        mock_rpm_transactionset.return_value.dbMatch.return_value = packages
+
+        args = {
+            'name': 'testosimage',
+            'path': self.path,
+            'mongo_db': self.db,
+            'kernver': '3.10-000-el0.x86_64',
+            'create': True,
+        }
+
+        self.assertRaises(RuntimeError, luna.OsImage, **args)
+
+    @mock.patch('rpm.TransactionSet')
+    @mock.patch('rpm.addMacro')
+    def test_create_osimage_wrong_grablist(self,
+                                           mock_rpm_addmacro,
+                                           mock_rpm_transactionset,
+                                           ):
+        packages = [
+            {'VERSION': '3.10', 'RELEASE': '999-el0', 'ARCH': 'x86_64'},
+        ]
+
+        mock_rpm_transactionset.return_value.dbMatch.return_value = packages
+
+        args = {
+            'name': 'testosimage',
+            'path': self.path,
+            'mongo_db': self.db,
+            'grab_list': 'no_grab_list',
+            'create': True,
+        }
+
+        self.assertRaises(RuntimeError, luna.OsImage, **args)
+
 
 class OsimageMethodsTests(unittest.TestCase):
 
@@ -101,20 +194,73 @@ class OsimageMethodsTests(unittest.TestCase):
     @mock.patch('subprocess.Popen')
     @mock.patch('os.chroot')
     @mock.patch('os.open')
-    def test_pack_image_default(self,
-                                mock_os_open,
-                                mock_os_chroot,
-                                mock_subprocess_popen,
-                                mock_os_fchdir,
-                                mock_os_close,
-                                mock_shutil_move,
-                                mock_os_chown,
-                                mock_os_chmod,
-                                ):
+    def test_pack_create_tarball(self,
+                                 mock_os_open,
+                                 mock_os_chroot,
+                                 mock_subprocess_popen,
+                                 mock_os_fchdir,
+                                 mock_os_close,
+                                 mock_shutil_move,
+                                 mock_os_chown,
+                                 mock_os_chmod,
+                                 ):
 
         mock_subprocess_popen.return_value.stderr.readline.return_value = ''
 
         self.assertTrue(self.osimage.create_tarball())
+
+    def test_create_torrent_wo_tarball(self):
+
+        self.assertFalse(self.osimage.create_torrent())
+
+    @mock.patch('os.path.exists')
+    def test_create_torrent_w_wrong_tarball(self,
+                                            mock_os_path_exists):
+
+        self.osimage.set('tarball', 'UUID')
+
+        mock_os_path_exists.return_value = False
+
+        self.assertFalse(self.osimage.create_torrent())
+
+    @mock.patch('os.path.exists')
+    def test_create_torrent_w_wrong_frontend(self,
+                                             mock_os_path_exists):
+
+        self.osimage.set('tarball', 'UUID')
+
+        self.assertFalse(self.osimage.create_torrent())
+
+    @mock.patch('os.path.exists')
+    def test_create_torrent_w_wrong_frontend_port(
+            self, mock_os_path_exists):
+
+        self.osimage.set('tarball', 'UUID')
+        self.cluster.set('frontend_address', '127.0.0.1')
+        self.cluster.set('frontend_port', 0)
+
+        self.assertFalse(self.osimage.create_torrent())
+
+    @mock.patch('libtorrent.set_piece_hashes')
+    @mock.patch('libtorrent.add_files')
+    @mock.patch('shutil.move')
+    @mock.patch('os.chdir')
+    @mock.patch('os.close')
+    @mock.patch('os.fchdir')
+    @mock.patch('os.chroot')
+    @mock.patch('os.open')
+    @mock.patch('subprocess.Popen')
+    @mock.patch('os.chmod')
+    @mock.patch('os.chown')
+    @mock.patch('shutil.copy')
+    @mock.patch('os.path.exists')
+    def test_create_torrent_default(*args):
+        self = args[0]
+        args[5].return_value.stderr.readline.return_value = ''
+        self.osimage.set('tarball', 'UUID')
+        self.cluster.set('frontend_address', '127.0.0.1')
+        self.cluster.set('frontend_port', 7050)
+        self.assertTrue(self.osimage.create_torrent())
 
     @mock.patch('os.close')
     @mock.patch('os.fchdir')
@@ -152,6 +298,58 @@ class OsimageMethodsTests(unittest.TestCase):
             ['3.10-999-el0.x86_64', '3.11-999-el0.x86_64']
         )
 
+        self.assertEqual(
+            self.osimage.list_kernels(),
+            ['3.10-999-el0.x86_64', '3.11-999-el0.x86_64']
+        )
+
+
+    @mock.patch('os.chmod')
+    @mock.patch('os.chown')
+    @mock.patch('shutil.copy')
+    @mock.patch('shutil.move')
+    @mock.patch('os.path.isfile')
+    @mock.patch('pwd.getpwnam')
+    @mock.patch('subprocess.Popen')
+    def test_pack_boot(*args):
+
+        self = args[0]
+        args[2].return_value.pw_uid.return_value = 1000
+        args[2].return_value.pw_gid.return_value = 1000
+
+        self.assertFalse(self.osimage.pack_boot())
+
+        args[1].return_value.poll.side_effect = [None, None, True]
+        self.assertFalse(self.osimage.pack_boot())
+        args[1].return_value.poll.side_effect = [None, None, True]
+        args[1].return_value.stdout.readline.return_value = 'luna'
+        self.assertFalse(self.osimage.pack_boot())
+        args[1].return_value.returncode = 0
+        args[1].return_value.poll.side_effect = [None, None, True]
+        self.assertTrue(self.osimage.pack_boot())
+
+    def test_copy_boot_wo_kern(self):
+        self.assertFalse(self.osimage.copy_boot())
+
+    @mock.patch('os.chmod')
+    @mock.patch('os.chown')
+    @mock.patch('shutil.copy')
+    @mock.patch('os.path.isfile')
+    def test_copy_boot_default(*args):
+        self = args[0]
+        self.assertTrue(self.osimage.copy_boot())
+
+    @mock.patch('os.remove')
+    @mock.patch('subprocess.Popen')
+    @mock.patch('os.path.exists')
+    def grab_host_default(*args):
+        self = args[0]
+        args[2].return_value.stdout.readline.return_value = ''
+        args[2].return_value.communicate.return_value = ('', '')
+        args[2].return_value.returncode = 0
+        self.assertTrue(self.osimage.grab_host('127.0.0.1'))
+        args[2].return_value.returncode = 255
+        self.assertFalse(self.osimage.grab_host('127.0.0.1'))
 
 if __name__ == '__main__':
     unittest.main()
