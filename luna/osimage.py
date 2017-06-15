@@ -230,23 +230,23 @@ class OsImage(Base):
         tarball_uid = self.get('tarball')
         if not tarball_uid:
             self.log.error("No tarball in DB.")
-            return None
+            return False
 
         cluster = Cluster(mongo_db=self._mongo_db)
         tarball = cluster.get('path') + "/torrents/" + tarball_uid + ".tgz"
         if not os.path.exists(tarball):
             self.log.error("Wrong path in DB.")
-            return None
+            return False
 
         tracker_address = cluster.get('frontend_address')
         if tracker_address == '':
             self.log.error("Tracker address needs to be configured.")
-            return None
+            return False
 
         tracker_port = cluster.get('frontend_port')
         if tracker_port == 0:
             self.log.error("Tracker port needs to be configured.")
-            return None
+            return False
 
         user = cluster.get('user')
         user_id = pwd.getpwnam(user).pw_uid
@@ -340,6 +340,8 @@ class OsImage(Base):
 
         dracut_succeed = True
 
+        create = None
+
         try:
             dracut_modules = subprocess.Popen(['/usr/sbin/dracut', '--kver',
                                                kernver, '--list-modules'],
@@ -350,6 +352,7 @@ class OsImage(Base):
                 line = dracut_modules.stdout.readline()
                 if line.strip() == 'luna':
                     luna_exists = True
+                    break
 
             if not luna_exists:
                 self.log.error("No luna dracut module in osimage '{}'"
@@ -367,7 +370,10 @@ class OsImage(Base):
         except:
             dracut_succeed = False
 
-        if create.returncode:
+        if create and create.returncode:
+            dracut_succeed = False
+
+        if not create:
             dracut_succeed = False
 
         os.fchdir(real_root)
@@ -489,6 +495,8 @@ class OsImage(Base):
             rsync_opts += r''' --dry-run '''
             verbose = True
 
+        ret_code = 1
+
         # enumarete all filesystems
         for fs in grab_filesystems:
             ret_code = 0
@@ -565,3 +573,5 @@ class OsImage(Base):
 
         # remove temp file
         os.remove(exclude_file_name)
+
+        return not bool(ret_code)
