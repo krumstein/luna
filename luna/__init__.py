@@ -50,7 +50,7 @@ def list(collection):
     logger = logging.getLogger(__name__)
 
     try:
-        mongo_client = pymongo.MongoClient(utils.helpers.get_con_options())
+        mongo_client = pymongo.MongoClient(**utils.helpers.get_con_options())
     except:
         logger.error("Unable to connect to MongoDB.")
         raise RuntimeError

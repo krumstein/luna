@@ -106,7 +106,7 @@ class Base(object):
             self._mongo_db = mongo_db
         else:
             try:
-                client = pymongo.MongoClient(utils.helpers.get_con_options())
+                client = pymongo.MongoClient(**utils.helpers.get_con_options())
             except:
                 self.log.error("Unable to connect to MongoDB.")
                 raise RuntimeError
