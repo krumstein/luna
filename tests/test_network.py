@@ -1,6 +1,7 @@
 import unittest
 
 import luna
+import mock
 import getpass
 from helper_utils import Sandbox
 
@@ -136,12 +137,14 @@ class NetworkAttributesTests(unittest.TestCase):
     def test_change_ns_ip(self):
         json = self.net._json
         self.assertEqual(json['ns_ip'], 254)
-        self.assertEqual(json['freelist'],
+        self.assertEqual(
+            json['freelist'],
             [{'start': 1, 'end': 253}]
         )
         self.assertTrue(self.net.set('ns_ip', '172.16.1.253'))
         self.assertEqual(json['ns_ip'], 253)
-        self.assertEqual(json['freelist'],
+        self.assertEqual(
+            json['freelist'],
             [{'start': 1, 'end': 252}, {'start': 254, 'end': 254}]
         )
 
@@ -208,7 +211,8 @@ class NetworkAttributesTestsIPv6(unittest.TestCase):
     def test_change_ns_ip(self):
         json = self.net._json
         self.assertEqual(json['ns_ip'], 39060052)
-        self.assertEqual(json['freelist'],
+        self.assertEqual(
+            json['freelist'],
             [
                 {'start': 1, 'end': 39060051},
                 {'start': 39060053, 'end': 18446744073709551614}
@@ -217,7 +221,8 @@ class NetworkAttributesTestsIPv6(unittest.TestCase):
 
         self.assertTrue(self.net.set('ns_ip', 'fdee:172:30:128::254:253'))
         self.assertEqual(json['ns_ip'], 39060051)
-        self.assertEqual(json['freelist'],
+        self.assertEqual(
+            json['freelist'],
             [
                 {'start': 1, 'end': 39060050},
                 {'start': 39060052, 'end': 18446744073709551614}
@@ -264,14 +269,23 @@ class NetworkAttributesTestsIPv6(unittest.TestCase):
 
 class ZoneDataIPv4(unittest.TestCase):
 
-    def setUp(self):
+    @mock.patch('rpm.TransactionSet')
+    @mock.patch('rpm.addMacro')
+    def setUp(self,
+              mock_rpm_addmacro,
+              mock_rpm_transactionset,
+              ):
 
         print
+
+        packages = [
+            {'VERSION': '3.10', 'RELEASE': '999-el0', 'ARCH': 'x86_64'},
+        ]
+        mock_rpm_transactionset.return_value.dbMatch.return_value = packages
 
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
-        osimage_path = self.sandbox.create_osimage()
 
         self.cluster = luna.Cluster(
             mongo_db=self.db,
@@ -284,7 +298,7 @@ class ZoneDataIPv4(unittest.TestCase):
 
         self.osimage = luna.OsImage(
             name='testosimage',
-            path=osimage_path,
+            path=self.path,
             mongo_db=self.db,
             create=True
         )
@@ -331,17 +345,17 @@ class ZoneDataIPv4(unittest.TestCase):
             'include': '',
             'rev_include': '',
             'hosts': {
-                    'node001': '10.50.0.1',
-                    'node002': '10.50.0.2',
-                    'node003': '10.50.0.3',
-                    'node004': '10.50.0.4',
-                    'node005': '10.50.0.5',
-                    'node006': '10.50.0.6',
-                    'node007': '10.50.0.7',
-                    'node008': '10.50.0.8',
-                    'node009': '10.50.0.9',
-                    'node010': '10.50.0.10',
-                    'master':  '10.50.255.254',
+                'node001': '10.50.0.1',
+                'node002': '10.50.0.2',
+                'node003': '10.50.0.3',
+                'node004': '10.50.0.4',
+                'node005': '10.50.0.5',
+                'node006': '10.50.0.6',
+                'node007': '10.50.0.7',
+                'node008': '10.50.0.8',
+                'node009': '10.50.0.9',
+                'node010': '10.50.0.10',
+                'master':  '10.50.255.254',
             },
             'rev_zone_name': '50.10',
             'rev_hosts': {
@@ -372,17 +386,17 @@ class ZoneDataIPv4(unittest.TestCase):
             'include': '',
             'rev_include': '',
             'hosts': {
-                    'node001': '10.50.32.1',
-                    'node002': '10.50.32.2',
-                    'node003': '10.50.32.3',
-                    'node004': '10.50.32.4',
-                    'node005': '10.50.32.5',
-                    'node006': '10.50.32.6',
-                    'node007': '10.50.32.7',
-                    'node008': '10.50.32.8',
-                    'node009': '10.50.32.9',
-                    'node010': '10.50.32.10',
-                    'master':  '10.50.34.254',
+                'node001': '10.50.32.1',
+                'node002': '10.50.32.2',
+                'node003': '10.50.32.3',
+                'node004': '10.50.32.4',
+                'node005': '10.50.32.5',
+                'node006': '10.50.32.6',
+                'node007': '10.50.32.7',
+                'node008': '10.50.32.8',
+                'node009': '10.50.32.9',
+                'node010': '10.50.32.10',
+                'master':  '10.50.34.254',
             },
             'rev_zone_name': '50.10',
             'rev_hosts': {
@@ -401,7 +415,6 @@ class ZoneDataIPv4(unittest.TestCase):
         }
         self.assertEqual(self.net.zone_data, expected_dict)
 
-
     def test_zone_data_prefix19_2(self):
         self.net.set('ns_ip', '10.50.0.254')
         self.net.set('PREFIX', 19)
@@ -414,17 +427,17 @@ class ZoneDataIPv4(unittest.TestCase):
             'include': '',
             'rev_include': '',
             'hosts': {
-                    'node001': '10.50.32.1',
-                    'node002': '10.50.32.2',
-                    'node003': '10.50.32.3',
-                    'node004': '10.50.32.4',
-                    'node005': '10.50.32.5',
-                    'node006': '10.50.32.6',
-                    'node007': '10.50.32.7',
-                    'node008': '10.50.32.8',
-                    'node009': '10.50.32.9',
-                    'node010': '10.50.32.10',
-                    'master':  '10.50.32.254',
+                'node001': '10.50.32.1',
+                'node002': '10.50.32.2',
+                'node003': '10.50.32.3',
+                'node004': '10.50.32.4',
+                'node005': '10.50.32.5',
+                'node006': '10.50.32.6',
+                'node007': '10.50.32.7',
+                'node008': '10.50.32.8',
+                'node009': '10.50.32.9',
+                'node010': '10.50.32.10',
+                'master':  '10.50.32.254',
             },
             'rev_zone_name': '50.10',
             'rev_hosts': {
@@ -441,19 +454,28 @@ class ZoneDataIPv4(unittest.TestCase):
                 '254.32': 'master.testnet.',
             },
         }
-        self.assertEqual (self.net.zone_data, expected_dict)
+        self.assertEqual(self.net.zone_data, expected_dict)
 
 
 class ZoneDataIPv6(unittest.TestCase):
 
-    def setUp(self):
+    @mock.patch('rpm.TransactionSet')
+    @mock.patch('rpm.addMacro')
+    def setUp(self,
+              mock_rpm_addmacro,
+              mock_rpm_transactionset,
+              ):
 
         print
+
+        packages = [
+            {'VERSION': '3.10', 'RELEASE': '999-el0', 'ARCH': 'x86_64'},
+        ]
+        mock_rpm_transactionset.return_value.dbMatch.return_value = packages
 
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
-        osimage_path = self.sandbox.create_osimage()
 
         self.cluster = luna.Cluster(
             mongo_db=self.db,
@@ -466,7 +488,7 @@ class ZoneDataIPv6(unittest.TestCase):
 
         self.osimage = luna.OsImage(
             name='testosimage',
-            path=osimage_path,
+            path=self.path,
             mongo_db=self.db,
             create=True
         )

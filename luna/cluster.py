@@ -84,7 +84,8 @@ class Cluster(Base):
                          'named_zone_dir': type(''),
                          'dhcp_range_start': long,
                          'dhcp_range_end': long,
-                         'dhcp_net': type('')}
+                         'dhcp_net': type(''),
+                         'comment': type('')}
 
         cluster = self._get_object('general', mongo_db, create, id)
 
@@ -145,7 +146,8 @@ class Cluster(Base):
                        'dhcp_range_start': None,
                        'dhcp_range_end': None,
                        'dhcp_net': None,
-                       'db_version': db_version}
+                       'db_version': db_version,
+                       'comment': None}
 
             self.log.debug("Saving cluster '{}' to the datastore"
                            .format(cluster))
@@ -234,78 +236,111 @@ class Cluster(Base):
 
         return super(Cluster, self).set(key, value)
 
-    def makedhcp(self, netname, startip, endip, no_ha=False):
+    def makedhcp_config(self, net_name=None, start_ip=None, end_ip=None):
+
         from luna.network import Network
 
-        try:
-            if netname:
-                objnet = Network(name=netname, mongo_db=self._mongo_db)
-        except:
-            objnet = None
-        if objnet.version != 4:
-            self.log.error("Only IPv4 networks are supported.")
-            return False
+        if net_name and not (start_ip and end_ip):
+            self.log.error("IP range should be specified.")
+            return {}
 
-        if not objnet:
-            self.log.error("Proper DHCP network should be specified.")
-            return False
+        old_net_name = self.get('dhcp_net')
 
-        if not startip or not endip:
-            self.log.error("First and last IPs of range should be specified.")
-            return False
+        if not (old_net_name or net_name):
+            self.log.error("DHCP network should be specified.")
+            return {}
 
-        if not self.get_cluster_ips():
-            no_ha = True
+        frontend_address = self.get('frontend_address')
+        if not frontend_address:
+            self.log.error("Frontend address should be set.")
+            return {}
 
-        startip = utils.ip.atorel(startip, objnet._json['NETWORK'],
-                                  objnet._json['PREFIX'])
-        endip = utils.ip.atorel(endip, objnet._json['NETWORK'],
-                                objnet._json['PREFIX'])
+        net_obj = None
+        start_ip_num, end_ip_num = None, None
 
-        if not startip or not endip:
-            self.log.error("Error in acquiring IPs.")
-            return False
+        if net_name:
+            net_obj = Network(name=net_name, mongo_db=self._mongo_db)
 
-        oldnetid = self._json['dhcp_net']
-        oldstartip = self._json['dhcp_range_start']
-        oldendip = self._json['dhcp_range_end']
+            if net_obj.version != 4:
+                self.log.error("Only IPv4 networks are supported.")
+                return {}
 
-        if str(oldnetid) == str(objnet.id):
-            objnet.release_ip(oldstartip, oldendip)
-            self.unlink(objnet)
-            (oldnetid, oldstartip, oldendip) = (None, None, None)
+            start_ip_num = None
+            frontend_address_num = None
+            end_ip_num = None
+            try:
+                start_ip_num = utils.ip.atorel(
+                    start_ip, net_obj._json['NETWORK'],
+                    net_obj._json['PREFIX'])
 
-        res = objnet.reserve_ip(startip, endip)
-        if not res:
-            self.log.error("Cannot reserve IP range for DHCP.")
+                frontend_address_num = utils.ip.atorel(
+                    frontend_address, net_obj._json['NETWORK'],
+                    net_obj._json['PREFIX'])
 
-        super(Cluster, self).set('dhcp_net', str(objnet.id))
-        super(Cluster, self).set('dhcp_range_start', startip)
-        super(Cluster, self).set('dhcp_range_end', endip)
-        self.link(objnet)
+                end_ip_num = utils.ip.atorel(
+                    end_ip, net_obj._json['NETWORK'],
+                    net_obj._json['PREFIX'])
 
-        if oldnetid and oldstartip and oldendip:
-            oldnet = Network(id=ObjectId(oldnetid), mongo_db=self._mongo_db)
-            self.unlink(oldnet)
-            oldnet.release_ip(oldstartip, oldendip)
+            except RuntimeError:
+                # utils.ip will print error messages
+                pass
 
-        self._create_dhcp_config(no_ha)
+            if not start_ip_num:
+                self.log.error(
+                    'Start of the range does not belong to network.')
+                return {}
 
-        return True
+            if not start_ip_num:
+                self.log.error(
+                    'End of the range does not belong to network.')
+                return {}
 
-    def _create_dhcp_config(self, no_ha):
-        from luna.network import Network
+            if not frontend_address_num:
+                self.log.error(
+                    'Frontend IP does not belong to network.')
+                return {}
 
+            if end_ip_num < start_ip_num:
+                self.log.error(
+                    'End IP of the range should be larger than start.')
+                return {}
+
+        old_net_obj = None
+        old_start_ip = None
+        old_end_ip = None
+
+        if old_net_name and net_name:
+            # release old range
+            old_net_obj = Network(name=old_net_name, mongo_db=self._mongo_db)
+            old_start_ip = self.get('dhcp_range_start')
+            old_end_ip = self.get('dhcp_range_end')
+
+            res = old_net_obj.release_ip(old_start_ip, old_end_ip)
+
+            if not res:
+                self.log.error('Unable to release old range.')
+                return {}
+
+            self.unlink(old_net_obj)
+
+        if net_name:
+            # now try to reserve new range
+            net_obj = Network(name=net_name, mongo_db=self._mongo_db)
+            res = net_obj.reserve_ip(start_ip_num, end_ip_num)
+            if not res:
+                if old_net_obj:
+                    # need to rolback
+                    old_net_obj.reserve_ip(old_start_ip, old_end_ip)
+                self.log.error('Unable to reserve new range.')
+                return {}
+
+            super(Cluster, self).set('dhcp_net', str(net_obj.id))
+            super(Cluster, self).set('dhcp_range_start', start_ip_num)
+            super(Cluster, self).set('dhcp_range_end', end_ip_num)
+            self.link(net_obj)
+
+        # get actual options
         c = {}
-        conf_primary = {}
-        conf_secondary = {}
-
-        if self.is_ha() and not no_ha:
-            cluster_ips = self.get_cluster_ips()
-            conf_primary['my_addr'] = cluster_ips[0]
-            conf_secondary['my_addr'] = cluster_ips[1]
-            conf_primary['peer_addr'] = conf_secondary['my_addr']
-            conf_secondary['peer_addr'] = conf_primary['my_addr']
 
         c['frontend_ip'] = self.get('frontend_address')
         c['dhcp_start'] = self.get('dhcp_range_start')
@@ -313,15 +348,40 @@ class Cluster(Base):
         c['frontend_port'] = self.get('frontend_port')
         netname = self.get('dhcp_net')
         objnet = Network(name=netname, mongo_db=self._mongo_db)
-        c['NETMASK'] = objnet.get('NETMASK')
-        c['NETWORK'] = objnet.get('NETWORK')
+        c['netmask'] = objnet.get('NETMASK')
+        c['network'] = objnet.get('NETWORK')
 
         c['hmac_key'] = str(
             base64.b64encode(bytearray(os.urandom(32))).decode()
         )
+
+        c['reservations'] = objnet.get_ip_macs()
+
+        return c
+
+    def makedhcp(self, net_name=None, start_ip=None, end_ip=None, no_ha=False):
+
+        ask_ha = not no_ha
+
+        c = self.makedhcp_config(net_name, start_ip, end_ip)
+        if not c:
+            self.log.error('Unable to create DHCP config')
+            return False
+
+        conf_primary = {}
+        conf_secondary = {}
+
         tloader = template.Loader(self.get('path') + '/templates')
 
-        if self.is_ha() and not no_ha:
+        if self.is_ha() and ask_ha:
+
+            # native dhcp config
+
+            cluster_ips = self.get_cluster_ips()
+            conf_primary['my_addr'] = cluster_ips[0]
+            conf_secondary['my_addr'] = cluster_ips[1]
+            conf_primary['peer_addr'] = conf_secondary['my_addr']
+            conf_secondary['peer_addr'] = conf_primary['my_addr']
 
             dhcpd_conf_primary = tloader.load('templ_dhcpd.cfg').generate(
                 c=c, conf_primary=conf_primary,
@@ -332,22 +392,28 @@ class Cluster(Base):
                 conf_secondary=conf_secondary)
 
             f1 = open('/etc/dhcp/dhcpd.conf', 'w')
-            f2 = open('/etc/dhcp/dhcpd-secondary.conf', 'w')
             f1.write(dhcpd_conf_primary)
-            f2.write(dhcpd_conf_secondary)
             f1.close()
-            f2.close()
-        else:
 
-            dhcpd_conf = tloader.load('templ_dhcpd.cfg').generate(
-                c=c, conf_primary=None, conf_secondary=None)
-
-            f1 = open('/etc/dhcp/dhcpd.conf', 'w')
             f2 = open('/etc/dhcp/dhcpd-secondary.conf', 'w')
-            f1.write(dhcpd_conf)
-            f2.write(dhcpd_conf)
-            f1.close()
+            f2.write(dhcpd_conf_secondary)
             f2.close()
+
+            return True
+
+        dhcpd_conf = tloader.load('templ_dhcpd.cfg').generate(
+            c=c, conf_primary=None, conf_secondary=None)
+
+        f1 = open('/etc/dhcp/dhcpd.conf', 'w')
+        f1.write(dhcpd_conf)
+        f1.close()
+
+        if self.is_ha():
+            # dhcpd-secondary.conf is just a copy of dhcpd.conf
+            f2 = open('/etc/dhcp/dhcpd-secondary.conf', 'w')
+            f2.write(dhcpd_conf)
+            f2.close()
+
         return True
 
     def get_cluster_ips(self):
@@ -601,6 +667,11 @@ class Cluster(Base):
     def delete(self, force=False):
 
         if force:
-            return self._mongo_db.connection.drop_database(db_name)
+            # this will return None
+            self._mongo_db.connection.drop_database(db_name)
+            if db_name in self._mongo_db.connection.database_names():
+                self.log.error('Unable to delete DB \'{}\''.format(db_name))
+                return False
+            return True
 
         return super(Cluster, self).delete()

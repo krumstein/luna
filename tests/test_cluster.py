@@ -29,7 +29,8 @@ expected = {'name': 'general',
             'named_zone_dir': '/var/named',
             'dhcp_net': None,
             'dhcp_range_start': None,
-            'dhcp_range_end': None}
+            'dhcp_range_end': None,
+            'comment': None}
 
 
 class ClusterUtilsTests(unittest.TestCase):

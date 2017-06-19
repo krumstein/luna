@@ -56,9 +56,14 @@ class Node(Base):
         # Define the schema used to represent node objects
 
         self._collection_name = 'node'
-        self._keylist = {'port': type(''), 'localboot': type(True),
-                         'setupbmc': type(True), 'service': type(True),
-                         'mac': type('')}
+        self._keylist = {
+            'port': type(''),
+            'localboot': type(True),
+            'setupbmc': type(True),
+            'service': type(True),
+            'mac': type(''),
+            'comment': type(''),
+        }
 
         # Check if this node is already present in the datastore
         # Read it if that is the case
@@ -90,7 +95,7 @@ class Node(Base):
             node = {'name': name, 'group': self.group.DBRef, 'interfaces': {},
                     'mac': None, 'switch': None, 'port': None,
                     'localboot': localboot, 'setupbmc': setupbmc,
-                    'service': service}
+                    'service': service, 'comment': None}
 
             self.log.debug("Saving node '{}' to the datastore".format(node))
 
@@ -543,6 +548,7 @@ class Node(Base):
                     params['net'][ver]['ip'] = self.get_ip(
                         interface_uuid=boot_if_uuid,
                         version=int(ver),
+                        quiet=True
                     )
 
                     params['bootproto'] = 'static'
@@ -569,7 +575,8 @@ class Node(Base):
 
                 ip = self.get_ip(
                     interface_name=interface,
-                    version=int(ver)
+                    version=int(ver),
+                    quiet=True
                 )
 
                 if not ip:

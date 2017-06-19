@@ -1,6 +1,7 @@
 import unittest
 
 import luna
+import mock
 import getpass
 from helper_utils import Sandbox
 
@@ -10,14 +11,23 @@ class AddNetToGroupTests(unittest.TestCase):
     Add network to group with nodes
     """
 
-    def setUp(self):
+    @mock.patch('rpm.TransactionSet')
+    @mock.patch('rpm.addMacro')
+    def setUp(self,
+              mock_rpm_addmacro,
+              mock_rpm_transactionset,
+              ):
 
         print
+
+        packages = [
+            {'VERSION': '3.10', 'RELEASE': '999-el0', 'ARCH': 'x86_64'},
+        ]
+        mock_rpm_transactionset.return_value.dbMatch.return_value = packages
 
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
-        osimage_path = self.sandbox.create_osimage()
 
         self.cluster = luna.Cluster(
             mongo_db=self.db,
@@ -28,7 +38,7 @@ class AddNetToGroupTests(unittest.TestCase):
 
         self.osimage = luna.OsImage(
             name='testosimage',
-            path=osimage_path,
+            path=self.path,
             mongo_db=self.db,
             create=True
         )
@@ -119,7 +129,6 @@ class AddNetToGroupTests(unittest.TestCase):
                 'This test can be run only with MondoDB as a backend.'
             )
 
-
         self.node.delete()
         self.group = luna.Group(name=self.group.name, mongo_db=self.db)
         self.group.set_net_to_if('eth0', self.network.name)
@@ -155,14 +164,23 @@ class DeleteIPTests(unittest.TestCase):
     Test for delete ip addresses from node
     """
 
-    def setUp(self):
+    @mock.patch('rpm.TransactionSet')
+    @mock.patch('rpm.addMacro')
+    def setUp(self,
+              mock_rpm_addmacro,
+              mock_rpm_transactionset,
+              ):
 
         print
+
+        packages = [
+            {'VERSION': '3.10', 'RELEASE': '999-el0', 'ARCH': 'x86_64'},
+        ]
+        mock_rpm_transactionset.return_value.dbMatch.return_value = packages
 
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
-        osimage_path = self.sandbox.create_osimage()
 
         self.cluster = luna.Cluster(
             mongo_db=self.db,
@@ -173,7 +191,7 @@ class DeleteIPTests(unittest.TestCase):
 
         self.osimage = luna.OsImage(
             name='testosimage',
-            path=osimage_path,
+            path=self.path,
             mongo_db=self.db,
             create=True
         )
@@ -310,14 +328,23 @@ class GetIPTests(unittest.TestCase):
     Test for Node.get_ip
     """
 
-    def setUp(self):
+    @mock.patch('rpm.TransactionSet')
+    @mock.patch('rpm.addMacro')
+    def setUp(self,
+              mock_rpm_addmacro,
+              mock_rpm_transactionset,
+              ):
 
         print
+
+        packages = [
+            {'VERSION': '3.10', 'RELEASE': '999-el0', 'ARCH': 'x86_64'},
+        ]
+        mock_rpm_transactionset.return_value.dbMatch.return_value = packages
 
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
-        osimage_path = self.sandbox.create_osimage()
 
         self.cluster = luna.Cluster(
             mongo_db=self.db,
@@ -328,7 +355,7 @@ class GetIPTests(unittest.TestCase):
 
         self.osimage = luna.OsImage(
             name='testosimage',
-            path=osimage_path,
+            path=self.path,
             mongo_db=self.db,
             create=True
         )
@@ -363,6 +390,9 @@ class GetIPTests(unittest.TestCase):
             PREFIX=64,
             version=6
         )
+
+    def tearDown(self):
+        self.sandbox.cleanup()
 
     def test_get_ip_wrong_ver(self):
         self.assertFalse(self.node.get_ip('eth0', version=5))
@@ -466,14 +496,23 @@ class SetIPTests(unittest.TestCase):
     Test for Node.get_ip
     """
 
-    def setUp(self):
+    @mock.patch('rpm.TransactionSet')
+    @mock.patch('rpm.addMacro')
+    def setUp(self,
+              mock_rpm_addmacro,
+              mock_rpm_transactionset,
+              ):
 
         print
+
+        packages = [
+            {'VERSION': '3.10', 'RELEASE': '999-el0', 'ARCH': 'x86_64'},
+        ]
+        mock_rpm_transactionset.return_value.dbMatch.return_value = packages
 
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
-        osimage_path = self.sandbox.create_osimage()
 
         self.cluster = luna.Cluster(
             mongo_db=self.db,
@@ -484,7 +523,7 @@ class SetIPTests(unittest.TestCase):
 
         self.osimage = luna.OsImage(
             name='testosimage',
-            path=osimage_path,
+            path=self.path,
             mongo_db=self.db,
             create=True
         )
@@ -519,6 +558,9 @@ class SetIPTests(unittest.TestCase):
             PREFIX=64,
             version=6
         )
+
+    def tearDown(self):
+        self.sandbox.cleanup()
 
     def test_get_ip_wrong_name(self):
         self.assertFalse(self.node.set_ip(interface_name='wrong-interface',
@@ -626,19 +668,28 @@ class ChangeGroupTests(unittest.TestCase):
     Test for Node.get_ip
     """
 
-    def setUp(self):
+    @mock.patch('rpm.TransactionSet')
+    @mock.patch('rpm.addMacro')
+    def setUp(self,
+              mock_rpm_addmacro,
+              mock_rpm_transactionset,
+              ):
 
         print
+
+        packages = [
+            {'VERSION': '3.10', 'RELEASE': '999-el0', 'ARCH': 'x86_64'},
+        ]
+        mock_rpm_transactionset.return_value.dbMatch.return_value = packages
 
         self.sandbox = Sandbox()
         self.db = self.sandbox.db
         self.path = self.sandbox.path
-        osimage_path = self.sandbox.create_osimage()
 
         self.cluster = luna.Cluster(mongo_db=self.db, create=True,
                                     path=self.path, user=getpass.getuser())
 
-        self.osimage = luna.OsImage(name='testosimage', path=osimage_path,
+        self.osimage = luna.OsImage(name='testosimage', path=self.path,
                                     mongo_db=self.db, create=True)
 
         self.group = luna.Group(name='testgroup',
@@ -658,7 +709,10 @@ class ChangeGroupTests(unittest.TestCase):
 
         self.network61 = luna.Network(name="net61", mongo_db=self.db,
                                       create=True, NETWORK='fe80::',
-                                       PREFIX=64, version=6)
+                                      PREFIX=64, version=6)
+
+    def tearDown(self):
+        self.sandbox.cleanup()
 
     def test_wo_interfaces_configured(self):
 
@@ -949,6 +1003,128 @@ class ChangeGroupTests(unittest.TestCase):
             [{'start': 2, 'end': 65533}]
         )
 
+
+class GetMacTests(unittest.TestCase):
+    """
+    Test for Group.get_macs()
+    """
+
+    @mock.patch('rpm.TransactionSet')
+    @mock.patch('rpm.addMacro')
+    def setUp(self,
+              mock_rpm_addmacro,
+              mock_rpm_transactionset,
+              ):
+
+        print
+
+        packages = [
+            {'VERSION': '3.10', 'RELEASE': '999-el0', 'ARCH': 'x86_64'},
+        ]
+        mock_rpm_transactionset.return_value.dbMatch.return_value = packages
+
+        self.sandbox = Sandbox()
+        self.db = self.sandbox.db
+        self.path = self.sandbox.path
+
+        self.cluster = luna.Cluster(mongo_db=self.db, create=True,
+                                    path=self.path, user=getpass.getuser())
+
+        self.osimage = luna.OsImage(name='testosimage', path=self.path,
+                                    mongo_db=self.db, create=True)
+
+        self.group = luna.Group(name='testgroup',
+                                osimage=self.osimage.name, mongo_db=self.db,
+                                interfaces=['eth0'], create=True)
+
+        self.network = luna.Network(name="cluster", mongo_db=self.db,
+                                    create=True, NETWORK='10.141.0.0',
+                                    PREFIX=16)
+
+        self.node = luna.Node(
+            group=self.group.name, mongo_db=self.db, create=True)
+        self.node.set_mac('00:11:22:33:44:55')
+
+        self.group = luna.Group(name=self.group.name, mongo_db=self.db)
+
+    def tearDown(self):
+        self.sandbox.cleanup()
+
+    def test_wo_net_configured(self):
+        self.assertEqual(self.group.get_macs(self.network), {})
+
+    def test_wo_nodes(self):
+        self.group.set_net_to_if('eth0', self.network.name)
+        self.node.delete()
+        self.group = luna.Group(name=self.group.name, mongo_db=self.db)
+        self.assertEqual(self.group.get_macs(self.network), {})
+
+    def test_w_another_net(self):
+        net1 = luna.Network(name="net1", mongo_db=self.db,
+                            create=True, NETWORK='10.149.0.0',
+                            PREFIX=16)
+
+        self.group.set_net_to_if('eth0', net1.name)
+        self.assertEqual(self.group.get_macs(self.network), {})
+
+    def test_w_single_interface(self):
+        self.group.set_net_to_if('eth0', self.network.name)
+
+    def test_w_BOOTIF_wo_net(self):
+        self.group.add_interface('BOOTIF')
+        self.group.set_net_to_if('eth0', self.network.name)
+        self.assertEqual(
+            self.group.get_macs(self.network),
+            {
+                'node001': {
+                    'ip': '10.141.0.1',
+                    'mac': '00:11:22:33:44:55'
+                }
+            }
+
+        )
+
+    def test_w_BOOTIF_w_net(self):
+        self.group.add_interface('BOOTIF')
+        self.group.set_net_to_if('eth0', self.network.name)
+        self.group.set_net_to_if('BOOTIF', self.network.name)
+        self.assertEqual(
+            self.group.get_macs(self.network),
+            {
+                'node001': {
+                    'ip': '10.141.0.2',
+                    'mac': '00:11:22:33:44:55'
+                }
+            }
+
+        )
+
+    def test_w_BMC(self):
+        self.group.add_interface('BMC')
+        self.group.set_net_to_if('BMC', self.network.name)
+        self.assertEqual(
+            self.group.get_macs(self.network),
+            {}
+        )
+
+    def test_w_several_prov_ifs(self):
+        self.group.add_interface('eth1')
+        self.group.add_interface('BMC')
+        self.group.set_net_to_if('eth1', self.network.name)
+        self.group.set_net_to_if('BMC', self.network.name)
+        self.group.set_net_to_if('eth0', self.network.name)
+        self.assertIn(
+            self.group.get_macs(self.network)[self.node.name]['ip'],
+            ['10.141.0.1', '10.141.0.2', '10.141.0.3']
+        )
+
+    def test_node_wo_mac(self):
+        self.group.set_net_to_if('eth0', self.network.name)
+        self.node.set_mac('')
+        self.assertEqual(
+            self.group.get_macs(self.network),
+            {}
+        )
 
 if __name__ == '__main__':
     unittest.main()

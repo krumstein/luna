@@ -50,9 +50,13 @@ class Network(Base):
         # Define the schema used to represent network objects
 
         self._collection_name = 'network'
-        self._keylist = {'PREFIX': int,
-                         'ns_hostname': type(''),
-                         'include': str, 'rev_include': str}
+        self._keylist = {
+            'PREFIX': type(0),
+            'ns_hostname': type(''),
+            'include': type(''),
+            'rev_include': type(''),
+            'comment': type(''),
+        }
 
         # Check if this network is already present in the datastore
         # Read it if that is the case
@@ -302,7 +306,7 @@ class Network(Base):
     def resolve_used_ips(self):
         from luna.switch import Switch
         from luna.otherdev import OtherDev
-        from luna.node import Group
+        from luna.group import Group
 
         net = self._json
 
@@ -455,3 +459,49 @@ class Network(Base):
             zone_dict['rev_hosts'][ptr] = ptr_hostname
 
         return zone_dict
+
+    def get_ip_macs(self):
+
+        from luna.group import Group
+
+        net = self._json
+
+        try:
+            rev_links = net[usedby_key]
+        except:
+            self.log.error(("No IPs configured for network '{}'"
+                            .format(self.name)))
+            return {}
+
+        group_macs_list = []
+
+        for elem in rev_links:
+
+            if elem != "group":
+                continue
+
+            for gid in rev_links[elem]:
+                try:
+                    group = Group(id=ObjectId(gid),
+                                  mongo_db=self._mongo_db)
+                except RuntimeError:
+                    self.log.error('No group with id={} found.'
+                        .format(gid))
+                    continue
+
+                tmp_dict = group.get_macs(self)
+
+                if not tmp_dict:
+                    continue
+
+                group_macs_list.append(tmp_dict)
+
+        if not group_macs_list:
+            return {}
+
+        out_dict = group_macs_list.pop()
+
+        for elem in group_macs_list:
+            out_dict.update(elem)
+
+        return out_dict

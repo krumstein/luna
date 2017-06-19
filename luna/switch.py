@@ -54,7 +54,12 @@ class Switch(Base):
         # Define the schema used to represent switch objects
 
         self._collection_name = 'switch'
-        self._keylist = {'read': type(''), 'rw': type(''), 'oid': type('')}
+        self._keylist = {
+            'read': type(''),
+            'rw': type(''),
+            'oid': type(''),
+            'comment': type(''),
+        }
 
         # Check if this switch is already present in the datastore
         # Read it if that is the case
@@ -78,7 +83,7 @@ class Switch(Base):
             # Store the new switch in the datastore
 
             switch = {'name': name, 'network': net.DBRef, 'ip': ip,
-                      'read': read, 'rw': rw, 'oid': oid}
+                      'read': read, 'rw': rw, 'oid': oid, 'comment': None}
 
             self.log.debug("Saving switch '{}' to the datastore"
                            .format(switch))
