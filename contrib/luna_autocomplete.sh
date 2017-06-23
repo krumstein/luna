@@ -14,6 +14,9 @@ function _luna_autocomplete() {
     fi
     if [ ${COMP_CWORD} -eq 3 ]; then
         local LUNA_OBJECT=${COMP_WORDS[COMP_CWORD-2]}
+        if [ ${LUNA_OBJECT} = "cluster" -a ${COMP_WORDS[2]} = "show" ]; then
+            return 0
+        fi
         if ! [ ${COMP_WORDS[2]} = "add" -o ${COMP_WORDS[2]} = "list" ]; then
             OBJECTS=$(python -c "import luna; print \" \".join(luna.list(\"${LUNA_OBJECT}\"))" 2>/dev/null)
             COMPREPLY=($(compgen -W "${OBJECTS}" -- ${CUR}))
@@ -110,7 +113,7 @@ function _lchroot_autocomplete() {
     COMPREPLY=($(compgen -W "${LUNA_OSIMAGES}" -- ${CUR}))
     return 0
 }
-if [ $(id -u) -eq 0 ]; then    
+if [ $(id -u) -eq 0 ]; then
     complete -F _luna_autocomplete luna
     complete -F _lchroot_autocomplete lchroot
 fi
