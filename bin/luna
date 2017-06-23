@@ -339,6 +339,31 @@ def cluster_makedhcp(**args):
     return True
 
 
+def cluster_listmacs(**args):
+    cluster = luna.Cluster()
+    cached_macs = cluster.list_cached_macs()
+    out_str = []
+    for elem in cached_macs:
+        if elem['configured']:
+            conf = 'yes'
+        else:
+            conf = 'no'
+        out_str.append(
+            [
+                elem['switch'],
+                elem['port'],
+                elem['portname'],
+                elem['mac'],
+                conf,
+                elem['node'] or '-'
+            ]
+        )
+
+    print_table(['Switch', 'Port', 'Portname', 'MAC', 'Confport', 'Node'], out_str)
+
+    return True
+
+
 def _run_command(cmd, descr, err):
     log.info(descr)
     ssh_proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, close_fds=True)
@@ -1531,6 +1556,9 @@ cmd.add_argument('--end_ip', '-e',
 # delete
 cmd = cluster_a.add_parser('delete', help='Delete Luna Cluster')
 cmd.add_argument('--force', action='store_true', help='Drop backend database.')
+
+# lmistmacs
+cmd = cluster_a.add_parser('listmacs', help='List cached mac addresses.')
 
 #
 # OsImage commands
