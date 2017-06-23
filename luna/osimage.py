@@ -180,7 +180,8 @@ class OsImage(Base):
                     '--acls',
                     '--checkpoint=100',
                     '--exclude=./tmp/' + tarfile,
-                    '-c', '-z', '-f', '/tmp/' + tarfile, '.'
+                    '--use-compress-program=/usr/bin/pigz',
+                    '-c', '-f', '/tmp/' + tarfile, '.'
                 ],
                 stderr=subprocess.PIPE
             )
