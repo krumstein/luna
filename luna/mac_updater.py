@@ -40,7 +40,7 @@ class MacUpdater(object):
         self.log.name = 'MacUpdater'
 
         self._mongo_db = mongo_db
-        self.switch_col = self._mongo_db['switch']
+        self.switch_collection = self._mongo_db['switch']
         self.known_mac_col = self._mongo_db['switch_mac']
 
         aging = interval * 10
