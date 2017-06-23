@@ -82,6 +82,7 @@ Requires: openssh-server
 Requires: openssh
 Requires: openssh-clients
 Requires: tar
+Requires: pigz
 Requires: nc
 Requires: wget
 Requires: curl
