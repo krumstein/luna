@@ -174,6 +174,9 @@ OBJECTS, ACTIONS AND OPTIONS
         **--end_ip**
             End of the DHCP range.
 
+    **listmacs**
+        List mac adresses luna collected from configured switches. Those are 'learned' addresses which switches are caching in orded to perform packet forwarding. For mac addresses which are known by Luna column **Node** will be filled. In addition, if switch/port pair is configured for such node, column *Confport* will be *yes*.
+
     **delete**
         Delete cluster object from MongoDB. Command requires all the other cluster objects to be deleted already. Please note, it will not affect any files on disks. So all osimages, torrent files, configs, templates will be untouched.
 
