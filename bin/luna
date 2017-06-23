@@ -556,7 +556,7 @@ def osimage_pack(**args):
     if not update_ltorrent():
         return False
 
-    return osimage_sync(args['name'])
+    return osimage_sync(name=args['name'])
 
 
 def osimage_grab(**args):
