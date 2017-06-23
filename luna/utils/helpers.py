@@ -29,6 +29,7 @@ import sys
 import os
 import errno
 import subprocess
+import ssl
 
 
 def set_mac_node(mac, node, mongo_db=None):
@@ -37,7 +38,7 @@ def set_mac_node(mac, node, mongo_db=None):
     logger = logging.getLogger(__name__)
     if not mongo_db:
         try:
-            mongo_client = pymongo.MongoClient(get_con_options())
+            mongo_client = pymongo.MongoClient(**get_con_options())
         except:
             logger.error("Unable to connect to MongoDB.")
             raise RuntimeError
@@ -50,40 +51,43 @@ def set_mac_node(mac, node, mongo_db=None):
 
 
 def get_con_options():
-    conf = ConfigParser.ConfigParser()
+    con_options = {'host': 'mongodb://'}
+    conf_defaults = {'server': 'localhost', 'replicaset': None,
+                    'authdb': None, 'user': None, 'password': None,
+                    'SSL': None, 'CAcert': None}
+    conf = ConfigParser.ConfigParser(conf_defaults)
+
     if not conf.read("/etc/luna.conf"):
-        return "localhost"
-    try:
-        replicaset = conf.get("MongoDB", "replicaset")
-    except:
-        replicaset = None
-    try:
-        server = conf.get("MongoDB", "server")
-    except:
-        server = 'localhost'
-    try:
-        authdb = conf.get("MongoDB", "authdb")
-    except:
-        authdb = 'admin'
-    try:
-        user = conf.get("MongoDB", "user")
-        password = urllib.quote_plus(conf.get("MongoDB", "password"))
-    except:
-        user = None
-        password = None
-    if user and password and replicaset:
+        return {'host': conf_defaults['server']}
 
-        auth_str = ('mongodb://' + user + ':' + password + '@' + server + '/' +
-                    authdb + '?replicaSet=' + replicaset)
+    replicaset = conf.get("MongoDB", "replicaset")
+    server = conf.get("MongoDB", "server")
+    authdb = conf.get("MongoDB", "authdb")
+    user = conf.get("MongoDB", "user")
+    password = urllib.quote_plus(conf.get("MongoDB", "password"))
+    need_ssl = conf.get("MongoDB", "SSL")
+    ca_cert = conf.get("MongoDB", "CAcert")
 
-        return auth_str
     if user and password:
+        con_options['host'] += user + ':' + password + '@'
 
-        auth_str = ('mongodb://' + user + ':' + password + '@' + server + '/' +
-                    authdb)
+    con_options['host'] += server
 
-        return auth_str
-    return "localhost"
+    if authdb:
+        con_options['host'] += '/' + authdb
+
+    if replicaset:
+        con_options['replicaSet'] = replicaset
+
+    if need_ssl in ['Enabled', 'enabled']:
+        con_options['ssl'] = True
+        if ca_cert:
+            con_options['ssl_ca_certs'] = ca_cert
+            con_options['ssl_cert_reqs'] = ssl.CERT_REQUIRED
+        else:
+            con_options['ssl_cert_reqs'] = ssl.CERT_NONE
+            
+    return con_options
 
 
 def clone_dirs(path1=None, path2=None):
