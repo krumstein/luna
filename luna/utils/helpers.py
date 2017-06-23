@@ -306,3 +306,56 @@ def format_output(out):
         relative_pointer += content_line[-1] - 1
 
     return (lengths, header_array, content_array)
+
+
+def list_cached_macs(switch_id=None, mongo_db=None):
+    """
+    Used for list macs exist in switch_mac collection
+    """
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    if not mongo_db:
+        try:
+            mongo_client = pymongo.MongoClient(get_con_options())
+        except:
+            logger.error("Unable to connect to MongoDB.")
+            raise RuntimeError
+        logger.debug("Connection to MongoDB was successful.")
+        mongo_db = mongo_client[db_name]
+    mongo_collection = mongo_db['switch_mac']
+    if switch_id:
+        cursor = mongo_collection.find({'switch_id': switch_id})
+    else:
+        cursor = mongo_collection.find({})
+
+    res = []
+    for record in cursor:
+        res.append(record)
+
+    return res
+
+
+def list_node_macs(mongo_db=None):
+    """
+    Used for list macs assigned to nodes
+    """
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+
+    if not mongo_db:
+        try:
+            mongo_client = pymongo.MongoClient(get_con_options())
+        except:
+            logger.error("Unable to connect to MongoDB.")
+            raise RuntimeError
+        logger.debug("Connection to MongoDB was successful.")
+        mongo_db = mongo_client[db_name]
+
+    cursor = mongo_db['mac'].find()
+    node_macs = {}
+    for elem in cursor:
+        node_macs[elem['node'].id] = str(elem['mac'])
+
+    return node_macs
+
+
