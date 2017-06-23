@@ -86,7 +86,7 @@ def get_con_options():
             con_options['ssl_cert_reqs'] = ssl.CERT_REQUIRED
         else:
             con_options['ssl_cert_reqs'] = ssl.CERT_NONE
-            
+
     return con_options
 
 
@@ -316,7 +316,7 @@ def list_cached_macs(switch_id=None, mongo_db=None):
     logger = logging.getLogger(__name__)
     if not mongo_db:
         try:
-            mongo_client = pymongo.MongoClient(get_con_options())
+            mongo_client = pymongo.MongoClient(**get_con_options())
         except:
             logger.error("Unable to connect to MongoDB.")
             raise RuntimeError
@@ -344,7 +344,7 @@ def list_node_macs(mongo_db=None):
 
     if not mongo_db:
         try:
-            mongo_client = pymongo.MongoClient(get_con_options())
+            mongo_client = pymongo.MongoClient(**get_con_options())
         except:
             logger.error("Unable to connect to MongoDB.")
             raise RuntimeError
