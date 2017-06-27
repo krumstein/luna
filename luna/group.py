@@ -712,7 +712,6 @@ class Group(Base):
                 node_obj = nodes[nodename]
                 node_obj.add_ip(interface_name)
 
-
         return True
 
     def del_net_from_if(self, interface_name, mute_error=False, version='4'):
@@ -975,6 +974,60 @@ class Group(Base):
             self._networks.pop(netid)
             return True
         return False
+
+    def clone(self, name):
+
+        osimage_dbref = self.get('osimage')
+        osimage = OsImage(id=osimage_dbref.id, mongo_db=self._mongo_db)
+        bmcsetup_name = None
+        bmcsetup_dbref = self.get('bmcsetup')
+
+        if bmcsetup_dbref:
+            bmcsetup = BMCSetup(id=bmcsetup_dbref.id, mongo_db=self._mongo_db)
+            bmcsetup_name = bmcsetup.name
+
+        pre = self.get('prescript')
+        post = self.get('postscript')
+        part = self.get('partscript')
+
+        comment = self.get('comment')
+
+        if_list = self.list_ifs().keys()
+
+        domain_dbref = self.get('domain')
+        domain_name = None
+        if domain_dbref:
+            domain_net = Network(id=domain_dbref.id, mongo_db=self._mongo_db)
+            domain_name = domain_net.name
+
+        torrent_if = self.get('torrent_if')
+
+        if not torrent_if:
+            torrent_if = None
+
+        group = Group(
+            name=name,
+            create=True,
+            bmcsetup=bmcsetup_name,
+            osimage=osimage.name,
+            interfaces=if_list,
+            prescript=pre,
+            partscript=part,
+            postscript=post,
+            torrent_if=torrent_if,
+            domain=domain_name,
+            mongo_db=self._mongo_db,
+        )
+        group.set('comment', comment)
+
+        for if_name in if_list:
+            if_dict = self.show_if(if_name)
+            for ver in ['4', '6']:
+                if not if_dict['network'][ver]['name']:
+                    continue
+                group.set_net_to_if(if_name, if_dict['network'][ver]['name'])
+
+        return group
 
 
 from luna.node import Node
