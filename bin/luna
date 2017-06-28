@@ -608,31 +608,7 @@ def osimage_sync(**args):
 
 def osimage_clone(**args):
     osimage = luna.OsImage(args['name'])
-    # check if osimage we need to create exists already
-    lst = luna.list('osimage')
-    if args['to'] in lst:
-        sys.stderr.write("OsImage {} already exists.\n".format(args['to']))
-        return False
-    osimagepath = osimage.get("path")
-    targetpath = os.path.abspath(args['path'])
-    if os.path.exists(targetpath):
-        sys.stderr.write("Path {} already exists.\n".format(targetpath))
-        return False
-    print("%s => %s" % (osimagepath, targetpath))
-    utils.helpers.clone_dirs(osimagepath, targetpath)
-    # create osimage
-    newosimage = luna.OsImage(
-        name=args['to'],
-        create=True,
-        path=targetpath,
-        kernver=osimage.get('kernver')
-    )
-    # copy params
-    params = ['dracutmodules', 'kernmodules', 'kernopts',
-              'grab_filesystems', 'grab_exclude_list', 'comment']
-    for param in params:
-        newosimage.set(param, osimage.get(param))
-    return True
+    return osimage.clone(args['to'], args['path'])
 
 
 def osimage_rename(**args):
