@@ -37,6 +37,7 @@ import exceptions
 
 from luna.base import Base
 from luna.cluster import Cluster
+from luna import utils
 
 
 class OsImage(Base):
@@ -576,3 +577,32 @@ class OsImage(Base):
         os.remove(exclude_file_name)
 
         return not bool(ret_code)
+
+    def clone(self, name, path):
+        targetpath = os.path.abspath(path)
+
+        # first try to check if name is not in use already
+        # as clone is heavy and long operation it will be quite late to
+        # figure out that we are unable to create image.
+        if self._mongo_db[self._collection_name].find_one({'name': name}):
+            self.log.error("OsImage {} already exists.".format(name))
+            return None
+
+        if os.path.exists(targetpath):
+            self.log.error("Path {} already exists.".format(targetpath))
+            return None
+        osimagepath = self.get("path")
+        self.log.info("{} => {}".format(osimagepath, targetpath))
+        utils.helpers.clone_dirs(osimagepath, targetpath)
+        newosimage = OsImage(
+            name=name,
+            create=True,
+            path=targetpath,
+            kernver=self.get('kernver')
+        )
+        # copy params
+        params = ['dracutmodules', 'kernmodules', 'kernopts',
+                  'grab_filesystems', 'grab_exclude_list', 'comment']
+        for param in params:
+            newosimage.set(param, self.get(param))
+        return newosimage
