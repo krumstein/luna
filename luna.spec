@@ -219,7 +219,7 @@ if [ ! -d ${LUNA_HOME_DIR}/templates ]; then
 else
     (>&2 echo "Warning: ${LUNA_HOME_DIR}/templates exists. Please copy %{_datarootdir}/luna/templates to ${LUNA_HOME_DIR} manually")
 fi
-%{__chown} -R %{luna_user}:%{luna_group} ${LUNA_HOME_DIR}
+%{__chown} -R %{luna_user}:%{luna_group} ${LUNA_HOME_DIR}/{boot,torrents,templates}
 /usr/bin/systemctl daemon-reload
 exit 0
 
