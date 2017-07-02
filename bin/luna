@@ -493,7 +493,7 @@ def osimage_pack(**args):
         res = True
 
         try:
-            log.error('Creating torrent.')
+            log.info('Creating torrent.')
             res = osimage.create_torrent()
         except:
             res = False
@@ -502,7 +502,7 @@ def osimage_pack(**args):
             log.error("Error on creating torrent.")
             return False
 
-        log.error('Done.')
+        log.info('Done.')
         return True
 
     def pack_boot(osimage, copy):
