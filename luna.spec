@@ -194,7 +194,7 @@ case "$1" in
     1)
         # Stop services
         /usr/bin/systemctl stop lweb ltorrent 2>/dev/null || /usr/bin/true
-        # Remove user
+        # Add user
         /usr/sbin/groupadd -r %{luna_group} 2>/dev/null || /usr/bin/true
         /usr/sbin/useradd -r -g %{luna_group} -d %{luna_home} %{luna_user} 2>/dev/null || /usr/bin/true
     ;;
@@ -220,6 +220,7 @@ else
     (>&2 echo "Warning: ${LUNA_HOME_DIR}/templates exists. Please copy %{_datarootdir}/luna/templates to ${LUNA_HOME_DIR} manually")
 fi
 %{__chown} -R %{luna_user}:%{luna_group} ${LUNA_HOME_DIR}
+/usr/bin/systemctl daemon-reload
 exit 0
 
 # ///////////////////////////////////////////////
@@ -241,9 +242,11 @@ exit 0
 %postun
 case "$1" in
     # This is an un-installation (0) or an upgrade (1).
-    [0-1])
-        # Reload systemd config.
+    [0])
         /usr/sbin/userdel luna
+        /usr/bin/systemctl daemon-reload
+    ;;
+    [1])
         /usr/bin/systemctl daemon-reload
     ;;
 esac
@@ -280,10 +283,12 @@ exit 0
  - Cleanup
  - Migrating to 1.1
  - Using RPM's macroses
- * Mon May 22 2017 Dmitry Chirikov <dmitry@chirikov.ru> 1.2
+ * Mon May 22 2017 Dmitry Chirikov <dmitry@chirikov.ru> 1.2-0.1
  - IPv6 support
  - BOOTIF support. Refers to the interface that owns the mac address defined in the node object.
  - --force option for cluster delete
  - --bmcnetwork is moved to another special interface called 'BMC'
  - --debug option for luna CLI
  - --include and --rev_include for DNS zones to add custom records
+ - list cached mac addresses
+ - support parrallel gzip on osimage pack
