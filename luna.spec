@@ -1,14 +1,15 @@
 Name: luna
 Version: 1.2
-Release: 1%{?dist}
+%define build_ver 0.1
+Release: %{build_ver}%{?dist}
 
 Summary: Luna is a baremetal provisioning tool uses image-based approach
 Packager: ClusterVision
 License: GNU GPLv3
 
-Source: https://github.com/clustervision/%{name}/archive/v%{version}.tar.gz
+Source: https://github.com/clustervision/%{name}/archive/v%{version}-%{build_ver}.tar.gz
 URL: https://github.com/clustervision/luna
-BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}
+BuildRoot: %{_tmppath}/%{name}-%{version}-%{build_ver}
 
 # ///////////////////////////////////////////////
 # INTERNAL LUNA DEFINITION
@@ -105,7 +106,7 @@ Dracut module for Luna deployment tool
 # PREPARATION SECTION
 # ///////////////////////////////////////////////
 %prep
-%setup -n %{name}-%{version}
+%setup -n %{name}-%{version}-%{build_ver}
 
 # ///////////////////////////////////////////////
 # BUILD SECTION
