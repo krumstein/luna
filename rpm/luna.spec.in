@@ -1,6 +1,6 @@
 Name: luna
-Version: 1.2
-%define build_ver 0.2
+Version: __VERSION__
+%define build_ver __BUILD__
 Release: %{build_ver}%{?dist}
 
 Summary: Luna is a baremetal provisioning tool uses image-based approach
