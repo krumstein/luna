@@ -1,6 +1,6 @@
 Name: luna
 Version: 1.2
-%define build_ver 0.1
+%define build_ver 0.2
 Release: %{build_ver}%{?dist}
 
 Summary: Luna is a baremetal provisioning tool uses image-based approach
@@ -165,6 +165,8 @@ popd
 %{__mkdir_p}                                                    %{buildroot}%{_var}/log/luna
 # Example config
 %{__install} -m 644 -D contrib/nginx/luna.conf                  %{buildroot}%{_datarootdir}/luna/nginx-luna.conf
+# DB migration script
+%{__install} -m 644 -D contrib/dbmigrate-000-v1.2.py            %{buildroot}%{_datarootdir}/luna/dbmigrate-000-v1.2.py
 # Templates
 %{__install} -m 755 -d templates                                %{buildroot}%{_datarootdir}/luna/templates
 for f in templates/*; do
