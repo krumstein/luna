@@ -35,6 +35,7 @@ BuildRequires: python-docutils
 BuildRequires: gcc-c++
 BuildRequires: rb_libtorrent-devel
 BuildRequires: boost-devel
+BuildRequires: systemd-units
 
 # ///////////////////////////////////////////////
 # INSTALL REQUIREMENTS
