@@ -235,7 +235,7 @@ OBJECTS, ACTIONS AND OPTIONS
             Name of the object.
 
         **--kernver**, **-k**
-            Kernel version of the image.
+            Kernel version of the image. It is possible to specify any kernel version, not only the one installed by yum/rpm.
 
         **--kernopts**, **-o**
             Kernel options that are used to pass additional parameters to kernel on boot.
