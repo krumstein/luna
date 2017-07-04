@@ -472,6 +472,8 @@ def osimage_change(**args):
         if not (ret):
             log.error("Error changing '{}'".format(key))
 
+    return True
+
 
 def osimage_pack(**args):
     def pack_image(osimage):
