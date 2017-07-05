@@ -31,7 +31,7 @@ log = logging.getLogger(__file__)
 log.info('Luna migration script to db v1.2')
 
 try:
-    mclient = pymongo.MongoClient(get_con_options())
+    mclient = pymongo.MongoClient(**get_con_options())
     mdb = mclient[db_name]
 except:
     log.error("Unable to connect to MongoDB.")

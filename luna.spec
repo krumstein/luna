@@ -1,14 +1,15 @@
 Name: luna
 Version: 1.2
-Release: 1%{?dist}
+%define build_ver 0.2
+Release: %{build_ver}%{?dist}
 
 Summary: Luna is a baremetal provisioning tool uses image-based approach
 Packager: ClusterVision
 License: GNU GPLv3
 
-Source: https://github.com/clustervision/%{name}/archive/v%{version}.tar.gz
+Source: https://github.com/clustervision/%{name}/archive/v%{version}-%{build_ver}.tar.gz
 URL: https://github.com/clustervision/luna
-BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}
+BuildRoot: %{_tmppath}/%{name}-%{version}-%{build_ver}
 
 # ///////////////////////////////////////////////
 # INTERNAL LUNA DEFINITION
@@ -34,6 +35,7 @@ BuildRequires: python-docutils
 BuildRequires: gcc-c++
 BuildRequires: rb_libtorrent-devel
 BuildRequires: boost-devel
+BuildRequires: systemd-units
 
 # ///////////////////////////////////////////////
 # INSTALL REQUIREMENTS
@@ -82,6 +84,7 @@ Requires: openssh-server
 Requires: openssh
 Requires: openssh-clients
 Requires: tar
+Requires: pigz
 Requires: nc
 Requires: wget
 Requires: curl
@@ -104,7 +107,7 @@ Dracut module for Luna deployment tool
 # PREPARATION SECTION
 # ///////////////////////////////////////////////
 %prep
-%setup -n %{name}-%{version}
+%setup -n %{name}-%{version}-%{build_ver}
 
 # ///////////////////////////////////////////////
 # BUILD SECTION
@@ -162,6 +165,8 @@ popd
 %{__mkdir_p}                                                    %{buildroot}%{_var}/log/luna
 # Example config
 %{__install} -m 644 -D contrib/nginx/luna.conf                  %{buildroot}%{_datarootdir}/luna/nginx-luna.conf
+# DB migration script
+%{__install} -m 644 -D contrib/dbmigrate-000-v1.2.py            %{buildroot}%{_datarootdir}/luna/dbmigrate-000-v1.2.py
 # Templates
 %{__install} -m 755 -d templates                                %{buildroot}%{_datarootdir}/luna/templates
 for f in templates/*; do
@@ -192,7 +197,7 @@ case "$1" in
     1)
         # Stop services
         /usr/bin/systemctl stop lweb ltorrent 2>/dev/null || /usr/bin/true
-        # Remove user
+        # Add user
         /usr/sbin/groupadd -r %{luna_group} 2>/dev/null || /usr/bin/true
         /usr/sbin/useradd -r -g %{luna_group} -d %{luna_home} %{luna_user} 2>/dev/null || /usr/bin/true
     ;;
@@ -217,7 +222,8 @@ if [ ! -d ${LUNA_HOME_DIR}/templates ]; then
 else
     (>&2 echo "Warning: ${LUNA_HOME_DIR}/templates exists. Please copy %{_datarootdir}/luna/templates to ${LUNA_HOME_DIR} manually")
 fi
-%{__chown} -R %{luna_user}:%{luna_group} ${LUNA_HOME_DIR}
+%{__chown} -R %{luna_user}:%{luna_group} ${LUNA_HOME_DIR}/{boot,torrents,templates}
+/usr/bin/systemctl daemon-reload
 exit 0
 
 # ///////////////////////////////////////////////
@@ -239,9 +245,11 @@ exit 0
 %postun
 case "$1" in
     # This is an un-installation (0) or an upgrade (1).
-    [0-1])
-        # Reload systemd config.
+    [0])
         /usr/sbin/userdel luna
+        /usr/bin/systemctl daemon-reload
+    ;;
+    [1])
         /usr/bin/systemctl daemon-reload
     ;;
 esac
@@ -278,10 +286,12 @@ exit 0
  - Cleanup
  - Migrating to 1.1
  - Using RPM's macroses
- * Mon May 22 2017 Dmitry Chirikov <dmitry@chirikov.ru> 1.2
+ * Mon May 22 2017 Dmitry Chirikov <dmitry@chirikov.ru> 1.2-0.1
  - IPv6 support
  - BOOTIF support. Refers to the interface that owns the mac address defined in the node object.
  - --force option for cluster delete
  - --bmcnetwork is moved to another special interface called 'BMC'
  - --debug option for luna CLI
  - --include and --rev_include for DNS zones to add custom records
+ - list cached mac addresses
+ - support parrallel gzip on osimage pack

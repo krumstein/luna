@@ -223,16 +223,19 @@ class Cluster(Base):
                 return None
 
         elif key == 'cluster_ips':
-            val = ''
-            for ip in value.split(","):
-                try:
-                    utils.ip.aton(ip.strip())
-                    val += ip + ','
-                except:
-                    self.log.error("Wrong ip address specified.")
-                    return None
+            if not bool(value):
+                value = ''
+            else:
+                val = ''
+                for ip in value.split(","):
+                    try:
+                        utils.ip.aton(ip.strip())
+                        val += ip + ','
+                    except:
+                        self.log.error("Wrong ip address specified.")
+                        return None
 
-            value = val[:-1]
+                value = val[:-1]
 
         return super(Cluster, self).set(key, value)
 
@@ -675,3 +678,69 @@ class Cluster(Base):
             return True
 
         return super(Cluster, self).delete()
+
+    def list_cached_macs(self):
+        from luna.switch import Switch
+        from luna.node import Node
+        cached_macs = utils.helpers.list_cached_macs(mongo_db=self._mongo_db)
+
+        rlinks = self.get(usedby_key)
+        if not rlinks or 'switch' not in rlinks or not rlinks['switch']:
+            self.log.error("No switches configured in this cluster")
+            return False
+
+        switchids = {}
+        switchnames = {}
+        for switchid in rlinks['switch']:
+            sw = Switch(id=ObjectId(switchid), mongo_db=self._mongo_db)
+            switchids[switchid] = sw.name
+            switchnames[sw.name] = switchid
+
+        nodeids_macs = utils.helpers.list_node_macs(mongo_db=self._mongo_db)
+        macs_nodenames = {}
+
+        for nodeid in nodeids_macs:
+            node = Node(id=ObjectId(nodeid), mongo_db=self._mongo_db)
+            macs_nodenames[nodeids_macs[nodeid]] = {
+                'name': node.name,
+                'switch_id': node.get('switch'),
+                'port': node.get('port'),
+            }
+
+        swlist = switchnames.keys()
+        swlist.sort()
+
+        for i in range(len(cached_macs)):
+            swid = str(cached_macs[i]['switch_id'])
+            cached_macs[i]['switch'] = switchids[swid]
+            if cached_macs[i]['mac'] in macs_nodenames:
+                node = macs_nodenames[cached_macs[i]['mac']]
+                nodename = node['name']
+
+                if ((cached_macs[i]['port'] == node['port'] or
+                        cached_macs[i]['portname'] == node['port']) and
+                        node['switch_id'] and
+                        cached_macs[i]['switch_id'] == node['switch_id'].id):
+                    cached_macs[i]['configured'] = True
+                else:
+                    cached_macs[i]['configured'] = False
+
+                cached_macs[i]['node'] = nodename
+            else:
+                cached_macs[i]['node'] = None
+                cached_macs[i]['configured'] = False
+            cached_macs[i].pop('_id')
+            cached_macs[i].pop('switch_id')
+            cached_macs[i].pop('updated')
+
+        res = sorted(
+            cached_macs,
+            key=lambda x: (x['switch'],
+                           int(x['port']),
+                           x['portname'],
+                           x['mac'],
+                           x['node'],
+                           )
+        )
+
+        return res

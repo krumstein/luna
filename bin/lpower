@@ -96,7 +96,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     hosts = hostlist.expand_hostlist(args.hostlist)
     try:
-        mongo_client = pymongo.MongoClient(utils.helpers.get_con_options())
+        con_options = utils.helpers.get_con_options()
+        mongo_client = pymongo.MongoClient(**con_options)
     except:
         self.logger.error("Unable to connect to MongoDB.")
         raise RuntimeError

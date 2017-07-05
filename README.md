@@ -32,8 +32,8 @@ Let's assume you have a server using the IP address `10.30.255.254` to provision
 ```
 yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 yum -y install wget python-docutils gcc-c++ rb_libtorrent-devel boost-devel make rpm-build redhat-rpm-config
-wget https://github.com/clustervision/luna/archive/v1.2.tar.gz
-rpmbuild -ta v1.2.tar.gz
+wget https://github.com/clustervision/luna/archive/v1.2-0.1.tar.gz
+rpmbuild -ta v1.2-0.1.tar.gz
 ```
 ### Install hostlist
 Source code is available [here](https://www.nsc.liu.se/~kent/python-hostlist/)
@@ -44,7 +44,7 @@ yum -y install python-hostlist-1.17-1.noarch.rpm
 ```
 ### Install Luna
 ```
-yum -y install luna-1.2-1.el7.centos.x86_64.rpm
+yum -y install luna-1.2-0.1.el7.centos.x86_64.rpm
 ```
 
 ### Setup environment
@@ -95,7 +95,7 @@ rpm --root /opt/luna/os/compute -ivh centos-release\*.rpm
 yum --installroot=/opt/luna/os/compute -y groupinstall Base
 yum --installroot=/opt/luna/os/compute -y install kernel
 yum --installroot=/opt/luna/os/compute -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
-yum --installroot=/opt/luna/os/compute -y install luna-client-1.2-1.el7.centos.x86_64.rpm
+yum --installroot=/opt/luna/os/compute -y install luna-client-1.2-0.1.el7.centos.x86_64.rpm
 ```
 
 #### Setup sshd, paswordless access and password for the root user in osimage

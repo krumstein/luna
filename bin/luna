@@ -142,7 +142,7 @@ def cluster_change(**args):
         return True
 
     for key in args:
-        if not args[key]:
+        if args[key] == None or args[key] == False:
             continue
         res = cluster.set(key, args[key])
         if not bool(res):
@@ -339,6 +339,32 @@ def cluster_makedhcp(**args):
     return True
 
 
+def cluster_listmacs(**args):
+    cluster = luna.Cluster()
+    cached_macs = cluster.list_cached_macs()
+    out_str = []
+    for elem in cached_macs:
+        if elem['configured']:
+            conf = 'yes'
+        else:
+            conf = 'no'
+        out_str.append(
+            [
+                elem['switch'],
+                elem['port'],
+                elem['portname'],
+                elem['mac'],
+                conf,
+                elem['node'] or '-'
+            ]
+        )
+
+    print_table(
+        ['Switch', 'Port', 'Portname', 'MAC', 'Confport', 'Node'], out_str)
+
+    return True
+
+
 def _run_command(cmd, descr, err):
     log.info(descr)
     ssh_proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, close_fds=True)
@@ -446,6 +472,8 @@ def osimage_change(**args):
         if not (ret):
             log.error("Error changing '{}'".format(key))
 
+    return True
+
 
 def osimage_pack(**args):
     def pack_image(osimage):
@@ -467,7 +495,7 @@ def osimage_pack(**args):
         res = True
 
         try:
-            log.error('Creating torrent.')
+            log.info('Creating torrent.')
             res = osimage.create_torrent()
         except:
             res = False
@@ -476,7 +504,7 @@ def osimage_pack(**args):
             log.error("Error on creating torrent.")
             return False
 
-        log.error('Done.')
+        log.info('Done.')
         return True
 
     def pack_boot(osimage, copy):
@@ -531,7 +559,7 @@ def osimage_pack(**args):
     if not update_ltorrent():
         return False
 
-    return osimage_sync(args['name'])
+    return osimage_sync(name=args['name'])
 
 
 def osimage_grab(**args):
@@ -582,31 +610,7 @@ def osimage_sync(**args):
 
 def osimage_clone(**args):
     osimage = luna.OsImage(args['name'])
-    # check if osimage we need to create exists already
-    lst = luna.list('osimage')
-    if args['to'] in lst:
-        sys.stderr.write("OsImage {} already exists.\n".format(args['to']))
-        return False
-    osimagepath = osimage.get("path")
-    targetpath = os.path.abspath(args['path'])
-    if os.path.exists(targetpath):
-        sys.stderr.write("Path {} already exists.\n".format(targetpath))
-        return False
-    print("%s => %s" % (osimagepath, targetpath))
-    utils.helpers.clone_dirs(osimagepath, targetpath)
-    # create osimage
-    newosimage = luna.OsImage(
-        name=args['to'],
-        create=True,
-        path=targetpath,
-        kernver=osimage.get('kernver')
-    )
-    # copy params
-    params = ['dracutmodules', 'kernmodules', 'kernopts',
-              'grab_filesystems', 'grab_exclude_list', 'comment']
-    for param in params:
-        newosimage.set(param, osimage.get(param))
-    return True
+    return osimage.clone(args['to'], args['path'])
 
 
 def osimage_rename(**args):
@@ -986,66 +990,9 @@ def group_change(**args):
 
 
 def group_clone(**args):
-
     source_group = luna.Group(name=args['name'])
-
-    # Get all the configured parameters
-
-    osimage_dbref = source_group.get('osimage')
-    osimage = luna.OsImage(id=osimage_dbref.id)
-
-    bmcsetup_name = None
-    bmcsetup_dbref = source_group.get('bmcsetup')
-    if bmcsetup_dbref:
-        bmcsetup = luna.BMCSetup(id=bmcsetup_dbref.id)
-        bmcsetup_name = bmcsetup.name
-
-    pre = source_group.get('prescript')
-    post = source_group.get('postscript')
-    part = source_group.get('partscript')
-
-    comment = source_group.get('comment')
-
-    if_list = source_group.list_ifs().keys()
-
-    domain_dbref = source_group.get('domain')
-    domain_name = None
-    if domain_dbref:
-        domain_net = luna.Network(id=domain_dbref.id)
-        domain_name = domain_net.name
-
-    torrent_if = source_group.get('torrent_if')
-    if not torrent_if:
-        torrent_if = None
-
-    # create group
-
-    group = luna.Group(
-        name=args['to'],
-        create=True,
-        prescript=pre,
-        bmcsetup=bmcsetup_name,
-        partscript=part,
-        osimage=osimage.name,
-        interfaces=if_list,
-        postscript=post,
-        torrent_if=torrent_if,
-        domain=domain_name
-    )
-
-    group.set('comment', comment)
-
-    # assign networks
-
-    for if_name in if_list:
-        if_dict = source_group.show_if(if_name)
-
-        for ver in ['4', '6']:
-            if not if_dict['network'][ver]['name']:
-                continue
-            group.set_net_to_if(if_name, if_dict['network'][ver]['name'])
-
-    return True
+    new_group = source_group.clone(args['to'])
+    return new_group
 
 
 def group_delete(**args):
@@ -1531,6 +1478,9 @@ cmd.add_argument('--end_ip', '-e',
 # delete
 cmd = cluster_a.add_parser('delete', help='Delete Luna Cluster')
 cmd.add_argument('--force', action='store_true', help='Drop backend database.')
+
+# lmistmacs
+cmd = cluster_a.add_parser('listmacs', help='List cached mac addresses.')
 
 #
 # OsImage commands

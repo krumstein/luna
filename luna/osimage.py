@@ -37,6 +37,7 @@ import exceptions
 
 from luna.base import Base
 from luna.cluster import Cluster
+from luna import utils
 
 
 class OsImage(Base):
@@ -180,7 +181,8 @@ class OsImage(Base):
                     '--acls',
                     '--checkpoint=100',
                     '--exclude=./tmp/' + tarfile,
-                    '-c', '-z', '-f', '/tmp/' + tarfile, '.'
+                    '--use-compress-program=/usr/bin/pigz',
+                    '-c', '-f', '/tmp/' + tarfile, '.'
                 ],
                 stderr=subprocess.PIPE
             )
@@ -230,23 +232,23 @@ class OsImage(Base):
         tarball_uid = self.get('tarball')
         if not tarball_uid:
             self.log.error("No tarball in DB.")
-            return None
+            return False
 
         cluster = Cluster(mongo_db=self._mongo_db)
         tarball = cluster.get('path') + "/torrents/" + tarball_uid + ".tgz"
         if not os.path.exists(tarball):
             self.log.error("Wrong path in DB.")
-            return None
+            return False
 
         tracker_address = cluster.get('frontend_address')
         if tracker_address == '':
             self.log.error("Tracker address needs to be configured.")
-            return None
+            return False
 
         tracker_port = cluster.get('frontend_port')
         if tracker_port == 0:
             self.log.error("Tracker port needs to be configured.")
-            return None
+            return False
 
         user = cluster.get('user')
         user_id = pwd.getpwnam(user).pw_uid
@@ -340,6 +342,8 @@ class OsImage(Base):
 
         dracut_succeed = True
 
+        create = None
+
         try:
             dracut_modules = subprocess.Popen(['/usr/sbin/dracut', '--kver',
                                                kernver, '--list-modules'],
@@ -350,6 +354,7 @@ class OsImage(Base):
                 line = dracut_modules.stdout.readline()
                 if line.strip() == 'luna':
                     luna_exists = True
+                    break
 
             if not luna_exists:
                 self.log.error("No luna dracut module in osimage '{}'"
@@ -367,7 +372,10 @@ class OsImage(Base):
         except:
             dracut_succeed = False
 
-        if create.returncode:
+        if create and create.returncode:
+            dracut_succeed = False
+
+        if not create:
             dracut_succeed = False
 
         os.fchdir(real_root)
@@ -489,6 +497,8 @@ class OsImage(Base):
             rsync_opts += r''' --dry-run '''
             verbose = True
 
+        ret_code = 1
+
         # enumarete all filesystems
         for fs in grab_filesystems:
             ret_code = 0
@@ -565,3 +575,34 @@ class OsImage(Base):
 
         # remove temp file
         os.remove(exclude_file_name)
+
+        return not bool(ret_code)
+
+    def clone(self, name, path):
+        targetpath = os.path.abspath(path)
+
+        # first try to check if name is not in use already
+        # as clone is heavy and long operation it will be quite late to
+        # figure out that we are unable to create image.
+        if self._mongo_db[self._collection_name].find_one({'name': name}):
+            self.log.error("OsImage {} already exists.".format(name))
+            return None
+
+        if os.path.exists(targetpath):
+            self.log.error("Path {} already exists.".format(targetpath))
+            return None
+        osimagepath = self.get("path")
+        self.log.info("{} => {}".format(osimagepath, targetpath))
+        utils.helpers.clone_dirs(osimagepath, targetpath)
+        newosimage = OsImage(
+            name=name,
+            create=True,
+            path=targetpath,
+            kernver=self.get('kernver')
+        )
+        # copy params
+        params = ['dracutmodules', 'kernmodules', 'kernopts',
+                  'grab_filesystems', 'grab_exclude_list', 'comment']
+        for param in params:
+            newosimage.set(param, self.get(param))
+        return newosimage

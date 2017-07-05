@@ -603,6 +603,8 @@ class Node(Base):
                 json.pop(attr)
 
         json['group'] = get_value(json['group'])
+        if json['switch']:
+            json['switch'] = get_value(json['switch'])
 
         return json
 
