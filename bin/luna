@@ -142,7 +142,7 @@ def cluster_change(**args):
         return True
 
     for key in args:
-        if not args[key]:
+        if args[key] == None or args[key] == False:
             continue
         res = cluster.set(key, args[key])
         if not bool(res):

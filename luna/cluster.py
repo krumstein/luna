@@ -223,16 +223,19 @@ class Cluster(Base):
                 return None
 
         elif key == 'cluster_ips':
-            val = ''
-            for ip in value.split(","):
-                try:
-                    utils.ip.aton(ip.strip())
-                    val += ip + ','
-                except:
-                    self.log.error("Wrong ip address specified.")
-                    return None
+            if not bool(value):
+                value = ''
+            else:
+                val = ''
+                for ip in value.split(","):
+                    try:
+                        utils.ip.aton(ip.strip())
+                        val += ip + ','
+                    except:
+                        self.log.error("Wrong ip address specified.")
+                        return None
 
-            value = val[:-1]
+                value = val[:-1]
 
         return super(Cluster, self).set(key, value)
 
