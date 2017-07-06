@@ -162,8 +162,8 @@ OBJECTS, ACTIONS AND OPTIONS
 
         NOTE. During its lifetime node uses 2 IP addresses. The first one will be acquired in the PXE environment, which is from DHCP range. Second is being assigned manually in initrd environment (if **--boot_if** is configured for node) and in OS. This is valid for all nodes, even for already known nodes. Luna does not change lease files on node discovery.
 
-        **--no_ha**
-            In HA environment (i.e., if **--cluster_ips** is configured) do not use native DHCPD HA feature. Luna will just put the same copy of *dhcpd.conf* on both master nodes to support Active/Passive HA config. Has no effect for standalone setups and can be omitted.
+        **--native_dhcp_ha**
+            In HA environment (i.e., if **--cluster_ips** is configured) use native DHCPD HA feature. By default Luna will just put the same copy of *dhcpd.conf* on both master nodes to support Active/Passive HA config. Has no effect for standalone setups and can be omitted.
 
         **--network**
             Name of the **network** object.

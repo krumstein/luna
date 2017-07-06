@@ -245,6 +245,7 @@ def cluster_makedns(**args):
 
 def cluster_makedhcp(**args):
     cluster = luna.Cluster()
+    no_ha = not args['native_dhcp_ha']
 
     if args['network'] and not (args['start_ip'] and args['end_ip']):
         log.error('Network range should be specified')
@@ -255,7 +256,7 @@ def cluster_makedhcp(**args):
         return False
 
     res = cluster.makedhcp(args['network'], args['start_ip'],
-                           args['end_ip'], args['no_ha'])
+                           args['end_ip'], no_ha=no_ha)
     if not res:
         log.error('Error on creating DHCP config.')
         return False
@@ -314,7 +315,7 @@ def cluster_makedhcp(**args):
         f = open('/var/lib/dhcpd/dhcpd.leases', 'w')
         f.close()
     except:
-        log.warning('Erron on erasing dhcpd.leases. Trying to proceed.')
+        log.warning('Error on erasing dhcpd.leases. Trying to proceed.')
     try:
         os.remove('/var/lib/dhcpd/dhcpd.leases~')
     except:
@@ -325,7 +326,7 @@ def cluster_makedhcp(**args):
         "Unable to start dhcpd. Exit code is non-zero."
     )
     time.sleep(3)
-    if not cluster.is_ha() or args['no_ha']:
+    if not cluster.is_ha() or no_ha:
         return True
     for ip in ips:
         _run_command(
@@ -1468,8 +1469,8 @@ cmd = cluster_a.add_parser('makedns', help='Configure named')
 
 # makedhcp
 cmd = cluster_a.add_parser('makedhcp', help='Configure dhcpd')
-cmd.add_argument('--no_ha', action='store_true',
-                 help='Create high available DHCP config.')
+cmd.add_argument('--native_dhcp_ha', action='store_true',
+                 help='Create (native) config for high available DHCP.')
 cmd.add_argument('--network', '-N', help='Network name')
 cmd.add_argument('--start_ip', '-s',
                  help='First ip in dynamic range')
