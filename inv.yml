@@ -1,2 +1,4 @@
 [controller]
 127.0.0.1
+[osimages]
+test ansible_connection="lchroot"
