@@ -220,7 +220,10 @@ class OsImage(Base):
         os.chroot(".")
         os.close(real_root)
 
-        shutil.move(image_path + '/tmp/' + tarfile, path_to_store)
+        # copy image, so permissions and selinux contexts
+        # will be inherited from parent folder
+        shutil.copy(image_path + '/tmp/' + tarfile, path_to_store)
+        os.remove(image_path + '/tmp/' + tarfile)
         os.chown(path_to_store + '/' + tarfile, user_id, grp_id)
         os.chmod(path_to_store + '/' + tarfile, 0644)
         self.set('tarball', str(uid))
@@ -398,7 +401,9 @@ class OsImage(Base):
             self.log.error("Unable to find initrd in {}".format(initrd_path))
             return False
 
-        shutil.move(initrd_path, path_to_store + '/' + initrdfile)
+        # copy initrd file to inherit perms from parent folder
+        shutil.copy(initrd_path, path_to_store + '/' + initrdfile)
+        os.remove(initrd_path)
         shutil.copy(kernel_path, path_to_store + '/' + kernfile)
         os.chown(path_to_store + '/' + initrdfile, user_id, grp_id)
         os.chmod(path_to_store + '/' + initrdfile, 0644)
