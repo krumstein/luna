@@ -63,4 +63,4 @@ fi
 cp /tmp/fake_uname.so $CHROOT_PATH/tmp/
 echo "IMAGE PATH: $CHROOT_PATH"
 shift
-FAKE_KERN=$FAKE_KERN LD_PRELOAD=/tmp/fake_uname.so PS1="chroot [\u@$OSIMAGE \W]\$ " chroot $CHROOT_PATH $@
+FAKE_KERN=$FAKE_KERN LD_PRELOAD=/tmp/fake_uname.so PS1="chroot [\u@$OSIMAGE \W]\$ " chroot $CHROOT_PATH "$@"
