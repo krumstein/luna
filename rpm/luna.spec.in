@@ -57,16 +57,16 @@ Requires: bind-chroot
 Requires: python2-llfuse
 Requires: python-requests
 
-Requires(pre):   /usr/sbin/useradd,/usr/sbin/userdel
-Requires(pre):  /usr/bin/systemctl
+Requires(pre):   %{_sbindir}/useradd,%{_sbindir}/userdel
+Requires(pre):   %{_bindir}/systemctl
 
-Requires(post):  /usr/bin/sed
-Requires(post):  /usr/bin/systemctl
-Requires(post):  /usr/sbin/groupadd,/usr/sbin/groupdel
-Requires(post):  /usr/bin/chmod,/usr/bin/chown
-Requires(post):  /usr/bin/getent,/usr/bin/id
+Requires(post):  %{_bindir}/sed
+Requires(post):  %{_bindir}/systemctl
+Requires(post):  %{_sbindir}/groupadd,%{_sbindir}/groupdel
+Requires(post):  %{_bindir}/chmod,%{_bindir}/chown
+Requires(post):  %{_bindir}/getent,%{_bindir}/id
 
-Requires(preun): /usr/bin/systemctl
+Requires(preun): %{_bindir}/systemctl
 
 # ///////////////////////////////////////////////
 # DESCRIPTION
@@ -254,16 +254,16 @@ case "$1" in
     # This is an initial install.
     1)
         # Stop services
-        /usr/bin/systemctl stop lweb ltorrent 2>/dev/null || /usr/bin/true
+        %{_bindir}/systemctl stop lweb ltorrent 2>/dev/null || %{_bindir}/true
         # Add user
-        /usr/sbin/groupadd -r %{luna_group} 2>/dev/null || /usr/bin/true
-        /usr/sbin/useradd -r -g %{luna_group} -d %{luna_home} %{luna_user} 2>/dev/null || /usr/bin/true
+        %{_sbindir}/groupadd -r %{luna_group} 2>/dev/null || %{_bindir}/true
+        %{_sbindir}/useradd -r -g %{luna_group} -d %{luna_home} %{luna_user} 2>/dev/null || %{_bindir}/true
     ;;
 
     # This is an upgrade.
     2)
         # Stop services
-        /usr/bin/systemctl stop lweb ltorrent 2>/dev/null || /usr/bin/true
+        %{_bindir}/systemctl stop lweb ltorrent 2>/dev/null || %{_bindir}/true
     ;;
 esac
 exit 0
@@ -281,8 +281,8 @@ else
     (>&2 echo "Warning: ${LUNA_HOME_DIR}/templates exists. Please copy %{_datadir}/luna/templates to ${LUNA_HOME_DIR} manually")
 fi
 %{__chown} -R %{luna_user}:%{luna_group} ${LUNA_HOME_DIR}/{boot,torrents,templates}
-/usr/bin/systemctl daemon-reload
-/usr/bin/firewall-cmd --reload 2>/dev/null || /usr/bin/true
+%{_bindir}/systemctl daemon-reload
+%{_bindir}/firewall-cmd --reload 2>/dev/null || %{_bindir}/true
 exit 0
 
 # ///////////////////////////////////////////////
@@ -293,7 +293,7 @@ case "$1" in
     # This is an un-installation (0) or an upgrade (1).
     [0-1])
         # Stop luna services
-        /usr/bin/systemctl stop lweb ltorrent 2>/dev/null || /usr/bin/true
+        %{_bindir}/systemctl stop lweb ltorrent 2>/dev/null || %{_bindir}/true
     ;;
 esac
 exit 0
@@ -305,13 +305,13 @@ exit 0
 case "$1" in
     # This is an un-installation (0) or an upgrade (1).
     [0])
-        /usr/sbin/userdel luna
-        /usr/bin/systemctl daemon-reload
-        /usr/bin/firewall-cmd --reload  2>/dev/null || /usr/bin/true
+        %{_sbindir}/userdel luna
+        %{_bindir}/systemctl daemon-reload
+        %{_bindir}/firewall-cmd --reload  2>/dev/null || %{_bindir}/true
     ;;
     [1])
-        /usr/bin/systemctl daemon-reload
-        /usr/bin/firewall-cmd --reload  2>/dev/null || /usr/bin/true
+        %{_bindir}/systemctl daemon-reload
+        %{_bindir}/firewall-cmd --reload  2>/dev/null || %{_bindir}/true
     ;;
 esac
 exit 0
@@ -320,9 +320,9 @@ exit 0
 # POST INSTALLATION PHASE SELINUX
 # ///////////////////////////////////////////////
 %post selinux
-/usr/sbin/semodule -i %{_datadir}/selinux/packages/%{name}/luna.pp
+%{_sbindir}/semodule -i %{_datadir}/selinux/packages/%{name}/luna.pp
 LUNA_HOME_DIR=$(eval echo ~%{luna_user})
-TMPFILE=$(/usr/bin/mktemp)
+TMPFILE=$(%{_bindir}/mktemp)
 cat > ${TMPFILE} << EOF
 fcontext -a -t luna_conf_t "${LUNA_HOME_DIR}/templates(/.*)?"
 fcontext -a -t luna_boot_files_t "${LUNA_HOME_DIR}/boot(/.*)?"
@@ -333,12 +333,12 @@ port -a -t lweb_port_t -p tcp 7051
 port -a -t luna_frontend_port_t -p tcp 7050
 EOF
 
-/usr/sbin/semanage import -f ${TMPFILE}
+%{_sbindir}/semanage import -f ${TMPFILE}
 
 for DIR in templates boot torrents; do
-    /usr/sbin/restorecon -R -v ${LUNA_HOME_DIR}/${DIR} >/dev/null 2>&1 || /usr/bin/true
+    %{_sbindir}/restorecon -R -v ${LUNA_HOME_DIR}/${DIR} >/dev/null 2>&1 || %{_bindir}/true
 done
-/usr/bin/rm -rf ${TMPFILE}
+%{_bindir}/rm -rf ${TMPFILE}
 exit 0
 
 # ///////////////////////////////////////////////
@@ -348,14 +348,14 @@ exit 0
 # uninstall
 if [ $1 -eq 0 ]; then
     LUNA_HOME_DIR=$(eval echo ~%{luna_user})
-    TMPFILE=$(/usr/bin/mktemp)
-    /usr/sbin/semanage export | /usr/bin/sed -n "/\luna\|lweb\|ltorrent/{s/ -a / -d /p}" > ${TMPFILE}
-    /usr/sbin/semanage import -f ${TMPFILE}
-    /usr/sbin/semodule -r luna >/dev/null 2>&1 || /usr/bin/true
+    TMPFILE=$(%{_bindir}/mktemp)
+    %{_sbindir}/semanage export | %{_bindir}/sed -n "/\luna\|lweb\|ltorrent/{s/ -a / -d /p}" > ${TMPFILE}
+    %{_sbindir}/semanage import -f ${TMPFILE}
+    %{_sbindir}/semodule -r luna >/dev/null 2>&1 || %{_bindir}/true
     for DIR in templates boot torrents; do
-        /usr/sbin/restorecon -R -v ${LUNA_HOME_DIR}/${DIR} >/dev/null 2>&1 || /usr/bin/true
+        %{_sbindir}/restorecon -R -v ${LUNA_HOME_DIR}/${DIR} >/dev/null 2>&1 || %{_bindir}/true
     done
-    /usr/bin/rm -rf ${TMPFILE}
+    %{_bindir}/rm -rf ${TMPFILE}
 fi
 exit 0
 
