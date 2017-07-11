@@ -346,7 +346,7 @@ class GroupConfigTests(unittest.TestCase):
             show_if_expected
         )
 
-        self.group.del_net_from_if('eth0', version='6')
+        self.group.del_net_from_if('eth0')
 
         # check if we get the same dictionary at the and
         end_dict = self.db['group'].find_one({'_id': self.group._id})

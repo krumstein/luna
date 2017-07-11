@@ -967,7 +967,12 @@ def group_change(**args):
         elif bool(args['setnet']):
             return group.set_net_to_if(args['interface'], args['setnet'])
         elif bool(args['delnet']):
-            return group.del_net_from_if(args['interface'])
+            netname = None
+            if type(args['delnet']) == str:
+                netname = args['delnet']
+            ret = group.del_net_from_if(
+                args['interface'], network_name=netname)
+            return ret
         elif bool(args['rename']):
             return group.rename_interface(args['interface'], args['rename'])
         elif args['edit']:
@@ -1730,7 +1735,8 @@ cmd.add_argument('--delete', '-D', action='store_true',
                  help='Delete interface')
 cmd.add_argument('--setnet', '--sn', metavar='NETWORK',
                  help='Set Network for interface or for BMC')
-cmd.add_argument('--delnet', '--dn', action='store_true',
+cmd.add_argument('--delnet', '--dn', action='store',
+                 nargs='?', default=False, const=True,
                  help='Delete Network for interface or for BMC')
 cmd.add_argument('--edit', '-e', action='store_true',
                  help='Edit interface parameters or edit scripts')
