@@ -102,6 +102,9 @@ class Base(object):
         return self._get_object(name, mongo_db, create, id)
 
     def _get_object(self, name, mongo_db, create, id):
+        if name and type(name) != str:
+            self.log.error("Name of the object should be string.")
+            raise RuntimeError
         if mongo_db:
             self._mongo_db = mongo_db
         else:
