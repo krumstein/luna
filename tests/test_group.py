@@ -818,6 +818,7 @@ class GroupBootInstallParamsTests(unittest.TestCase):
         # mocking osimage boot stuff
         with mock.patch('os.path'), \
                 mock.patch('shutil.copy'), \
+                mock.patch('os.remove'), \
                 mock.patch('os.chown'), \
                 mock.patch('os.chmod'), \
                 mock.patch('subprocess.Popen') as mock_subprocess_popen, \
