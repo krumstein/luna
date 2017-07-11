@@ -186,6 +186,8 @@ class OsimageMethodsTests(unittest.TestCase):
     def tearDown(self):
         self.sandbox.cleanup()
 
+    @mock.patch('shutil.copy')
+    @mock.patch('os.remove')
     @mock.patch('os.chmod')
     @mock.patch('os.chown')
     @mock.patch('shutil.move')
@@ -203,6 +205,8 @@ class OsimageMethodsTests(unittest.TestCase):
                                  mock_shutil_move,
                                  mock_os_chown,
                                  mock_os_chmod,
+                                 mock_os_remove,
+                                 mock_shutil_copy,
                                  ):
 
         mock_subprocess_popen.return_value.stderr.readline.return_value = ''
@@ -309,6 +313,7 @@ class OsimageMethodsTests(unittest.TestCase):
     @mock.patch('shutil.copy')
     @mock.patch('shutil.move')
     @mock.patch('os.path.isfile')
+    @mock.patch('os.remove')
     @mock.patch('pwd.getpwnam')
     @mock.patch('subprocess.Popen')
     def test_pack_boot(*args):
