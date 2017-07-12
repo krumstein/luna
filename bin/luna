@@ -839,7 +839,7 @@ def _get_group_interfaces(group):
 
         if_name = '[' + k + ']:'
         interfaces += '{:<{}}{}\n'.format(
-            if_name, if_padding+3, if_net_str[:-1])
+            if_name, if_padding+3, if_net_str.rstrip('\n'))
 
     interfaces = interfaces[:-1]
 
