@@ -266,6 +266,9 @@ class NetworkAttributesTestsIPv6(unittest.TestCase):
                           {'start': 39060053, 'end': 18446744073709551614}]
                          )
 
+    def test_change_PREFIX(self):
+        self.assertTrue(self.net.set('PREFIX', 32))
+
 
 class ZoneDataIPv4(unittest.TestCase):
 
