@@ -210,8 +210,13 @@ class Network(Base):
 
             limit = (1 << (self.maxbits - value)) - 2
             prev_limit = (1 << (self.maxbits - self.get('PREFIX'))) - 2
+
             flist = utils.freelist.set_upper_limit(
                 net['freelist'], limit, prev_limit)
+
+            if self.version == 6:
+                flist = self._flist_to_str(flist)
+                new_num_subnet = str(new_num_subnet)
 
             ret = super(Network, self).set('freelist', flist)
             ret &= super(Network, self).set('NETWORK', new_num_subnet)
