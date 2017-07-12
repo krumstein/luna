@@ -38,7 +38,7 @@ class Network(Base):
     def __init__(self, name=None, mongo_db=None,
                  create=False, id=None, version=None,
                  NETWORK=None, PREFIX=None,
-                 ns_hostname=None, ns_ip=None):
+                 ns_hostname=None, ns_ip=None, comment=''):
         """
         create  - should be True if we need create a network
         NETWORK - network
@@ -102,7 +102,8 @@ class Network(Base):
             net = {'name': name, 'NETWORK': num_subnet, 'PREFIX': PREFIX,
                    'freelist': flist, 'ns_hostname': ns_hostname,
                    'ns_ip': None, 'version': version,
-                   'include': None, 'rev_include': None}
+                   'include': None, 'rev_include': None,
+                   'comment': comment}
 
             self.log.debug("Saving net '{}' to the datastore".format(net))
 

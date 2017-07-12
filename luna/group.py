@@ -43,7 +43,8 @@ class Group(Base):
     def __init__(self, name=None, mongo_db=None, create=False,
                  id=None, prescript='', bmcsetup=None,
                  partscript='', osimage=None, interfaces=[],
-                 postscript='', torrent_if=None, domain=None):
+                 postscript='', torrent_if=None, domain=None,
+                 comment=''):
         """
         prescript   - preinstall script
         bmcsetup    - bmcsetup options
@@ -115,7 +116,7 @@ class Group(Base):
                 'bmcsetup': bmcobj, 'partscript': partscript,
                 'osimage': osimageobj.DBRef, 'interfaces': if_dict,
                 'postscript': postscript, 'domain': domainobj,
-                'torrent_if': torrent_if, 'comment': None,
+                'torrent_if': torrent_if, 'comment': comment,
             }
 
             self.log.debug("Saving group '{}' to the datastore".format(group))

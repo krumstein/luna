@@ -46,7 +46,7 @@ class OsImage(Base):
     log = logging.getLogger(__name__)
 
     def __init__(self, name=None, mongo_db=None, create=False, id=None,
-                 path='', kernver='', kernopts='',
+                 path='', kernver='', kernopts='', comment='',
                  grab_list='grab_default_centos.lst'):
         """
         path      - path to / of the image (will be converted to absolute)
@@ -116,7 +116,7 @@ class OsImage(Base):
                        'dracutmodules': 'luna,-i18n,-plymouth',
                        'kernmodules': 'ipmi_devintf,ipmi_si,ipmi_msghandler',
                        'grab_exclude_list': grab_list_content,
-                       'grab_filesystems': '/,/boot', 'comment': None}
+                       'grab_filesystems': '/,/boot', 'comment': comment}
 
             self.log.debug("Saving osimage '{}' to the datastore"
                            .format(osimage))

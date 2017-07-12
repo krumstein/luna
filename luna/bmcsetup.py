@@ -83,7 +83,7 @@ class BMCSetup(Base):
 
             bmc = {'name': name, 'userid': userid, 'user': user,
                    'password': password, 'netchannel': netchannel,
-                   'mgmtchannel': mgmtchannel, 'comment': None}
+                   'mgmtchannel': mgmtchannel, 'comment': comment}
 
             self.log.debug("Saving BMC conf '{}' to the datastore".format(bmc))
 

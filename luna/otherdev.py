@@ -36,7 +36,7 @@ class OtherDev(Base):
     log = logging.getLogger(__name__)
 
     def __init__(self, name=None, mongo_db=None, create=False, id=None,
-                 network=None, ip=None):
+                 network=None, ip=None, comment=''):
         """
         network - the network the device is connected to
         ip      - device's ip
@@ -69,7 +69,7 @@ class OtherDev(Base):
 
             # Store the new device in the datastore
 
-            dev = {'name': name, 'connected': connected, 'comment': None}
+            dev = {'name': name, 'connected': connected, 'comment': comment}
 
             self.log.debug("Saving dev '{}' to the datastore".format(dev))
 

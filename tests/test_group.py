@@ -70,7 +70,7 @@ class GroupCreateTests(unittest.TestCase):
                 'osimage': {str(self.osimage._id): 1}
             },
             'osimage': self.osimage.DBRef,
-            'comment': None
+            'comment': ''
         }
 
         for attr in expected:
@@ -159,7 +159,7 @@ class GroupCreateTests(unittest.TestCase):
                 'bmcsetup': {str(bmcsetup._id): 1},
             },
             'osimage': self.osimage.DBRef,
-            'comment': None,
+            'comment': '',
         }
 
         for attr in expected:
