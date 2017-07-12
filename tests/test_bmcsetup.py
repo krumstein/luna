@@ -29,7 +29,7 @@ class BMCSetupCreateTests(unittest.TestCase):
 
         doc = self.db['bmcsetup'].find_one({'_id': bmc._id})
         expected = {'userid': 3, 'user': 'ladmin', 'password': 'ladmin',
-                    'netchannel': 1, 'mgmtchannel': 1, 'comment': None}
+                    'netchannel': 1, 'mgmtchannel': 1, 'comment': ''}
 
         for attr in expected:
             self.assertEqual(doc[attr], expected[attr])

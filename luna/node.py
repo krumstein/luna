@@ -39,8 +39,9 @@ class Node(Base):
 
     log = logging.getLogger(__name__)
 
-    def __init__(self, name=None, mongo_db=None, create=False, id=None,
-                 group=None, localboot=False, setupbmc=True, service=False):
+    def __init__(self, name=None, mongo_db=None, create=False,
+                 id=None, group=None, localboot=False, setupbmc=True,
+                 service=False, comment=''):
         """
         name  - optional
         group - the group the node belongs to; required
@@ -95,7 +96,7 @@ class Node(Base):
             node = {'name': name, 'group': self.group.DBRef, 'interfaces': {},
                     'mac': None, 'switch': None, 'port': None,
                     'localboot': localboot, 'setupbmc': setupbmc,
-                    'service': service, 'comment': None}
+                    'service': service, 'comment': comment}
 
             self.log.debug("Saving node '{}' to the datastore".format(node))
 

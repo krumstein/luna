@@ -36,8 +36,9 @@ class Switch(Base):
 
     log = logging.getLogger(__name__)
 
-    def __init__(self, name=None, mongo_db=None, create=False, id=None,
-                 network=None, ip=None, read='public', rw='private', oid=None):
+    def __init__(self, name=None, mongo_db=None, create=False,
+                 id=None, network=None, ip=None, read='public',
+                 rw='private', oid=None, comment=''):
         """
         ip      - ip of the switch
         read    - read community
@@ -83,7 +84,7 @@ class Switch(Base):
             # Store the new switch in the datastore
 
             switch = {'name': name, 'network': net.DBRef, 'ip': ip,
-                      'read': read, 'rw': rw, 'oid': oid, 'comment': None}
+                      'read': read, 'rw': rw, 'oid': oid, 'comment': comment}
 
             self.log.debug("Saving switch '{}' to the datastore"
                            .format(switch))
