@@ -1167,10 +1167,6 @@ def node_change(**args):
             res = node.set_ip(args['interface'][0], ip=args['interface'][1])
             out &= bool(res)
 
-        if args['bmcip']:
-            res = node.set_ip(ip=args['bmcip'], bmc=True)
-            out &= bool(res)
-
         if args['port']:
             res = node.set('port', args['port'])
             out &= bool(res)
@@ -1785,8 +1781,6 @@ cmd_group = cmd.add_mutually_exclusive_group(required=False)
 cmd_group.add_argument('--group', '-g', help='Group')
 cmd_group.add_argument('--interface', '-i', nargs=2, metavar=('IF', 'X.X.X.X'),
                        help='Assign ip address to interface')
-cmd_group.add_argument('--bmcip', '-b', metavar='X.X.X.X',
-                       help='Assign ip address to BMC interface')
 cmd.add_argument('--mac', metavar='XX:XX:XX:XX:XX',
                  help='Mac address. Specify empty string to erase')
 cmd.add_argument('--switch', '-s', help='Switch')
