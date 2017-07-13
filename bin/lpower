@@ -24,6 +24,7 @@ along with Luna.  If not, see <http://www.gnu.org/licenses/>.
 import logging
 import hostlist
 import argparse
+import pymongo
 import subprocess
 import threading
 import luna
@@ -31,7 +32,7 @@ import luna
 
 class ChassisAction(threading.Thread):
 
-    def __init__(self, nodename=None, op=None):
+    def __init__(self, nodename=None, op=None, mongo_db=None):
         threading.Thread.__init__(self)
         self.op = None
 
@@ -42,7 +43,7 @@ class ChassisAction(threading.Thread):
             self.op = op
 
         try:
-            node = luna.Node(name=nodename)
+            node = luna.Node(name=nodename, mongo_db=mongo_db)
         except RuntimeError:
             self.op = None
 
@@ -114,13 +115,20 @@ if __name__ == '__main__':
     log = logging.getLogger('lpower')
     args = parser.parse_args()
 
+    try:
+        mongo_client = pymongo.MongoClient(**utils.helpers.get_con_options())
+    except:
+        self.logger.error("Unable to connect to MongoDB.")
+        raise RuntimeError
+    mongo_db = mongo_client[luna.db_name]
+
     threads = []
 
     if args.hosts:
         hosts = hostlist.expand_hostlist(args.hosts)
 
         for host in hosts:
-            ca = ChassisAction(host, args.action)
+            ca = ChassisAction(host, args.action, mongo_db)
             ca.start()
             threads.append(ca)
 
@@ -130,13 +138,13 @@ if __name__ == '__main__':
         for group in groups:
 
             try:
-                g = luna.Group(name=group)
+                g = luna.Group(name=group, mongo_db=mongo_db)
             except RuntimeError:
                 continue
 
             hosts = g.list_nodes().keys()
 
             for host in hosts:
-                ca = ChassisAction(host, args.action)
+                ca = ChassisAction(host, args.action, mongo_db)
                 ca.start()
                 threads.append(ca)
