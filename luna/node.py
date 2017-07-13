@@ -80,9 +80,9 @@ class Node(Base):
         if create:
 
             if not group:
-                self.log.error(
-                    "Group needs to be specified when creating node.")
-                raise RuntimeError
+                err_msg = "Group needs to be specified when creating node."
+                self.log.error(err_msg)
+                raise RuntimeError, err_msg
 
             cluster = Cluster(mongo_db=self._mongo_db)
 
@@ -113,7 +113,9 @@ class Node(Base):
         if group:
             # check if group specified is the group node belongs to
             if self.group.DBRef != self._json['group']:
-                raise RuntimeError
+                err_msg = ("DBref of the group is not the same " +
+                           "the node node belongs to")
+                raise RuntimeError, err_msg
 
         self.log = logging.getLogger(__name__ + '.' + self._json['name'])
 

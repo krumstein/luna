@@ -52,8 +52,9 @@ def list(collection):
     try:
         mongo_client = pymongo.MongoClient(**utils.helpers.get_con_options())
     except:
-        logger.error("Unable to connect to MongoDB.")
-        raise RuntimeError
+        err_msg = "Unable to connect to MongoDB."
+        logger.error(err_msg)
+        raise RuntimeError, err_msg
 
     logger.debug("Connection to MongoDB was successful.")
 

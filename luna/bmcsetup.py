@@ -75,9 +75,10 @@ class BMCSetup(Base):
 
             for key in self._keylist:
                 if type(args[key]) is not self._keylist[key]:
-                    self.log.error(("Argument '{}' should be '{}'"
-                                    .format(key, self._keylist[key])))
-                    raise RuntimeError
+                    err_msg =  ("Argument '{}' should be '{}'"
+                                .format(key, self._keylist[key]))
+                    self.log.error(err_msg)
+                    raise RuntimeError, err_msg
 
             # Store the new BMC config in the datastore
 

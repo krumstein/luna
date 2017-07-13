@@ -60,8 +60,9 @@ class OtherDev(Base):
             if not network:
                 connected = {}
             elif not ip:
-                self.log.error("IP needs to be specified")
-                raise RuntimeError
+                err_msg = "IP needs to be specified"
+                self.log.error(err_msg)
+                raise RuntimeError, err_msg
             else:
                 net = Network(name=network, mongo_db=self._mongo_db)
                 ipnum = net.reserve_ip(ip, ignore_errors=False)

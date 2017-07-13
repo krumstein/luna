@@ -84,8 +84,9 @@ class Group(Base):
                 domainobj = Network(domain, mongo_db=self._mongo_db).DBRef
 
             if interfaces and type(interfaces) is not list:
-                self.log.error("'interfaces' should be list")
-                raise RuntimeError
+                err_msg = "'interfaces' should be list"
+                self.log.error(err_msg)
+                raise RuntimeError, err_msg
 
             if not interfaces:
                 interfaces = []
