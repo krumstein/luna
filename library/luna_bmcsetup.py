@@ -8,14 +8,18 @@ import sys
 import traceback
 
 def luna_bmcsetup_present(data):
-    for k, v in data.items():
-         exec('%s = v' % k)
     bmcsetups = luna.list('bmcsetup')
     data.pop('state')
+    name = data['name']
+        
     try:
         if name not in bmcsetups:
-            data['create'] = True
-            bmcsetup = luna.BMCSetup(**data)
+            bmc = {}
+            bmc['create'] = True
+            for key in data:
+                if data[key]!= None:
+                    bmc[key] = data[key]
+            bmcsetup = luna.BMCSetup(**bmc)
             return False, True, str(bmcsetup)
         else:
             bmcsetup = luna.BMCSetup(name = name)
@@ -29,8 +33,6 @@ def luna_bmcsetup_present(data):
         return True, False, str(e) + traceback.format_exc()
 
 def luna_bmcsetup_absent(data):
-    for k, v in data.items():
-         exec('%s = v' % k)
     bmcsetup = luna.list('bmcsetup')
     try:
         if name not in bmcsetup:
@@ -69,7 +71,7 @@ def main():
     if not is_error:
         module.exit_json(changed=has_changed, meta=result)
     else:
-        module.fail_json(msg="Error osimage changing", meta=result)
+        module.fail_json(msg="Error bmcsetup changing", meta=result)
     
 
 if __name__ == '__main__':  

@@ -8,10 +8,12 @@ import sys
 import traceback
 
 def luna_osimage_present(data):
-    for k, v in data.items():
-         exec('%s = v' % k)
-    osimages = luna.list('osimage')
-    try:
+        osimages = luna.list('osimage')
+        name = data['name']
+        path = data['path']
+        kernver = data['kernver']
+        kernopts = data['kernopts']
+    #try:
         if name not in osimages:
             if path in [ luna.OsImage(o).get('path') for o in luna.list('osimage')  ]:
                 return True,False,"This path already exists in osimages"    
@@ -30,8 +32,8 @@ def luna_osimage_present(data):
                 changed = True
                 osimage.set('kernopts',kernopts)
             return False, changed, str(osimage.get('kernopts'))
-    except Exception as e:
-        return True, False, str(e) + traceback.format_exc()
+    #except Exception as e:
+    #    return True, False, str(e) + traceback.format_exc()
 
 def luna_osimage_absent(data):
     locals().update(data)
@@ -54,7 +56,7 @@ def main():
         argument_spec = dict(
             name          = dict(type="str", required=True),
             path          = dict(type="str", required=False),
-            kernver       = dict(type="str", default='ANY', required=False),
+            kernver       = dict(type="str", default='', required=False),
             kernopts      = dict(type="str", default='', required=False),
             state         = dict(type="str", default="present",
                                              choices=['present', 'absent'] )
