@@ -209,9 +209,10 @@ def set_upper_limit(flist, end, prev_end):
     # Make sure the new 'end' does not exclude some non-free elements
 
     if last_ip > end:
-        log.error(("Cannot update freelist upper limit. "
-                   "This new limit excludes some already nonfree elements"))
-        raise RuntimeError
+        err_msg = ("Cannot update freelist upper limit. " +
+                   "This new limit excludes some already nonfree elements")
+        log.error(err_msg)
+        raise RuntimeError, err_msg
     last_range = flist[-1]
     flist[-1] = {'start': last_range['start'], 'end': end}
 
@@ -225,9 +226,10 @@ def get_nonfree(flist, limit=None):
     """
 
     if not bool(flist) and (limit is None):
-        log.error("freelist is empty. "
-                  "You must provide a boundary (network prefix)")
-        raise RuntimeError
+        err_msg = ("freelist is empty. " +
+                   "You must provide a boundary (network prefix)")
+        log.error(err_msg)
+        raise RuntimeError, err_msg
 
     elif not bool(flist):
         return range(1, limit)

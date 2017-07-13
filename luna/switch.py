@@ -71,15 +71,17 @@ class Switch(Base):
             cluster = Cluster(mongo_db=self._mongo_db)
 
             if not network:
-                self.log.error("Network must be provided")
-                raise RuntimeError
+                err_msg = "Network must be provided"
+                self.log.error(err_msg)
+                raise RuntimeError, err_msg
 
             net = Network(name=network, mongo_db=self._mongo_db)
             ip = net.reserve_ip(ip)
 
             if not ip:
-                self.log.error("Could not acquire ip for switch")
-                raise RuntimeError
+                err_msg = "Could not acquire ip for switch"
+                self.log.error(err_msg)
+                raise RuntimeError, err_msg
 
             # Store the new switch in the datastore
 

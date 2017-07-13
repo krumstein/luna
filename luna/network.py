@@ -67,13 +67,15 @@ class Network(Base):
             if not version:
                 version = utils.ip.get_ip_version(NETWORK)
                 if version == 0:
-                    self.log.error("Unable to determine protocol " +
-                                   "version for given network")
-                    raise RuntimeError
+                    err_msg = ("Unable to determine protocol version " +
+                               "for given network")
+                    self.log.error(err_msg)
+                    raise RuntimeError, err_msg
 
             if version not in [4, 6]:
-                self.log.error("IP version should be 4 or 6")
-                raise RuntimeError
+                err_msg = "IP version should be 4 or 6"
+                self.log.error(err_msg)
+                raise RuntimeError, err_msg
 
             maxbits = 32
             if version == 6:

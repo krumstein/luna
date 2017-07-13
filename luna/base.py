@@ -58,8 +58,9 @@ class Base(object):
         name is used to give default name for mongo document.
         Don't change it is are not sure what you are doing.
         """
-        self.log.error("Please do not call this class directly")
-        raise RuntimeError
+        err_msg = "Please do not call this class directly"
+        self.log.error(err_msg)
+        raise RuntimeError, err_msg
 
     def __str__(self):
         """Returns name"""
@@ -103,16 +104,18 @@ class Base(object):
 
     def _get_object(self, name, mongo_db, create, id):
         if name and type(name) != str:
-            self.log.error("Name of the object should be string.")
-            raise RuntimeError
+            err_msg = "Name of the object should be string."
+            self.log.error(err_msg)
+            raise RuntimeError, err_msg
         if mongo_db:
             self._mongo_db = mongo_db
         else:
             try:
                 client = pymongo.MongoClient(**utils.helpers.get_con_options())
             except:
-                self.log.error("Unable to connect to MongoDB.")
-                raise RuntimeError
+                err_msg = "Unable to connect to MongoDB."
+                self.log.error(err_msg)
+                raise RuntimeError, err_msg
 
             self.log.debug("Connection to MongoDB was successful.")
             self._mongo_db = client[db_name]
@@ -123,9 +126,10 @@ class Base(object):
                                                               {'_id': id}]})
 
         if not create and not self._json:
-            self.log.error(("Object '{}' of type '{}' does not exist"
-                            .format(name, self._collection_name)))
-            raise RuntimeError
+            err_msg = ("Object '{}' of type '{}' does not exist"
+                       .format(name, self._collection_name))
+            self.log.error(err_msg)
+            raise RuntimeError, err_msg
 
         elif not create and self._json:
             self._id = self._json['_id']
@@ -133,9 +137,9 @@ class Base(object):
             self._DBRef = DBRef(u'' + self._collection_name, self._id)
 
         elif create and self._json:
-            self.log.error(("'{}' is already created"
-                            .format(self._json['name'])))
-            raise RuntimeError
+            err_msg = "'{}' is already created".format(self._json['name'])
+            self.log.error(err_msg)
+            raise RuntimeError, err_msg
 
         return self._json
 
@@ -367,8 +371,9 @@ class Base(object):
             pass
 
         if not isinstance(remote_dbref, DBRef):
-            self.log.error("Object to unlink from is not a DBRef object")
-            raise RuntimeError
+            err_msg = "Object to unlink from is not a DBRef object"
+            self.log.error(err_msg)
+            raise RuntimeError, err_msg
             return None
 
         elif remote_dbref == self._DBRef:

@@ -40,8 +40,9 @@ def set_mac_node(mac, node, mongo_db=None):
         try:
             mongo_client = pymongo.MongoClient(**get_con_options())
         except:
-            logger.error("Unable to connect to MongoDB.")
-            raise RuntimeError
+            err_msg = "Unable to connect to MongoDB."
+            logger.error(err_msg)
+            raise RuntimeError, err_msg
         logger.debug("Connection to MongoDB was successful.")
         mongo_db = mongo_client[db_name]
     mongo_collection = mongo_db['mac']
@@ -318,8 +319,9 @@ def list_cached_macs(switch_id=None, mongo_db=None):
         try:
             mongo_client = pymongo.MongoClient(**get_con_options())
         except:
-            logger.error("Unable to connect to MongoDB.")
-            raise RuntimeError
+            err_msg = "Unable to connect to MongoDB."
+            logger.error(err_msg)
+            raise RuntimeError, err_msg
         logger.debug("Connection to MongoDB was successful.")
         mongo_db = mongo_client[db_name]
     mongo_collection = mongo_db['switch_mac']
@@ -346,8 +348,9 @@ def list_node_macs(mongo_db=None):
         try:
             mongo_client = pymongo.MongoClient(**get_con_options())
         except:
-            logger.error("Unable to connect to MongoDB.")
-            raise RuntimeError
+            err_msg = "Unable to connect to MongoDB."
+            logger.error(err_msg)
+            raise RuntimeError, err_msg
         logger.debug("Connection to MongoDB was successful.")
         mongo_db = mongo_client[db_name]
 
