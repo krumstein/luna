@@ -20,10 +20,6 @@ def luna_cluster_present(data):
         return False, True, str(cluster)
 
     try:
-        if data['makedhcp'] == True:
-        elif data['makedns'] == True:
-          
-        else:
             cluster = luna.Cluster()
             changed = False
             out = ""
