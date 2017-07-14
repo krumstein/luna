@@ -1,68 +1,102 @@
 #!/usr/bin/python
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.pycompat24 import get_exception
-import json
 import luna
-import sys
-import traceback
+
 
 def luna_osimage_present(data):
-        osimages = luna.list('osimage')
-        name = data['name']
-        path = data['path']
-        kernver = data['kernver']
-        kernopts = data['kernopts']
-    #try:
-        if name not in osimages:
-            if path in [ luna.OsImage(o).get('path') for o in luna.list('osimage')  ]:
-                return True,False,"This path already exists in osimages"    
-            osimage = luna.OsImage(name = name, create = True,  path = path, kernver = kernver, kernopts = kernopts)
-            return False, True, str(osimage)
+
+    changed = False
+    ret = True
+
+    try:
+        osimage = luna.OsImage(name=data['name'])
+    except RuntimeError:
+        osimage = luna.OsImage(
+            name=data['name'],
+            create=True,
+            path=data['path'],
+            kernver=data['kernver'],
+            kernopts=data['kernopts'],
+            comment=data['comment'])
+        changed = True
+
+    for key in ['path', 'kernver', 'kernopts',
+                'dracutmodules', 'kernmodules', 'grab_exclude_list',
+                'grab_filesystems']:
+        if data[key] and data[key] != osimage.get(key):
+            ret &= osimage.set(key, data[key])
+            changed = True
+
+    if data['comment'] != osimage.get(data['comment']):
+        ret &= osimage.set('comment', data['comment'])
+        changed = True
+
+    if data['pack']:
+        changed = True
+        if data['copy_boot']:
+            ret &= osimage.copy_boot()
         else:
-            osimage = luna.OsImage(name = name)
-            changed = False
-            if path != osimage.get('path'):
-                changed = True
-                osimage.set('path',path)
-            if kernver != osimage.get('kernver'):
-                changed = True
-                osimage.set('kernver',kernver)
-            if kernopts != osimage.get('kernopts'):
-                changed = True
-                osimage.set('kernopts',kernopts)
-            return False, changed, str(osimage.get('kernopts'))
-    #except Exception as e:
-    #    return True, False, str(e) + traceback.format_exc()
+            ret &= osimage.pack_boot()
+        ret &= osimage.create_tarball()
+        ret &= osimage.create_torrent()
+
+    return not ret, changed, osimage.get('name')
+
 
 def luna_osimage_absent(data):
-    locals().update(data)
-    for k, v in data.items():
-         exec('%s = v' % k)
-    osimages = luna.list('osimage')
+    name = data['name']
+
     try:
-        if name not in osimages:
-            return False, False, name
-        else:
-            osimage = luna.OsImage(name = name)
-            osimage.delete()
-            return False, True, name
-    except Exception as e:
-        return True, False, str(e)
+        osimage = luna.OsImage(name)
+    except RuntimeError:
+        return False, False, name
+
+    return not osimage.delete(), True, name
 
 
 def main():
     module = AnsibleModule(
-        argument_spec = dict(
-            name          = dict(type="str", required=True),
-            path          = dict(type="str", required=False),
-            kernver       = dict(type="str", default='', required=False),
-            kernopts      = dict(type="str", default='', required=False),
-            state         = dict(type="str", default="present",
-                                             choices=['present', 'absent'] )
-            )
+        argument_spec={
+            'name': {
+                'type': 'str', 'required': True},
+
+            'path': {
+                'type': 'str', 'required': False},
+
+            'kernver': {
+                'type': 'str', 'default': '', 'required': False},
+
+            'kernopts': {
+                'type': 'str', 'default': '', 'required': False},
+
+            'comment': {
+                'type': 'str', 'default': '', 'required': False},
+
+            'dracutmodules': {
+                'type': 'str', 'default': '', 'required': False},
+
+            'kernmodules': {
+                'type': 'str', 'default': '', 'required': False},
+
+            'grab_exclude_list': {
+                'type': 'str', 'default': '', 'required': False},
+
+            'grab_filesystems': {
+                'type': 'str', 'default': '', 'required': False},
+
+            'pack': {
+                'type': 'bool', 'default': False, 'required': False},
+
+            'copy_boot': {
+                'type': 'bool', 'default': False, 'required': False},
+
+            'state': {
+                'type': 'str', 'default': 'present',
+                'choices': ['present', 'absent']}
+        }
     )
-    
+
     choice_map = {
         "present": luna_osimage_present,
         "absent": luna_osimage_absent,
@@ -75,7 +109,7 @@ def main():
         module.exit_json(changed=has_changed, meta=result)
     else:
         module.fail_json(msg="Error osimage changing", meta=result)
-    
 
-if __name__ == '__main__':  
+
+if __name__ == '__main__':
     main()
