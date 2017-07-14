@@ -32,7 +32,7 @@ import luna
 
 class ChassisAction(threading.Thread):
 
-    def __init__(self, nodename=None, op=None, mongo_db=None):
+    def __init__(self, nodename=None, op=None, interface=None, mongo_db=None):
         threading.Thread.__init__(self)
         self.op = None
 
@@ -48,17 +48,23 @@ class ChassisAction(threading.Thread):
             self.op = None
 
         if self.op:
-            try:
-                self.bmcip = node.install_params['bmcsetup']['ip']
-            except KeyError:
-                log.info("No BMC setup configured for '{}'".format(nodename))
-                self.op = None
+            if interface:
+                self.bmcip = node.get_ip(interface)
+            else:
+                self.bmcip = node.get_ip('BMC')
 
-        if self.op:
-            self.nodename = nodename
-            self.bmcip = node.install_params['bmcsetup']['ip']
-            self.user = node.install_params['bmcsetup']['user']
-            self.password = node.install_params['bmcsetup']['password']
+            if self.bmcip:
+                self.nodename = nodename
+                try:
+                    self.user = node.install_params['bmcsetup']['user']
+                    self.password = node.install_params['bmcsetup']['password']
+                except KeyError:
+                    log.error('BMCSetup is not configured for "{}"'
+                              .format(nodename))
+                    self.op = None
+
+            else:
+                self.op = None
 
     def run(self):
 
@@ -103,8 +109,12 @@ class ChassisAction(threading.Thread):
 parser = argparse.ArgumentParser(prog='lpower',
                                  description='BMC power management.')
 
-parser.add_argument('hosts', type=str, help='Host list', nargs='?')
-parser.add_argument('--groups', '-g', type=str, help='Group list')
+parser.add_argument('hosts', type=str, nargs='?',
+                    help='Host list')
+parser.add_argument('--groups', '-g', type=str,
+                    help='Group list')
+parser.add_argument('--interface', '-i', type=str,
+                    help='Interface to use instead of "BMC"')
 parser.add_argument('action',
                     choices=('status', 'on', 'off', 'reset',
                              'cycle', 'identify', 'noidentify'),
@@ -116,10 +126,12 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     try:
-        mongo_client = pymongo.MongoClient(**utils.helpers.get_con_options())
+        con_options = luna.utils.helpers.get_con_options()
+        mongo_client = pymongo.MongoClient(**con_options)
     except:
-        self.logger.error("Unable to connect to MongoDB.")
+        log.error("Unable to connect to MongoDB.")
         raise RuntimeError
+
     mongo_db = mongo_client[luna.db_name]
 
     threads = []
@@ -128,7 +140,7 @@ if __name__ == '__main__':
         hosts = hostlist.expand_hostlist(args.hosts)
 
         for host in hosts:
-            ca = ChassisAction(host, args.action, mongo_db)
+            ca = ChassisAction(host, args.action, args.interface, mongo_db)
             ca.start()
             threads.append(ca)
 
@@ -145,6 +157,6 @@ if __name__ == '__main__':
             hosts = g.list_nodes().keys()
 
             for host in hosts:
-                ca = ChassisAction(host, args.action, mongo_db)
+                ca = ChassisAction(host, args.action, args.interface, mongo_db)
                 ca.start()
                 threads.append(ca)
