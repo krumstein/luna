@@ -1,10 +1,8 @@
 #!/usr/bin/python
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.pycompat24 import get_exception
-import json
 import luna
-import sys
+
 
 def luna_network_present(data):
         name = data['name']
@@ -12,67 +10,90 @@ def luna_network_present(data):
         prefix = data['prefix']
         ns_hostname = data['ns_hostname']
         ns_ip = data['ns_ip']
-        comment = data['comment']
-        networks = luna.list('network')
-        msg = ""
-    #    try:
-        if name not in networks:
-            net = luna.Network(name = name, create = True, NETWORK = network, PREFIX = prefix, ns_hostname = ns_hostname, ns_ip = ns_ip)
-            return False, True, str(net)
-        else:
-            net = luna.Network(name = name)
-            changed = False
-            version = luna.utils.ip.get_ip_version(network)
- 
-            if luna.utils.ip.ntoa(luna.utils.ip.get_num_subnet(network, prefix, version),version) != net.get('NETWORK'):
+
+        changed = False
+
+        try:
+            net = luna.Network(name=name)
+        except RuntimeError:
+            net = luna.Network(
+                name=name, create=True, NETWORK=network, PREFIX=prefix,
+                ns_hostname=ns_hostname, ns_ip=ns_ip)
+            changed = True
+
+        version = luna.utils.ip.get_ip_version(network)
+        res = True
+
+        if ns_hostname and (ns_hostname != net.get('ns_hostname')):
+            changed = True
+            res &= net.set('ns_hostname', ns_hostname)
+
+        for key in ['comment', 'include', 'rev_include']:
+            if data[key] != net.get(key):
                 changed = True
-                net.set('NETWORK', network)
-            if prefix != net.get('PREFIX'):
-                changed = True
-                net.delete()
-                net = luna.Network(name = name, create = True, NETWORK = network, PREFIX = prefix, ns_hostname = ns_hostname, ns_ip = ns_ip)
-            if ns_hostname and (ns_hostname != net.get('ns_hostname')):
-                changed=True
-                net.set('ns_hostname', ns_hostname)
-            if ns_ip and (ns_ip != net.get('ns_ip')):
-                changed = True
-                net.set('ns_ip',ns_ip)
-            if comment != net.get('comment'):
-                changed = True
-                net.set('comment',comment)
-            return False, changed, msg+str(net)
-#    except Exception as e:
-#        return True, False, str(e)
+                res &= net.set(key, data[key])
+
+        if ns_ip and (ns_ip != net.get('ns_ip')):
+            changed = True
+            res &= net.set('ns_ip', ns_ip)
+
+        if luna.utils.ip.ntoa(
+                luna.utils.ip.get_num_subnet(network, prefix, version),
+                version) != net.get('NETWORK'):
+            changed = True
+            res &= net.set('NETWORK', network)
+
+        if prefix != net.get('PREFIX'):
+            changed = True
+            res &= net.set('PREFIX', prefix)
+
+        return False, changed, str(net)
+
 
 def luna_network_absent(data):
-    locals().update(data)
-    for k, v in data.items():
-         exec('%s = v' % k)
-    networks = luna.list('network')
+    name = data['name']
+
     try:
-        if name not in networks:
-            return False, False, name
-        else:
-            net = luna.Network(name)
-            net.delete()
-            return False, True, name
-    except Exception as e:
-        return True, False, str(e)
+        net = luna.Network(name)
+    except RuntimeError:
+        return False, False, name
+
+    return not net.delete(), True, name
+
 
 def main():
     module = AnsibleModule(
-        argument_spec = dict(
-            name          = dict(type="str", required=True),
-            network       = dict(type="str", required=False),
-            prefix        = dict(type="int", required=False),
-            ns_hostname   = dict(type="str", default=None, required=False),
-            ns_ip         = dict(type="str", default=None, required=False),
-            comment       = dict(type="str", default="", required=False),
-            state         = dict(type="str", default="present",
-                                             choices=['present', 'absent'] )
-            )
+        argument_spec={
+            'name': {
+                'type': 'str', 'required': True},
+
+            'network': {
+                'type': 'str', 'required': False},
+
+            'prefix': {
+                'type': 'int', 'required': False},
+
+            'ns_hostname': {
+                'type': 'str', 'default': None, 'required': False},
+
+            'ns_ip': {
+                'type': 'str', 'default': None, 'required': False},
+
+            'comment': {
+                'type': 'str', 'default': '', 'required': False},
+
+            'include': {
+                'type': 'str', 'default': '', 'required': False},
+
+            'rev_include': {
+                'type': 'str', 'default': '', 'required': False},
+
+            'state': {
+                'type': 'str', 'default': 'present',
+                'choices': ['present', 'absent']}
+        }
     )
-    
+
     choice_map = {
         "present": luna_network_present,
         "absent": luna_network_absent,
@@ -85,7 +106,7 @@ def main():
         module.exit_json(changed=has_changed, meta=result)
     else:
         module.fail_json(msg="Error network changing", meta=result)
-    
 
-if __name__ == '__main__':  
+
+if __name__ == '__main__':
     main()
