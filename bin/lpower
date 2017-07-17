@@ -48,10 +48,7 @@ class ChassisAction(threading.Thread):
             self.op = None
 
         if self.op:
-            if interface:
-                self.bmcip = node.get_ip(interface)
-            else:
-                self.bmcip = node.get_ip('BMC')
+            self.bmcip = node.get_ip(interface)
 
             if self.bmcip:
                 self.nodename = nodename
@@ -113,7 +110,7 @@ parser.add_argument('hosts', type=str, nargs='?',
                     help='Host list')
 parser.add_argument('--groups', '-g', type=str,
                     help='Group list')
-parser.add_argument('--interface', '-i', type=str,
+parser.add_argument('--interface', '-i', type=str, default='BMC',
                     help='Interface to use instead of "BMC"')
 parser.add_argument('action',
                     choices=('status', 'on', 'off', 'reset',
