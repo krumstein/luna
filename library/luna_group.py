@@ -1,159 +1,191 @@
 #!/usr/bin/python
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.pycompat24 import get_exception
-import json
 import luna
-import sys
+
 
 def luna_group_present(data):
-        name = data['name']
-        groups = luna.list('group')
-        data.pop('state')
-       
-    #try:
-        msg=""
-        if name not in groups:
-            interfaces = data['interfaces']
-            data.pop('interfaces')
-            data['create'] = True
-            data['interfaces'] = []
-            for interface in interfaces:
-                for k in interface.keys():
-                    print k,interface[k]
-                if len(interface['networks']) > 2:
-                    return True, False, "Too much networks"
-                nets = {}
-                for network in interface['networks']:
-                    net = luna.Network(network)
-                    if net.version in nets:
-                        return True, False, "The can be only one v4 and one v6 network"
-                    nets[net.version] = net
-                data['interfaces'].append(interface['name']) 
+    data.pop('state')
+    name = data.pop('name')
 
-            group = luna.Group(**data)
-            
-            for interface in interfaces:
-                for network in interface['networks']:
-                    group.set_net_to_if(interface['name'], network)
+    # perform interface data checking, make sure networks are exist,
+    # interface names are unique, etc.
+    #
+    interfaces = data.pop('interfaces')
+    tmp_interfaces = {}
+    for elem in interfaces:
 
-            return False, True, str(group)
+        if not 'name' in elem:
+            return True, False, "No name for interface defined"
+
+        if_name = elem['name']
+
+        if if_name in tmp_interfaces.keys():
+            err_msg = "Duplicate name for interface '{}'".format(if_name)
+            return True, False, err_msg
+
+        tmp_interfaces[if_name] = {}
+
+        if 'params' in elem:
+            tmp_interfaces[if_name]['params'] = elem['params']
         else:
-            group = luna.Group(name = name)
-            changed = False
-            ifnames = [i['name'] for i in data['interfaces']]
-            for iface in group.list_ifs().keys():
-                if iface not in ifnames:
-                    changed = True
-                    group.del_interface(iface)
-            for key in data.keys():
-                if key == "interfaces":
-                   ifaces = group.list_ifs()
-                   for interface in data["interfaces"]:
-                       yaml_nets = {'4': None, '6': None }
-                       #Sanity checks
-                       if len(interface['networks']) > 2:
-                           return True, False, "Too much networks"
-                       nets = {}
-                       for network in interface['networks']:
-                           net = luna.Network(network)
-                           if net.version in nets:
-                               return True, False, "The can be only one v4 and one v6 network"
-                           nets[net.version] = net
+            tmp_interfaces[if_name]['params'] = None
 
-                       if interface['name'] in ifaces.keys():
-                           if 'params' in interface.keys() and group.show_if(interface['name'])['options'] != interface['params']:
-                               group.set_if_params(interface['name'],interface['params']) 
-                               changed = True
-                           iface = group.show_if(interface['name'])
-                           group_nets = [ iface['network']['4']['name'], iface['network']['6']['name'] ]
-                           ans_nets = ['','']
-                           for network in interface['networks']:
-                               if luna.Network(network).version ==4:
-                                   ans_nets[0] = network
-                               else:
-                                   ans_nets[1] = network
+        nets = {'4': None, '6': None}
 
-                           for network in interface['networks']:
-                               if network == '':
-                                   continue
-                               if luna.Network(network).version ==4:
-                                   if network != group_nets[0]:
-                                       group.set_net_to_if(interface['name'], network)
-                                       changed = True
-                               else:
-                                   if network != group_nets[1]:
-                                       group.set_net_to_if(interface['name'], network)
-                                       changed = True
-                               
-                           for network in group_nets:
-                               if network == '':
-                                   continue
-                               if luna.Network(network).version ==4:
-                                   if network != ans_nets[0]:
-                                       group.del_net_from_if(interface['name'], version='4')
-                                       if ans_nets[0]!='':
-                                           group.set_net_to_if(interface['name'], ans_nets[0])
-                                       changed = True
-                               else:
-                                   if network != ans_nets[1]:
-                                       msg +="Remove net"
-                                       msg += str(interface['name']) + " version=6"
-                                       group.del_net_from_if(interface['name'], version='6')
-                                       if ans_nets[1]!='':
-                                           group.set_net_to_if(interface['name'], ans_nets[1])
-                                       changed = True
-                       else:
-                           msg+="Add interface" + str(ifaces)
-                           group.add_interface(interface['name'])
-                           for network in interface['networks']:
-                               group.set_net_to_if(interface['name'], network)
-                           if 'params' in interface.keys():
-                               group.set_if_params(interface['name'],interface['params']) 
-                          
-                           changed = True
+        if not 'networks' in elem:
+            tmp_interfaces[if_name]['networks'] = nets
+            continue
 
-            data.pop('interfaces');
-            if data[key]!= None and group.get(key) != data[key]:
+        for network in elem['networks']:
+            try:
+                net = luna.Network(name=network)
+            except RuntimeError:
+                err_msg = "No such network '{}'".format(network)
+                return True, False, err_msg
+
+            if net.version in nets:
+                err_msg = "The can be only one v4 and one v6 network"
+                return True, False, err_msg
+
+            nets[str(net.version)] = net.name
+
+        tmp_interfaces[if_name]['networks'] = nets
+
+    data['interfaces'] = tmp_interfaces
+
+    changed = False
+    ret = True
+
+    try:
+        group = luna.Group(name=name)
+
+    except RuntimeError:
+        args = data.copy()
+
+        if args['osimage'] is None:
+            err_msg = "OsImage should be specified"
+            return True, False, err_msg
+
+        args['name'] = name
+        args['create'] = True
+        args['interfaces'] = data['interfaces'].keys()
+        group = luna.Group(**args)
+        changed = True
+
+    keys = ['prescript', 'postscript', 'partscript', 'torrent_if', 'comment']
+    group_show = group.show()
+
+    for key in keys:
+        if data[key] is None:
+            continue
+        if group_show[key] != data[key]:
+            ret &= group.set(key, data[key])
+            changed = True
+
+    # FIXME
+    # need to change API in luna
+    if (data['domain'] is not None
+            and group_show['domain'] != '[' + data['domain'] + ']'):
+        ret &= group.set_domain(data['domain'])
+        changed = True
+
+    if (data['bmcsetup'] is not None
+            and group_show['bmcsetup'] != '[' + data['bmcsetup'] + ']'):
+        ret &= group.bmcsetup(data['bmcsetup'])
+        changed = True
+
+    if (data['osimage'] is not None
+            and group_show['osimage'] != '[' + data['osimage'] + ']'):
+        ret &= group.osimage(data['osimage'])
+        changed = True
+
+    # make sure sets of the interfaces are the same
+    ansible_ifs = set(data['interfaces'].keys())
+    configured_ifs = set(group.list_ifs().keys())
+
+    ifs_to_delete = [e for e in configured_ifs if e not in ansible_ifs]
+    ifs_to_add = [e for e in ansible_ifs if e not in configured_ifs]
+
+    for interface in ifs_to_delete:
+        changed = True
+        ret &= group.del_interface(interface)
+
+    for interface in ifs_to_add:
+        changed = True
+        ret &= group.add_interface(interface)
+
+    # now make sure we have same nets assigned
+    for interface in ansible_ifs:
+        if_json = group.show_if(interface)
+        if_params = data['interfaces'][interface]['params']
+
+        if (if_params is not None
+                and if_params != group.get_if_params(interface)):
+            ret &= group.set_if_params(interface, if_params)
+            changed = True
+
+        for net_ver in ['4', '6']:
+            ansible_net = data['interfaces'][interface]['networks'][net_ver]
+            configured_net = if_json['network'][net_ver]['name'] or None
+
+            if ansible_net == configured_net:
+                continue
+
+            if ansible_net is None:
+                group.del_net_from_if(interface, configured_net)
                 changed = True
-                group.set(key, data[key])
- 
-            return False, changed, msg
-    #except Exception as e:
-    #    return True, False, str(e)
+            else:
+                if configured_net is not None:
+                    ret &= group.del_net_from_if(interface, configured_net)
+                ret &= group.set_net_to_if(interface, ansible_net)
+                changed = True
+
+    return not ret, changed, ""
+
 
 def luna_group_absent(data):
-    group = luna.list('group')
     name = data['name']
     try:
-        if name not in group:
-            return False, False, name
-        else:
-            group = luna.Group(name)
-            group.delete()
-            return False, True, name
-    except Exception as e:
-        return True, False, str(e)
+        group = luna.Group(name=name)
+    except RuntimeError:
+        return False, False, name
+
+    return not group.delete(), True, name
+
 
 def main():
     module = AnsibleModule(
-        argument_spec = dict(
-            name          = dict(type="str", required=True),
-            osimage       = dict(type="str", required=False),
-            bmcsetup      = dict(type="str", required=False),
-            domain        = dict(type="str", default=None, required=False),
-            interfaces    = dict(type="list", required=True),
-            prescript     = dict(type="str", default="", requires=False),
-            postscript    = dict(type="str", default="", requires=False),
-            partscript    = dict(type="str", default="", requires=False),
-            state         = dict(type="str", default="present",
-                                             choices=['present', 'absent'] )
-            )
+        argument_spec={
+            'name': {
+                'type': 'str', 'required': True},
+            'osimage': {
+                'type': 'str', 'required': False},
+            'bmcsetup': {
+                'type': 'str', 'required': False},
+            'domain': {
+                'type': 'str', 'default': None, 'required': False},
+            'interfaces': {
+                'type': 'list', 'default': [], 'required': False},
+            'torrent_if': {
+                'type': 'str', 'default': None, 'required': False},
+            'prescript': {
+                'type': 'str', 'default': None, 'required': False},
+            'postscript': {
+                'type': 'str', 'default': None, 'required': False},
+            'partscript': {
+                'type': 'str', 'default': None, 'required': False},
+            'comment': {
+                'type': 'str', 'default': None, 'required': False},
+            'state': {
+                'type': 'str', 'default': 'present',
+                'choices': ['present', 'absent']}
+        }
     )
-    
+
     choice_map = {
-        "present": luna_group_present,
-        "absent": luna_group_absent,
+        'present': luna_group_present,
+        'absent': luna_group_absent,
     }
 
     is_error, has_changed, result = choice_map.get(
@@ -162,8 +194,8 @@ def main():
     if not is_error:
         module.exit_json(changed=has_changed, meta=result)
     else:
-        module.fail_json(msg="Error group changing", meta=result)
-    
+        module.fail_json(msg='Error group changing', meta=result)
 
-if __name__ == '__main__':  
+
+if __name__ == '__main__':
     main()
