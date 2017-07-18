@@ -747,7 +747,7 @@ class Group(Base):
             return False
 
         # if network_name is not the same as configured for interface
-        if net and nets_configured[net.version] != net.DBRef:
+        if net and nets_configured[str(net.version)] != net.DBRef:
             self.log.error(
                 "Network '{}' is not configured for interface '{}'"
                 .format(network_name, interface_name))
@@ -770,7 +770,7 @@ class Group(Base):
 
         self.unlink(net.DBRef)
         self._invalidate_network(net)
-        interfaces_dict[interface_uuid]['network'][version] = None
+        interfaces_dict[interface_uuid]['network'][str(version)] = None
         res = self.set('interfaces', interfaces_dict)
         if not res:
             self.log.error("Error deleting network for interface '{}'"
