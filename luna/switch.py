@@ -102,7 +102,7 @@ class Switch(Base):
 
     def get(self, key):
         if key == 'ip':
-            net_dbref = self.get('network')
+            net_dbref = self._json['network']
 
             if not net_dbref:
                 return None
@@ -111,6 +111,15 @@ class Switch(Base):
             return utils.ip.reltoa(
                 net._json['NETWORK'], self._json['ip'], net.version)
 
+        if key == 'network':
+            net_dbref = self._json['network']
+
+            if not net_dbref:
+                return None
+
+            net = Network(id=net_dbref.id, mongo_db=self._mongo_db)
+            return net.name
+
         return super(Switch, self).get(key)
 
     def get_rel_ip(self):
@@ -118,7 +127,7 @@ class Switch(Base):
 
     def set(self, key, value):
         if key == 'ip':
-            net = Network(id=self.get('network').id, mongo_db=self._mongo_db)
+            net = Network(id=self._json['network'].id, mongo_db=self._mongo_db)
 
             if self._json['ip']:
                 net.release_ip(self._json['ip'])
@@ -129,7 +138,7 @@ class Switch(Base):
             return ret
 
         elif key == 'network':
-            net = Network(id=self.get('network').id, mongo_db=self._mongo_db)
+            net = Network(id=self._json['network'].id, mongo_db=self._mongo_db)
             ip = self._json['ip']
 
             new_net = Network(name=value, mongo_db=self._mongo_db)
