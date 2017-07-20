@@ -66,6 +66,11 @@ class OtherDev(Base):
             else:
                 net = Network(name=network, mongo_db=self._mongo_db)
                 ipnum = net.reserve_ip(ip, ignore_errors=False)
+                if not ipnum:
+                    err_msg = "Unable to allocate IP in network"
+                    self.log.error(err_msg)
+                    raise RuntimeError, err_msg
+
                 connected = {str(net.DBRef.id): ipnum}
 
             # Store the new device in the datastore
