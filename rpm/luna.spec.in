@@ -100,6 +100,7 @@ Requires: vim-minimal
 Requires: grub2
 Requires: rb_libtorrent
 Requires: dracut-config-generic
+Requires: dracut-network
 
 %description client
 Dracut module for Luna deployment tool
