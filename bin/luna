@@ -141,8 +141,9 @@ def cluster_change(**args):
         cluster.set('comment', _edit_script(old_comment))
         return True
 
+    args.pop('comment')
     for key in args:
-        if args[key] == None or args[key] == False:
+        if args[key] is None:
             continue
         res = cluster.set(key, args[key])
         if not bool(res):
