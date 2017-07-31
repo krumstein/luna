@@ -36,8 +36,9 @@ class Switch(Base):
 
     log = logging.getLogger(__name__)
 
-    def __init__(self, name=None, mongo_db=None, create=False, id=None,
-                 network=None, ip=None, read='public', rw='private', oid=None):
+    def __init__(self, name=None, mongo_db=None, create=False,
+                 id=None, network=None, ip=None, read='public',
+                 rw='private', oid=None, comment=''):
         """
         ip      - ip of the switch
         read    - read community
@@ -70,20 +71,22 @@ class Switch(Base):
             cluster = Cluster(mongo_db=self._mongo_db)
 
             if not network:
-                self.log.error("Network must be provided")
-                raise RuntimeError
+                err_msg = "Network must be provided"
+                self.log.error(err_msg)
+                raise RuntimeError, err_msg
 
             net = Network(name=network, mongo_db=self._mongo_db)
             ip = net.reserve_ip(ip)
 
             if not ip:
-                self.log.error("Could not acquire ip for switch")
-                raise RuntimeError
+                err_msg = "Could not acquire ip for switch"
+                self.log.error(err_msg)
+                raise RuntimeError, err_msg
 
             # Store the new switch in the datastore
 
             switch = {'name': name, 'network': net.DBRef, 'ip': ip,
-                      'read': read, 'rw': rw, 'oid': oid, 'comment': None}
+                      'read': read, 'rw': rw, 'oid': oid, 'comment': comment}
 
             self.log.debug("Saving switch '{}' to the datastore"
                            .format(switch))
@@ -99,7 +102,7 @@ class Switch(Base):
 
     def get(self, key):
         if key == 'ip':
-            net_dbref = self.get('network')
+            net_dbref = self._json['network']
 
             if not net_dbref:
                 return None
@@ -108,6 +111,15 @@ class Switch(Base):
             return utils.ip.reltoa(
                 net._json['NETWORK'], self._json['ip'], net.version)
 
+        if key == 'network':
+            net_dbref = self._json['network']
+
+            if not net_dbref:
+                return None
+
+            net = Network(id=net_dbref.id, mongo_db=self._mongo_db)
+            return net.name
+
         return super(Switch, self).get(key)
 
     def get_rel_ip(self):
@@ -115,7 +127,7 @@ class Switch(Base):
 
     def set(self, key, value):
         if key == 'ip':
-            net = Network(id=self.get('network').id, mongo_db=self._mongo_db)
+            net = Network(id=self._json['network'].id, mongo_db=self._mongo_db)
 
             if self._json['ip']:
                 net.release_ip(self._json['ip'])
@@ -126,7 +138,7 @@ class Switch(Base):
             return ret
 
         elif key == 'network':
-            net = Network(id=self.get('network').id, mongo_db=self._mongo_db)
+            net = Network(id=self._json['network'].id, mongo_db=self._mongo_db)
             ip = self._json['ip']
 
             new_net = Network(name=value, mongo_db=self._mongo_db)

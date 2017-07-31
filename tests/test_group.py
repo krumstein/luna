@@ -70,7 +70,7 @@ class GroupCreateTests(unittest.TestCase):
                 'osimage': {str(self.osimage._id): 1}
             },
             'osimage': self.osimage.DBRef,
-            'comment': None
+            'comment': ''
         }
 
         for attr in expected:
@@ -159,7 +159,7 @@ class GroupCreateTests(unittest.TestCase):
                 'bmcsetup': {str(bmcsetup._id): 1},
             },
             'osimage': self.osimage.DBRef,
-            'comment': None,
+            'comment': '',
         }
 
         for attr in expected:
@@ -346,7 +346,7 @@ class GroupConfigTests(unittest.TestCase):
             show_if_expected
         )
 
-        self.group.del_net_from_if('eth0', version='6')
+        self.group.del_net_from_if('eth0')
 
         # check if we get the same dictionary at the and
         end_dict = self.db['group'].find_one({'_id': self.group._id})
@@ -818,6 +818,7 @@ class GroupBootInstallParamsTests(unittest.TestCase):
         # mocking osimage boot stuff
         with mock.patch('os.path'), \
                 mock.patch('shutil.copy'), \
+                mock.patch('os.remove'), \
                 mock.patch('os.chown'), \
                 mock.patch('os.chmod'), \
                 mock.patch('subprocess.Popen') as mock_subprocess_popen, \

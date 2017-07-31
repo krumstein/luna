@@ -36,7 +36,7 @@ class OtherDev(Base):
     log = logging.getLogger(__name__)
 
     def __init__(self, name=None, mongo_db=None, create=False, id=None,
-                 network=None, ip=None):
+                 network=None, ip=None, comment=''):
         """
         network - the network the device is connected to
         ip      - device's ip
@@ -60,16 +60,22 @@ class OtherDev(Base):
             if not network:
                 connected = {}
             elif not ip:
-                self.log.error("IP needs to be specified")
-                raise RuntimeError
+                err_msg = "IP needs to be specified"
+                self.log.error(err_msg)
+                raise RuntimeError, err_msg
             else:
                 net = Network(name=network, mongo_db=self._mongo_db)
                 ipnum = net.reserve_ip(ip, ignore_errors=False)
+                if not ipnum:
+                    err_msg = "Unable to allocate IP in network"
+                    self.log.error(err_msg)
+                    raise RuntimeError, err_msg
+
                 connected = {str(net.DBRef.id): ipnum}
 
             # Store the new device in the datastore
 
-            dev = {'name': name, 'connected': connected, 'comment': None}
+            dev = {'name': name, 'connected': connected, 'comment': comment}
 
             self.log.debug("Saving dev '{}' to the datastore".format(dev))
 

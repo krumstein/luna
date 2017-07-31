@@ -38,7 +38,7 @@ class Network(Base):
     def __init__(self, name=None, mongo_db=None,
                  create=False, id=None, version=None,
                  NETWORK=None, PREFIX=None,
-                 ns_hostname=None, ns_ip=None):
+                 ns_hostname=None, ns_ip=None, comment=''):
         """
         create  - should be True if we need create a network
         NETWORK - network
@@ -67,13 +67,15 @@ class Network(Base):
             if not version:
                 version = utils.ip.get_ip_version(NETWORK)
                 if version == 0:
-                    self.log.error("Unable to determine protocol " +
-                                   "version for given network")
-                    raise RuntimeError
+                    err_msg = ("Unable to determine protocol version " +
+                               "for given network")
+                    self.log.error(err_msg)
+                    raise RuntimeError, err_msg
 
             if version not in [4, 6]:
-                self.log.error("IP version should be 4 or 6")
-                raise RuntimeError
+                err_msg = "IP version should be 4 or 6"
+                self.log.error(err_msg)
+                raise RuntimeError, err_msg
 
             maxbits = 32
             if version == 6:
@@ -102,7 +104,8 @@ class Network(Base):
             net = {'name': name, 'NETWORK': num_subnet, 'PREFIX': PREFIX,
                    'freelist': flist, 'ns_hostname': ns_hostname,
                    'ns_ip': None, 'version': version,
-                   'include': None, 'rev_include': None}
+                   'include': None, 'rev_include': None,
+                   'comment': comment}
 
             self.log.debug("Saving net '{}' to the datastore".format(net))
 
@@ -209,8 +212,13 @@ class Network(Base):
 
             limit = (1 << (self.maxbits - value)) - 2
             prev_limit = (1 << (self.maxbits - self.get('PREFIX'))) - 2
+
             flist = utils.freelist.set_upper_limit(
                 net['freelist'], limit, prev_limit)
+
+            if self.version == 6:
+                flist = self._flist_to_str(flist)
+                new_num_subnet = str(new_num_subnet)
 
             ret = super(Network, self).set('freelist', flist)
             ret &= super(Network, self).set('NETWORK', new_num_subnet)

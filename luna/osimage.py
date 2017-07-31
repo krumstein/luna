@@ -46,7 +46,7 @@ class OsImage(Base):
     log = logging.getLogger(__name__)
 
     def __init__(self, name=None, mongo_db=None, create=False, id=None,
-                 path='', kernver='', kernopts='',
+                 path='', kernver='', kernopts='', comment='',
                  grab_list='grab_default_centos.lst'):
         """
         path      - path to / of the image (will be converted to absolute)
@@ -73,8 +73,9 @@ class OsImage(Base):
         osimage = self._get_object(name, mongo_db, create, id)
 
         if bool(kernopts) and type(kernopts) is not str:
-            self.log.error("Kernel options should be 'str' type")
-            raise RuntimeError
+            err_msg = "Kernel options should be 'str' type"
+            self.log.error(err_msg)
+            raise RuntimeError, err_msg
 
         if create:
             cluster = Cluster(mongo_db=self._mongo_db)
@@ -82,28 +83,33 @@ class OsImage(Base):
 
             duplicate = self._mongo_collection.find_one({'path': path})
             if duplicate:
-                self.log.error("Path belongs to osimage '{}'"
-                               .format(duplicate['name']))
-                raise RuntimeError
+                err_msg = ("Path belongs to osimage '{}'"
+                           .format(duplicate['name']))
+                self.log.error(err_msg)
+                raise RuntimeError, err_msg
 
             if not os.path.isdir(path):
-                self.log.error("'{}' is not a valid directory".format(path))
-                raise RuntimeError
+                err_msg = "'{}' is not a valid directory".format(path)
+                self.log.error(err_msg)
+                raise RuntimeError, err_msg
 
             kernels = self.get_package_ver(path, 'kernel')
             if not kernels:
-                self.log.error("No kernels installed in '{}'".format(path))
-                raise RuntimeError
+                err_msg = "No kernels installed in '{}'".format(path)
+                self.log.error(err_msg)
+                raise RuntimeError, err_msg
             elif not kernver:
                 kernver = kernels[0]
             elif kernver not in kernels:
-                self.log.error("Available kernels are '{}'".format(kernels))
-                raise RuntimeError
+                err_msg = "Available kernels are '{}'".format(kernels)
+                self.log.error(err_msg)
+                raise RuntimeError, err_msg
 
             grab_list_path = cluster.get('path') + '/templates/' + grab_list
             if not os.path.isfile(grab_list_path):
-                self.log.error("'{}' is not a file.".format(grab_list_path))
-                raise RuntimeError
+                err_msg = "'{}' is not a file.".format(grab_list_path)
+                self.log.error(err_msg)
+                raise RuntimeError, err_msg
 
             with open(grab_list_path) as lst:
                 grab_list_content = lst.read()
@@ -116,7 +122,7 @@ class OsImage(Base):
                        'dracutmodules': 'luna,-i18n,-plymouth',
                        'kernmodules': 'ipmi_devintf,ipmi_si,ipmi_msghandler',
                        'grab_exclude_list': grab_list_content,
-                       'grab_filesystems': '/,/boot', 'comment': None}
+                       'grab_filesystems': '/,/boot', 'comment': comment}
 
             self.log.debug("Saving osimage '{}' to the datastore"
                            .format(osimage))
@@ -360,9 +366,10 @@ class OsImage(Base):
                     break
 
             if not luna_exists:
-                self.log.error("No luna dracut module in osimage '{}'"
-                               .format(self.name))
-                raise RuntimeError
+                err_msg = ("No luna dracut module in osimage '{}'"
+                           .format(self.name))
+                self.log.error(err_msg)
+                raise RuntimeError, err_msg
 
             dracut_cmd = (['/usr/sbin/dracut', '--force', '--kver', kernver] +
                           modules_add + modules_remove + drivers_add +

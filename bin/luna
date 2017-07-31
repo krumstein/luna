@@ -141,8 +141,9 @@ def cluster_change(**args):
         cluster.set('comment', _edit_script(old_comment))
         return True
 
+    args.pop('comment')
     for key in args:
-        if args[key] == None or args[key] == False:
+        if args[key] is None:
             continue
         res = cluster.set(key, args[key])
         if not bool(res):
@@ -839,7 +840,7 @@ def _get_group_interfaces(group):
 
         if_name = '[' + k + ']:'
         interfaces += '{:<{}}{}\n'.format(
-            if_name, if_padding+3, if_net_str[:-1])
+            if_name, if_padding+3, if_net_str.rstrip('\n'))
 
     interfaces = interfaces[:-1]
 
@@ -967,7 +968,12 @@ def group_change(**args):
         elif bool(args['setnet']):
             return group.set_net_to_if(args['interface'], args['setnet'])
         elif bool(args['delnet']):
-            return group.del_net_from_if(args['interface'])
+            netname = None
+            if type(args['delnet']) == str:
+                netname = args['delnet']
+            ret = group.del_net_from_if(
+                args['interface'], network_name=netname)
+            return ret
         elif bool(args['rename']):
             return group.rename_interface(args['interface'], args['rename'])
         elif args['edit']:
@@ -1160,10 +1166,6 @@ def node_change(**args):
 
         if args['interface']:
             res = node.set_ip(args['interface'][0], ip=args['interface'][1])
-            out &= bool(res)
-
-        if args['bmcip']:
-            res = node.set_ip(ip=args['bmcip'], bmc=True)
             out &= bool(res)
 
         if args['port']:
@@ -1730,7 +1732,8 @@ cmd.add_argument('--delete', '-D', action='store_true',
                  help='Delete interface')
 cmd.add_argument('--setnet', '--sn', metavar='NETWORK',
                  help='Set Network for interface or for BMC')
-cmd.add_argument('--delnet', '--dn', action='store_true',
+cmd.add_argument('--delnet', '--dn', action='store',
+                 nargs='?', default=False, const=True,
                  help='Delete Network for interface or for BMC')
 cmd.add_argument('--edit', '-e', action='store_true',
                  help='Edit interface parameters or edit scripts')
@@ -1779,8 +1782,6 @@ cmd_group = cmd.add_mutually_exclusive_group(required=False)
 cmd_group.add_argument('--group', '-g', help='Group')
 cmd_group.add_argument('--interface', '-i', nargs=2, metavar=('IF', 'X.X.X.X'),
                        help='Assign ip address to interface')
-cmd_group.add_argument('--bmcip', '-b', metavar='X.X.X.X',
-                       help='Assign ip address to BMC interface')
 cmd.add_argument('--mac', metavar='XX:XX:XX:XX:XX',
                  help='Mac address. Specify empty string to erase')
 cmd.add_argument('--switch', '-s', help='Switch')

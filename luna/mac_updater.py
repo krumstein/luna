@@ -93,7 +93,7 @@ class MacUpdater(object):
                                 (oid, ip, read, switch_id)))
 
                 vl = netsnmp.VarList(netsnmp.Varbind(oid))
-                res = netsnmp.snmpwalk(varlist, Version=2, DestHost=ip,
+                res = netsnmp.snmpwalk(vl, Version=2, DestHost=ip,
                                        Community=read, UseNumeric=True)
 
                 ifname_oid = '.1.3.6.1.2.1.31.1.1.1.1'  # ifName

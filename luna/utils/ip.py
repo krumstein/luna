@@ -55,9 +55,10 @@ def ntoa(num_ip, ver=4):
         return ip
 
     except:
-        log.error(("Cannot convert '{}' from C"
-                   " to IPv{} format".format(num_ip, ver)))
-        raise RuntimeError
+        err_msg = ("Cannot convert '{}' from C"
+                   " to IPv{} format".format(num_ip, ver))
+        log.error(err_msg)
+        raise RuntimeError, err_msg
 
 
 def aton(ip, ver=4):
@@ -70,8 +71,9 @@ def aton(ip, ver=4):
         return long(absnum)
 
     except:
-        log.error("Cannot convert IP '{}' to C format".format(ip))
-        raise RuntimeError
+        err_msg = "Cannot convert IP '{}' to C format".format(ip)
+        log.error(err_msg)
+        raise RuntimeError, err_msg
 
 
 def reltoa(num_net, rel_ip, ver):
@@ -94,9 +96,10 @@ def atorel(ip, num_net, prefix, ver=4):
 
     # Check if the ip address actually belongs to num_net/prefix
     if not ip_in_net(ip, num_net, prefix, ver):
-        log.error(("Network '{}/{}' does not contain '{}'"
-                   .format(ntoa(num_net, ver), prefix, ip)))
-        raise RuntimeError
+        err_msg = ("Network '{}/{}' does not contain '{}'"
+                   .format(ntoa(num_net, ver), prefix, ip))
+        log.error(err_msg)
+        raise RuntimeError, err_msg
 
     relative_num = long(num_ip - num_net)
 
@@ -115,16 +118,19 @@ def get_num_subnet(ip, prefix, ver=4):
     try:
         prefix = int(prefix)
     except:
-        log.error("Prefix '{}' is invalid, must be 'int'".format(prefix))
-        raise RuntimeError
+        err_msg = "Prefix '{}' is invalid, must be 'int'".format(prefix)
+        log.error(err_msg)
+        raise RuntimeError, err_msg
 
     if ver == 4 and prefix not in range(1, 32):
-        log.error("Prefix should be in the range [1..32]")
-        raise RuntimeError
+        err_msg = "Prefix should be in the range [1..32]"
+        log.error(err_msg)
+        raise RuntimeError, err_msg
 
     if ver == 6 and prefix not in range(1, 128):
-        log.error("Prefix should be in the range [1..128]")
-        raise RuntimeError
+        err_msg = "Prefix should be in the range [1..128]"
+        log.error(err_msg)
+        raise RuntimeError, err_msg
 
     if type(ip) is long or type(ip) is int:
         num_ip = ip
@@ -132,8 +138,9 @@ def get_num_subnet(ip, prefix, ver=4):
         try:
             num_ip = aton(ip, ver)
         except socket.error:
-            log.error("'{}' is not a valid IP".format(ip))
-            raise RuntimeError
+            err_msg = "'{}' is not a valid IP".format(ip)
+            log.error(err_msg)
+            raise RuntimeError, err_msg
 
     num_mask = (((1 << maxbits) - 1)
                 ^ ((1 << (maxbits+1 - prefix) - 1) - 1))

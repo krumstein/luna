@@ -90,39 +90,45 @@ class Cluster(Base):
         cluster = self._get_object('general', mongo_db, create, id)
 
         if cluster and cluster.get('db_version') != db_version:
-            self.log.error("DB version mismatch. Expecting {}"
-                .format(db_version))
-            raise RuntimeError
+            err_msg = "DB version mismatch. Expecting {}".format(db_version)
+            self.log.error(err_msg)
+            raise RuntimeError, err_msg
 
         if create:
             try:
                 path = os.path.abspath(path)
             except:
-                self._logger.error("No path specified.")
-                raise RuntimeError
+                err_msg = "No path specified."
+                self._logger.error(err_msg)
+                raise RuntimeError, err_msg
             if not os.path.exists(path):
-                self._logger.error("Wrong path '{}' specified.".format(path))
-                raise RuntimeError
+                err_msg = "Wrong path '{}' specified.".format(path)
+                self._logger.error(err_msg)
+                raise RuntimeError, err_msg
 
             try:
                 user_id = pwd.getpwnam(user)
             except KeyError:
-                self.log.error("No such user '{}' exists.".format(user))
-                raise RuntimeError
+                err_msg = "No such user '{}' exists.".format(user)
+                self.log.error(err_msg)
+                raise RuntimeError, err_msg
 
             try:
                 group = grp.getgrgid(user_id.pw_gid).gr_name
                 group_id = grp.getgrnam(group)
             except KeyError:
-                self.log.error("No such group '{}' exists.".format(group))
-                raise RuntimeError
+                err_msg = "No such group '{}' exists.".format(group)
+                self.log.error(err_msg)
+                raise RuntimeError, err_msg
 
             path_stat = os.stat(path)
+
             if (path_stat.st_uid != user_id.pw_uid or
                     path_stat.st_gid != group_id.gr_gid):
-                self.log.error("Path is not owned by '{}:{}'"
-                               .format(user, group))
-                raise RuntimeError
+
+                err_msg = "Path is not owned by '{}:{}'".format(user, group)
+                self.log.error(err_msg)
+                raise RuntimeError, err_msg
 
             cluster = {'name': 'general',
                        'nodeprefix': nodeprefix,
