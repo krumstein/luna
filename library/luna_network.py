@@ -12,13 +12,13 @@ def luna_network_present(data):
         ns_ip = data['ns_ip']
 
         changed = False
-
+        print ns_ip
         try:
             net = luna.Network(name=name)
         except RuntimeError:
             net = luna.Network(
-                name=name, create=True, NETWORK=network, PREFIX=prefix,
-                ns_hostname=ns_hostname, ns_ip=ns_ip)
+                name=name, create=True, NETWORK=network, PREFIX=prefix)
+                #ns_hostname=ns_hostname, ns_ip=ns_ip)
             changed = True
 
         version = luna.utils.ip.get_ip_version(network)
