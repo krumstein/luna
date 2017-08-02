@@ -26,11 +26,9 @@ def luna_node_present(data):
         }
         node = luna.Node(**args)
         changed = True
-
     ansible_ifs = [e['name'] for e in data['interfaces']]
     node_ifs = node.list_ifs().keys()
     undefined_ifs = [e for e in ansible_ifs if e not in node_ifs]
-
     if undefined_ifs:
         err_msg = ("Node does not have {} interfaces configured."
                    .format(" ".join(undefined_ifs)))
@@ -43,24 +41,32 @@ def luna_node_present(data):
         if node.get(key) == data[key]:
             continue
         ret &= node.set(key, data[key])
+        if ret:
+          return True, changed, "could not change "+key+" "+data[key]
         changed = True
 
     node_show = node.show()
     keys = ['group', 'switch']
     for key in keys:
-        if (data[key] is not None
+        if (data[key] 
                 and node_show[key] != '[' + data[key] + ']'):
             ret &= getattr(node, "set_%s" % key)(data[key])
+            if not ret:
+              return True, changed, "could not change "+key+" "+data[key]
+          
             changed = True
 
     if (data['mac'] is not None
             and node.get_mac != data['mac']):
         ret &= node.set_mac(data['mac'])
+        if not ret:
+           return True, changed, "could not change mac "+data['mac']
+
         changed = True
 
     for e in data['interfaces']:
         ifname = e['name']
-        ansible_ips = e['ips']
+        ansible_ips = e['ip']
         conf_ips = []  # configured IPs
 
         for i in [4, 6]:
@@ -77,6 +83,8 @@ def luna_node_present(data):
             ret &= node.set_ip(
                 interface_name=ifname,
                 ip=ip)
+            if not ret:
+              return True, changed, "could not set ip "+ip+" "+ifname
 
             changed = True
 
@@ -115,7 +123,7 @@ def main():
             'switch': {
                 'type': 'str', 'default': None, 'required': False},
             'port': {
-                'type': 'int', 'default': None, 'required': False},
+                'type': 'str', 'default': None, 'required': False},
             'state': {
                 'type': 'str', 'default': 'present',
                 'choices': ['present', 'absent']}
