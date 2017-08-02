@@ -35,20 +35,23 @@ class LunaInventory(object):
 
     def luna_inventory(self):
         inventory = {}
-        osimages = {'hosts':[],'vars': {'ansible_connection': 'lchroot'}}
+        inventory['_meta'] = { 'hostvars': {}}
+        osimages = {'hosts':[],'vars': {'ansible_connection': 'chroot' }}
         for osimage in luna.list('osimage'):
             #osimages['hosts'].append(luna.OsImage(osimage).get('path'))
             osimages['hosts'].append(osimage)
+            inventory['_meta']['hostvars'][osimage]= {'ansible_host':luna.OsImage(osimage).get('path')}
 
         inventory['osimages'] = osimages
         nodes = {}
         for n in luna.list('node'):
-            node = luna.Node(n).show()
-            group = node['group'].replace("[","").replace("]","")
+            node = luna.Node(n)
+            group = node.show()['group'].replace("[","").replace("]","")
             if group in inventory:
-                inventory[group]['hosts'].append(node['name'])
+                inventory[group]['hosts'].append(node.show()['name'])
             else:
-                inventory[group] = {'hosts':[node['name']], 'vars': {}}
+                inventory[group] = {'hosts':[node.show()['name']]}
+            inventory['_meta']['hostvars'][node.show()['name']]={"bmc_ip":node.get_ip('BMC',version=4)}
         return inventory
     # Empty inventory for testing.
     def empty_inventory(self):
