@@ -186,6 +186,7 @@ def migrate_cluster(json):
 
     json['db_version'] = 1.2
     json['comment'] = None
+    json['frontend_https'] = False
     return json
 
 
