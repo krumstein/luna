@@ -121,6 +121,9 @@ OBJECTS, ACTIONS AND OPTIONS
 
                 curl "http://localhost:7051/luna?step=boot"
 
+        **--frontend_https**
+            Is frontend server uses HTTPS protocol or not.
+
         **--tracker_interval**
             Default is *10* sec. "Interval in seconds that the client should wait between sending regular requests to the tracker." https://wiki.theory.org/BitTorrentSpecification.
 
