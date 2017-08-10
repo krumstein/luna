@@ -32,10 +32,12 @@ from luna import utils
 class Manager(tornado.web.RequestHandler):
 
     def initialize(self, params):
+        self.protocol = params['protocol']
         self.server_ip = params['server_ip']
         self.server_port = params['server_port']
         self.mongo = params['mongo_db']
         self.log = params['app_logger']
+
 
     @tornado.web.asynchronous
     @tornado.gen.engine
@@ -44,8 +46,14 @@ class Manager(tornado.web.RequestHandler):
 
         if step == 'boot':
             nodes = luna.list('node')
-            self.render("templ_ipxe.cfg", server_ip=self.server_ip,
-                        server_port=self.server_port, nodes=nodes)
+            p = {
+                'protocol': self.protocol,
+                'server_ip': self.server_ip,
+                'server_port': self.server_port,
+                'nodes': nodes
+            }
+
+            self.render("templ_ipxe.cfg", p=p)
 
         elif step == 'discovery':
             hwdata = self.get_argument('hwdata', default=None)
@@ -60,6 +68,7 @@ class Manager(tornado.web.RequestHandler):
             if req_nodename:
                 self.log.info("Node '{}' was chosen in iPXE"
                               .format(req_nodename))
+                req_nodename = str(req_nodename)
                 try:
                     node = luna.Node(name=req_nodename, mongo_db=self.mongo)
                 except:
@@ -174,6 +183,7 @@ class Manager(tornado.web.RequestHandler):
 
             boot_params['server_ip'] = self.server_ip
             boot_params['server_port'] = self.server_port
+            boot_params['protocol'] = self.protocol
 
             boot_type = self.get_argument('type', default='ipxe')
             if boot_type == 'ipxe':
@@ -188,11 +198,13 @@ class Manager(tornado.web.RequestHandler):
                 self.send_error(404)
 
         elif step == 'install':
-            node_name = self.get_argument('node', default='None')
+            node_name = self.get_argument('node', default=None)
             if not node_name:
                 self.log.error("Node name must be provided")
                 self.send_error(400)
                 return
+
+            node_name = str(node_name)
 
             try:
                 node = luna.Node(name=node_name, mongo_db=self.mongo)
@@ -213,6 +225,10 @@ class Manager(tornado.web.RequestHandler):
                 self.send_error(404)
                 return
 
+            install_params['protocol'] = self.protocol
+            install_params['server_ip'] = self.server_ip
+            install_params['server_port'] = self.server_port
+
             node.update_status('install.request')
-            self.render("templ_install.cfg", p=install_params,
-                        server_ip=self.server_ip, server_port=self.server_port)
+
+            self.render("templ_install.cfg", p=install_params)

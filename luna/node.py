@@ -1040,22 +1040,28 @@ class Node(Base):
         cluster = Cluster(mongo_db=self._mongo_db)
         self._get_group()
         path = cluster.get('path')
+        tloader = template.Loader(path + '/templates')
+
+        if cluster.get('frontend_https'):
+            protocol = 'https'
+        else:
+            protocol = 'http'
+
         server_ip = cluster.get('frontend_address')
         server_port = cluster.get('frontend_port')
-        tloader = template.Loader(path + '/templates')
 
         if name == 'boot':
             p = self.boot_params
+            p['protocol'] = protocol
             p['server_ip'] = server_ip
             p['server_port'] = server_port
             return tloader.load('templ_nodeboot.cfg').generate(p=p)
 
         if name == 'install':
-
-            res = tloader.load('templ_install.cfg').generate(
-                p=self.install_params,
-                server_ip=server_ip,
-                server_port=server_port
-            )
+            p = self.install_params
+            p['protocol'] = protocol
+            p['server_ip'] = server_ip
+            p['server_port'] = server_port
+            res = tloader.load('templ_install.cfg').generate(p=p)
 
             return res
