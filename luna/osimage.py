@@ -272,7 +272,11 @@ class OsImage(Base):
         fs = libtorrent.file_storage()
         libtorrent.add_files(fs, os.path.basename(tarball))
         t = libtorrent.create_torrent(fs)
-        t.add_tracker(("http://" + str(tracker_address) +
+        if cluster.get('frontend_https'):
+            proto = 'https'
+        else:
+            proto = 'http'
+        t.add_tracker((proto + "://" + str(tracker_address) +
                        ":" + str(tracker_port) + "/announce"))
 
         t.set_creator(torrent_key)
