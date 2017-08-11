@@ -48,7 +48,7 @@ class ChassisAction(threading.Thread):
             self.op = None
 
         if self.op:
-            self.bmcip = node.get_ip(interface)
+            self.bmcip = node.get_ip(interface,version=4)
 
             if self.bmcip:
                 self.nodename = nodename
