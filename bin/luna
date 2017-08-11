@@ -145,6 +145,11 @@ def cluster_change(**args):
     for key in args:
         if args[key] is None:
             continue
+        if key == 'frontend_https':
+            if args[key] in ['yes', 'y']:
+                args[key] = True
+            else:
+                args[key] = False
         res = cluster.set(key, args[key])
         if not bool(res):
             log.error('Error changing {}'.format(key))
@@ -165,6 +170,11 @@ def cluster_show(**args):
     out_str = []
     out_json.pop('name')
     out_json.pop('db_version')
+    https = out_json.pop('frontend_https')
+    if https:
+        out_json['frontend_https'] = 'yes'
+    else:
+        out_json['frontend_https'] = 'no'
     comment = out_json.pop('comment')
     if bool(cluster.get('dhcp_net')):
         out_json.pop('dhcp_net')
@@ -1438,6 +1448,8 @@ cmd.add_argument('--user', help='Username for running services')
 cmd.add_argument('--frontend_address',
                  help='Address of the controller\'s provisioning interface')
 cmd.add_argument('--frontend_port', type=int, help='Server address')
+cmd.add_argument('--frontend_https', choices=['y', 'yes', 'n', 'no'],
+                 help='Is frontend server using HTTPS')
 cmd.add_argument('--server_port', type=int, help='Server port')
 cmd.add_argument('--tracker_interval', type=int,
                  help='Torrent tracker announce interval')

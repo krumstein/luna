@@ -85,7 +85,8 @@ class Cluster(Base):
                          'dhcp_range_start': long,
                          'dhcp_range_end': long,
                          'dhcp_net': type(''),
-                         'comment': type('')}
+                         'comment': type(''),
+                         'frontend_https': type(True)}
 
         cluster = self._get_object('general', mongo_db, create, id)
 
@@ -153,7 +154,9 @@ class Cluster(Base):
                        'dhcp_range_end': None,
                        'dhcp_net': None,
                        'db_version': db_version,
-                       'comment': None}
+                       'comment': None,
+                       'frontend_https': False,
+                       }
 
             self.log.debug("Saving cluster '{}' to the datastore"
                            .format(cluster))
@@ -350,6 +353,11 @@ class Cluster(Base):
 
         # get actual options
         c = {}
+
+        if self.get('frontend_https'):
+            c['protocol'] = 'https'
+        else:
+            c['protocol'] = 'http'
 
         c['frontend_ip'] = self.get('frontend_address')
         c['dhcp_start'] = self.get('dhcp_range_start')
