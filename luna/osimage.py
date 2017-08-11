@@ -614,10 +614,9 @@ class OsImage(Base):
             name=name,
             create=True,
             path=targetpath,
-            kernver=self.get('kernver')
         )
         # copy params
-        params = ['dracutmodules', 'kernmodules', 'kernopts',
+        params = ['dracutmodules', 'kernmodules', 'kernopts', 'kernver',
                   'grab_filesystems', 'grab_exclude_list', 'comment']
         for param in params:
             newosimage.set(param, self.get(param))
