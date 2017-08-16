@@ -67,4 +67,8 @@ if __name__ == '__main__':
     runner = unittest.TextTestRunner(
         verbosity=options.verbose,
     )
-    runner.run(suite)
+    ret = runner.run(suite)
+    if len(ret.failures) and len(ret.errors):
+        exit(1)
+    else:
+        exit(0)
