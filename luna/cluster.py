@@ -32,6 +32,7 @@ import subprocess
 
 from bson.objectid import ObjectId
 from tornado import template
+from pymongo.errors import OperationFailure
 
 from luna.base import Base
 from luna import utils
@@ -686,9 +687,12 @@ class Cluster(Base):
         if force:
             # this will return None
             self._mongo_db.connection.drop_database(db_name)
-            if db_name in self._mongo_db.connection.database_names():
-                self.log.error('Unable to delete DB \'{}\''.format(db_name))
-                return False
+            try:
+                if db_name in self._mongo_db.connection.database_names():
+                    self.log.error('Unable to delete DB \'{}\''.format(db_name))
+                    return False
+            except OperationFailure:
+                return True
             return True
 
         return super(Cluster, self).delete()
