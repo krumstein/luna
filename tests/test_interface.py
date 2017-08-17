@@ -1054,6 +1054,11 @@ class GetMacTests(unittest.TestCase):
         self.assertEqual(self.group.get_macs(self.network), {})
 
     def test_wo_nodes(self):
+        if self.sandbox.dbtype != 'mongo':
+            raise unittest.SkipTest(
+                'This test can be run only with MongoDB as a backend.'
+        )
+
         self.group.set_net_to_if('eth0', self.network.name)
         self.node.delete()
         self.group = luna.Group(name=self.group.name, mongo_db=self.db)
@@ -1071,6 +1076,10 @@ class GetMacTests(unittest.TestCase):
         self.group.set_net_to_if('eth0', self.network.name)
 
     def test_w_BOOTIF_wo_net(self):
+        if self.sandbox.dbtype != 'mongo':
+            raise unittest.SkipTest(
+                'This test can be run only with MongoDB as a backend.'
+        )
         self.group.add_interface('BOOTIF')
         self.group.set_net_to_if('eth0', self.network.name)
         self.assertEqual(
@@ -1085,6 +1094,10 @@ class GetMacTests(unittest.TestCase):
         )
 
     def test_w_BOOTIF_w_net(self):
+        if self.sandbox.dbtype != 'mongo':
+            raise unittest.SkipTest(
+                'This test can be run only with MongoDB as a backend.'
+        )
         self.group.add_interface('BOOTIF')
         self.group.set_net_to_if('eth0', self.network.name)
         self.group.set_net_to_if('BOOTIF', self.network.name)
@@ -1108,6 +1121,10 @@ class GetMacTests(unittest.TestCase):
         )
 
     def test_w_several_prov_ifs(self):
+        if self.sandbox.dbtype != 'mongo':
+            raise unittest.SkipTest(
+                'This test can be run only with MongoDB as a backend.'
+        )
         self.group.add_interface('eth1')
         self.group.add_interface('BMC')
         self.group.set_net_to_if('eth1', self.network.name)
