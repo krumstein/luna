@@ -4,3 +4,4 @@ tornado==2.2.1
 mock==1.0.1
 ming==0.5.5
 pytz
+xmlrunner

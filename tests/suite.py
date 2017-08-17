@@ -1,4 +1,5 @@
 import unittest
+import xmlrunner
 import os
 from optparse import OptionParser
 import logging
@@ -33,8 +34,11 @@ parser.add_option('-p', '--pattern',
 parser.add_option('-d', '--dbtype',
                   default='auto',
                   choices=['auto', 'mongo', 'ming'],
-
                   help='Backend DB')
+
+parser.add_option('-x', '--xml',
+                  default=None,
+                  help='Path to XML (JUnit) outputs')
 
 (options, args) = parser.parse_args()
 
@@ -64,9 +68,14 @@ else:
     )
 
 if __name__ == '__main__':
-    runner = unittest.TextTestRunner(
-        verbosity=options.verbose,
-    )
+
+    if options.xml is None:
+        runner = unittest.TextTestRunner(
+            verbosity=options.verbose,
+        )
+    else:
+        runner = xmlrunner.XMLTestRunner(output=options.xml)
+
     ret = runner.run(suite)
     if len(ret.failures) and len(ret.errors):
         exit(1)
