@@ -127,6 +127,11 @@ class ClusterMakeDHCPTests(unittest.TestCase):
         mock_rpm_transactionset.return_value.dbMatch.return_value = packages
 
         self.sandbox = Sandbox()
+        if self.sandbox.dbtype != 'mongo':
+            raise unittest.SkipTest(
+                'This test can be run only with MongoDB as a backend.'
+            )
+
         self.db = self.sandbox.db
         self.path = self.sandbox.path
 
@@ -218,6 +223,7 @@ class ClusterMakeDHCPTests(unittest.TestCase):
                 'netmask': '255.255.0.0',
                 'frontend_ip': '10.11.255.254',
                 'frontend_port': '7050',
+                'protocol': 'http',
             }
         )
 
@@ -250,6 +256,7 @@ class ClusterMakeDHCPTests(unittest.TestCase):
                 'netmask': '255.255.0.0',
                 'frontend_ip': '10.11.255.254',
                 'frontend_port': '7050',
+                'protocol': 'http',
             }
         )
 
@@ -348,6 +355,7 @@ class ClusterMakeDHCPTests(unittest.TestCase):
                 'netmask': '255.255.0.0',
                 'frontend_ip': '10.11.255.254',
                 'frontend_port': '7050',
+                'protocol': 'http',
             }
         )
 

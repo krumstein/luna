@@ -108,7 +108,7 @@ class NodeCreateTests(unittest.TestCase):
     def test_delete_node(self):
         if self.sandbox.dbtype != 'mongo':
             raise unittest.SkipTest(
-                'This test can be run only with MondoDB as a backend.'
+                'This test can be run only with MongoDB as a backend.'
             )
 
         node = luna.Node(
@@ -219,7 +219,7 @@ class NodeChangeTests(unittest.TestCase):
     def test_change_mac(self):
         if self.sandbox.dbtype != 'mongo':
             raise unittest.SkipTest(
-                'This test can be run only with MondoDB as a backend.'
+                'This test can be run only with MongoDB as a backend.'
             )
 
         self.node.set_mac('00:01:02:aa:bb:cc')
@@ -237,7 +237,7 @@ class NodeChangeTests(unittest.TestCase):
     def test_clear_mac(self):
         if self.sandbox.dbtype != 'mongo':
             raise unittest.SkipTest(
-                'This test can be run only with MondoDB as a backend.'
+                'This test can be run only with MongoDB as a backend.'
             )
         self.node.set_mac('00:01:02:aa:bb:cc')
         self.node.set_mac('')
@@ -247,7 +247,7 @@ class NodeChangeTests(unittest.TestCase):
     def test_get_mac(self):
         if self.sandbox.dbtype != 'mongo':
             raise unittest.SkipTest(
-                'This test can be run only with MondoDB as a backend.'
+                'This test can be run only with MongoDB as a backend.'
             )
         mac = '00:01:02:aa:bb:cc'
         self.node.set_mac(mac)
@@ -256,7 +256,7 @@ class NodeChangeTests(unittest.TestCase):
     def test_set_switch(self):
         if self.sandbox.dbtype != 'mongo':
             raise unittest.SkipTest(
-                'This test can be run only with MondoDB as a backend.'
+                'This test can be run only with MongoDB as a backend.'
             )
         net = luna.Network(
             'testnet',
@@ -283,7 +283,7 @@ class NodeChangeTests(unittest.TestCase):
     def test_change_switch(self):
         if self.sandbox.dbtype != 'mongo':
             raise unittest.SkipTest(
-                'This test can be run only with MondoDB as a backend.'
+                'This test can be run only with MongoDB as a backend.'
             )
         net = luna.Network(
             'testnet',
@@ -713,7 +713,7 @@ class NodeBootInstallTests(unittest.TestCase):
     def test_boot_params_w_net_and_mac_assigned(self):
         if self.sandbox.dbtype != 'mongo':
             raise unittest.SkipTest(
-                'This test can be run only with MondoDB as a backend.'
+                'This test can be run only with MongoDB as a backend.'
             )
 
         mac = '00:11:22:33:44:55'
