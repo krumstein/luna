@@ -75,6 +75,11 @@ class Switch(Base):
                 self.log.error(err_msg)
                 raise RuntimeError, err_msg
 
+            if not name:
+                err_msg = "Name must be provided"
+                self.log.error(err_msg)
+                raise RuntimeError, err_msg
+
             net = Network(name=network, mongo_db=self._mongo_db)
             ip = net.reserve_ip(ip)
 
@@ -161,7 +166,7 @@ class Switch(Base):
             return super(Switch, self).set(key, value)
 
     def release_resources(self):
-        net_dbref = self.get('network')
+        net_dbref = self._json['network']
         net = Network(id=net_dbref.id, mongo_db=self._mongo_db)
         net.release_ip(self.get('ip'))
 
