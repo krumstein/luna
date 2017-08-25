@@ -12,7 +12,6 @@ def luna_network_present(data):
         ns_ip = data['ns_ip']
 
         changed = False
-        print ns_ip
         try:
             net = luna.Network(name=name)
         except RuntimeError:
