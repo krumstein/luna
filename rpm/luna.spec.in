@@ -118,6 +118,14 @@ Requires(postun): policycoreutils-python
 %description selinux
 SELinux policy for luna
 
+%package ansible
+Summary: Ansible support for luna
+Requires: %{name} = %{version}-%{release}
+Requires: ansible
+
+%description ansible
+Ansible support for luna
+
 # ///////////////////////////////////////////////
 # PREPARATION SECTION
 # ///////////////////////////////////////////////
@@ -242,6 +250,18 @@ for f in ./*; do
     %{__install} -m 644 -D $f                                   %{buildroot}%{_sysconfdir}/firewalld/services/$f
 done
 popd
+
+# ansible modules
+pushd contrib/ansible
+%{__install} -m 644 -D inventory/luna_inventory.py              %{buildroot}%{python_sitelib}/ansible/inventory/luna_inventory.py
+%{__install} -m 644 -D plugins/connection/lchroot.py            %{buildroot}%{python_sitelib}/ansible/plugins/connection/lchroot.py
+pushd modules/clustering
+for f in ./*; do
+    %{__install} -m 644 -D $f                                   %{buildroot}%{python_sitelib}/ansible/modules/clustering/$f
+done
+popd
+popd
+
 
 # ///////////////////////////////////////////////
 # CLEAN SECTION
@@ -390,6 +410,12 @@ exit 0
 %files selinux
 %{_datadir}/selinux/packages/%{name}/luna.pp
 
+%files ansible
+%{python_sitelib}/ansible/inventory/*
+%{python_sitelib}/ansible/modules/clustering/*
+%{python_sitelib}/ansible/plugins/connection/*
+
+
 # ///////////////////////////////////////////////
 # CHANGELOG
 # ///////////////////////////////////////////////
@@ -411,3 +437,5 @@ exit 0
  - support parrallel gzip on osimage pack
  * Thu Jul  6 2017 Dmitry Chirikov <dmitry@chirikov.ru> 1.2-0.3
  - selinux package
+ * Mon Aug 28 2017 Dmitry Chirikov <dmitry@chirikov.ru> 1.2-0.4
+ - ansible module
