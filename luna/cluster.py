@@ -213,24 +213,24 @@ class Cluster(Base):
                 value = os.path.abspath(value)
             except:
                 self.log.error("No path specified.")
-                return None
+                return False
             if not os.path.exists(value):
                 self.log.error("Wrong path specified.")
-                return None
+                return False
 
         elif key in ['server_address', 'tracker_address']:
             try:
                 utils.ip.aton(value)
             except:
                 self.log.error("Wrong ip address specified.")
-                return None
+                return False
 
         elif key == 'user':
             try:
                 pwd.getpwnam(value)
             except:
                 self.log.error("No such user exists.")
-                return None
+                return False
 
         elif key == 'cluster_ips':
             if not bool(value):
@@ -243,7 +243,7 @@ class Cluster(Base):
                         val += ip + ','
                     except:
                         self.log.error("Wrong ip address specified.")
-                        return None
+                        return False
 
                 value = val[:-1]
 
