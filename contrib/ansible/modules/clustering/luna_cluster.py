@@ -2,7 +2,10 @@
 
 from ansible.module_utils.basic import AnsibleModule
 import luna
+from luna.ansible.helpers import StreamStringLogger
 import traceback
+import os
+import logging
 
 
 def luna_cluster_present(data):
@@ -14,7 +17,11 @@ def luna_cluster_present(data):
     dhcp_range_end = data.pop('dhcp_range_end')
     native_dhcp_ha = data.pop('native_dhcp_ha')
 
+    if data['path'] is not None:
+        data['path'] = os.path.abspath(data['path'])
+
     changed = False
+    res = True
 
     try:
         cluster = luna.Cluster()
@@ -36,7 +43,7 @@ def luna_cluster_present(data):
             if data[key] is not None and cluster.get(key) != data[key]:
                 out += '{}={},'.format(key, data[key])
                 changed = True
-                cluster.set(key, data[key])
+                res &= cluster.set(key, data[key])
 
         if makedns:
             if not cluster.makedns():
@@ -77,7 +84,7 @@ def luna_cluster_present(data):
 
                 changed = True
 
-        return False, changed, str(cluster) + out
+        return not res, changed, str(cluster) + ' ' + out
     except Exception as e:
         return True, False, str(e) + traceback.format_exc()
 
@@ -94,6 +101,13 @@ def luna_cluster_absent(data):
 
 
 def main():
+    log_string = StreamStringLogger()
+    loghandler = logging.StreamHandler(stream=log_string)
+    formatter = logging.Formatter('%(levelname)s: %(message)s')
+    logger = logging.getLogger()
+    loghandler.setFormatter(formatter)
+    logger.addHandler(loghandler)
+
     module = AnsibleModule(
         argument_spec={
 
@@ -101,7 +115,7 @@ def main():
                 'type': 'str',  'default': 'node',   'required': False},
 
             'nodedigits': {
-                'type': 'str',  'default': '3',      'required': False},
+                'type': 'int',  'default':  3,       'required': False},
 
             'user': {
                 'type': 'str',  'default': 'luna',   'required': False},
@@ -193,9 +207,9 @@ def main():
         module.params['state'])(module.params)
 
     if not is_error:
-        module.exit_json(changed=has_changed, meta=result)
+        module.exit_json(changed=has_changed, msg=str(log_string), meta=result)
     else:
-        module.fail_json(msg='Error cluster changing', meta=result)
+        module.fail_json(changed=has_changed, msg=str(log_string), meta=result)
 
 
 if __name__ == '__main__':
