@@ -255,6 +255,11 @@ popd
 pushd contrib/ansible
 %{__install} -m 644 -D inventory/luna_inventory.py              %{buildroot}%{python_sitelib}/ansible/inventory/luna_inventory.py
 %{__install} -m 644 -D plugins/connection/lchroot.py            %{buildroot}%{python_sitelib}/ansible/plugins/connection/lchroot.py
+pushd utils
+for f in ./*; do
+    %{__install} -m 644 -D $f                                   %{buildroot}%{python_sitelib}/luna/ansible/$f
+done
+popd
 pushd modules/clustering
 for f in ./*; do
     %{__install} -m 644 -D $f                                   %{buildroot}%{python_sitelib}/ansible/modules/clustering/$f
@@ -319,7 +324,21 @@ case "$1" in
         %{_bindir}/systemctl stop lweb ltorrent 2>/dev/null || %{_bindir}/true
     ;;
 esac
+%{_bindir}/rm -rf %{python_sitelib}/luna/*.pyc
+%{_bindir}/rm -rf %{python_sitelib}/luna/*.pyo
+%{_bindir}/rm -rf %{python_sitelib}/luna/utils/*.pyc
+%{_bindir}/rm -rf %{python_sitelib}/luna/utils/*.pyo
 exit 0
+
+%preun ansible
+%{_bindir}/rm -rf %{python_sitelib}/luna/ansible/*.pyc
+%{_bindir}/rm -rf %{python_sitelib}/luna/ansible/*.pyo
+%{_bindir}/rm -rf %{python_sitelib}/ansible/inventory/*.pyc
+%{_bindir}/rm -rf %{python_sitelib}/ansible/inventory/*.pyo
+%{_bindir}/rm -rf %{python_sitelib}/ansible/modules/clustering/*.pyc
+%{_bindir}/rm -rf %{python_sitelib}/ansible/modules/clustering/*.pyo
+%{_bindir}/rm -rf %{python_sitelib}/ansible/plugins/connection/*.pyc
+%{_bindir}/rm -rf %{python_sitelib}/ansible/plugins/connection/*.pyo
 
 # ///////////////////////////////////////////////
 # POST REMOVE PHASE MAIN
@@ -391,7 +410,13 @@ exit 0
 %config(noreplace) %attr(0600, %{luna_user}, %{luna_group}) %{_sysconfdir}/luna.conf
 %{_sbindir}/*
 %{_libdir}/libluna-fakeuname.so
-%{python_sitelib}/luna*
+%dir %{python_sitelib}/luna
+%{python_sitelib}/luna/*.py
+%exclude %{python_sitelib}/luna/*.pyc
+%exclude %{python_sitelib}/luna/*.pyo
+%{python_sitelib}/luna/utils
+%exclude %{python_sitelib}/luna/utils/*.pyc
+%exclude %{python_sitelib}/luna/utils/*.pyo
 %doc %{_mandir}/man1/*
 %doc %{_mandir}/man8/*
 %doc %{_defaultdocdir}/%{name}-%{version}-%{release}
@@ -411,9 +436,18 @@ exit 0
 %{_datadir}/selinux/packages/%{name}/luna.pp
 
 %files ansible
-%{python_sitelib}/ansible/inventory/*
-%{python_sitelib}/ansible/modules/clustering/*
-%{python_sitelib}/ansible/plugins/connection/*
+%{python_sitelib}/luna/ansible
+%{python_sitelib}/ansible/inventory/*.py
+%{python_sitelib}/ansible/modules/clustering/*.py
+%{python_sitelib}/ansible/plugins/connection/*.py
+%exclude %{python_sitelib}/luna/ansible/*.pyc
+%exclude %{python_sitelib}/luna/ansible/*.pyo
+%exclude %{python_sitelib}/ansible/inventory/*.pyc
+%exclude %{python_sitelib}/ansible/inventory/*.pyo
+%exclude %{python_sitelib}/ansible/modules/clustering/*.pyc
+%exclude %{python_sitelib}/ansible/modules/clustering/*.pyo
+%exclude %{python_sitelib}/ansible/plugins/connection/*.pyc
+%exclude %{python_sitelib}/ansible/plugins/connection/*.pyo
 
 
 # ///////////////////////////////////////////////
