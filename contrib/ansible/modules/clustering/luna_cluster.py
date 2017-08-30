@@ -27,6 +27,9 @@ def luna_cluster_present(data):
         cluster = luna.Cluster()
 
     except RuntimeError:
+        if data['frontend_address'] is None:
+            msg = 'frontend_address should be specified on creation'
+            return True, False, msg
         init = {}
         for key in data:
             if key in ['nodeprefix', 'nodedigits', 'path', 'user']:
@@ -94,7 +97,7 @@ def luna_cluster_absent(data):
         exec('%s = v' % k)
     try:
         cluster = luna.Cluster()
-        cluster.delete()
+        cluster.delete(force=True)
         return False, True, ''
     except Exception as e:
         return True, False, str(e) + traceback.format_exc()
