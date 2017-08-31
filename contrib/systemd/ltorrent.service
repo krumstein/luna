@@ -8,6 +8,7 @@ Type=forking
 PIDFile=/var/run/luna/ltorrent.pid
 ExecStart=/usr/sbin/ltorrent start
 ExecStop=/usr/sbin/ltorrent stop
+ExecReload=/usr/sbin/ltorrent reload
 
 [Install]
 WantedBy=multi-user.target
