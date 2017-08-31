@@ -1,6 +1,8 @@
 #!/usr/bin/python
 
 from ansible.module_utils.basic import AnsibleModule
+from luna.ansible.helpers import StreamStringLogger
+import logging
 import luna
 
 
@@ -12,14 +14,18 @@ def luna_osimage_present(data):
     try:
         osimage = luna.OsImage(name=data['name'])
     except RuntimeError:
-        osimage = luna.OsImage(
-            name=data['name'],
-            create=True,
-            path=data['path'],
-            kernver=data['kernver'],
-            kernopts=data['kernopts'],
-            comment=data['comment'])
-        changed = True
+        try:
+            osimage = luna.OsImage(
+                name=data['name'],
+                create=True,
+                path=data['path'],
+                kernver=data['kernver'],
+                kernopts=data['kernopts'],
+                comment=data['comment'])
+            changed = True
+        except RuntimeError:
+            return True, False, 'Unable to create image'
+
 
     for key in ['path', 'kernver', 'kernopts',
                 'dracutmodules', 'kernmodules', 'grab_exclude_list',
@@ -56,6 +62,13 @@ def luna_osimage_absent(data):
 
 
 def main():
+    log_string = StreamStringLogger()
+    loghandler = logging.StreamHandler(stream=log_string)
+    formatter = logging.Formatter('%(levelname)s: %(message)s')
+    logger = logging.getLogger()
+    loghandler.setFormatter(formatter)
+    logger.addHandler(loghandler)
+
     module = AnsibleModule(
         argument_spec={
             'name': {
@@ -106,9 +119,9 @@ def main():
         module.params['state'])(module.params)
 
     if not is_error:
-        module.exit_json(changed=has_changed, meta=result)
+        module.exit_json(changed=has_changed, msg=str(log_string), meta=result)
     else:
-        module.fail_json(msg="Error osimage changing", meta=result)
+        module.fail_json(changed=has_changed, msg=str(log_string), meta=result)
 
 
 if __name__ == '__main__':
