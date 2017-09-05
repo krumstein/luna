@@ -33,6 +33,29 @@
 - assert: {that: "res.changed == false"}
 
 ###############################################################################
+## Create otherdev and try to delete
+
+- name: Create otherdev
+  luna_otherdev:
+    name: "pdu01"
+    connected:
+    - network: "test01"
+      ip: "192.16.1.101"
+
+- name: Delete network
+  luna_network:
+    name: "test01"
+    state: "absent"
+  ignore_errors: true
+  register: res
+
+- assert:
+    that:
+    - "res.changed == false"
+    - "res.failed == true"
+
+
+###############################################################################
 
 - name: Delete network
   luna_network:
