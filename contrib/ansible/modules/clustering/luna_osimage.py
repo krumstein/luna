@@ -58,7 +58,9 @@ def luna_osimage_absent(data):
     except RuntimeError:
         return False, False, name
 
-    return not osimage.delete(), True, name
+    res = osimage.delete()
+
+    return not res, res, name
 
 
 def main():
