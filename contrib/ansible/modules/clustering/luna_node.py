@@ -1,6 +1,8 @@
 #!/usr/bin/python
 
 from ansible.module_utils.basic import AnsibleModule
+from luna.ansible.helpers import StreamStringLogger
+import logging
 import luna
 
 
@@ -41,19 +43,19 @@ def luna_node_present(data):
         if node.get(key) == data[key]:
             continue
         ret &= node.set(key, data[key])
-        if ret:
+        if not ret:
           return True, changed, "could not change "+key+" "+data[key]
         changed = True
 
     node_show = node.show()
     keys = ['group', 'switch']
     for key in keys:
-        if (data[key] 
+        if (data[key]
                 and node_show[key] != '[' + data[key] + ']'):
             ret &= getattr(node, "set_%s" % key)(data[key])
             if not ret:
               return True, changed, "could not change "+key+" "+data[key]
-          
+
             changed = True
 
     if (data['mac'] is not None
@@ -98,10 +100,19 @@ def luna_node_absent(data):
     except RuntimeError:
         return False, False, name
 
-    return not node.delete(), True, name
+    res = node.delete()
+
+    return not res, res, name
 
 
 def main():
+    log_string = StreamStringLogger()
+    loghandler = logging.StreamHandler(stream=log_string)
+    formatter = logging.Formatter('%(levelname)s: %(message)s')
+    logger = logging.getLogger()
+    loghandler.setFormatter(formatter)
+    logger.addHandler(loghandler)
+
     module = AnsibleModule(
         argument_spec={
             'name': {
@@ -113,11 +124,11 @@ def main():
             'interfaces': {
                 'type': 'list', 'default': [], 'required': False},
             'localboot': {
-                'type': 'bool', 'default': None, 'required': False},
+                'type': 'bool', 'default': False, 'required': False},
             'setupbmc': {
-                'type': 'bool', 'default': None, 'required': False},
+                'type': 'bool', 'default': True, 'required': False},
             'service': {
-                'type': 'bool', 'default': None, 'required': False},
+                'type': 'bool', 'default': False, 'required': False},
             'mac': {
                 'type': 'str', 'default': None, 'required': False},
             'switch': {
@@ -139,9 +150,9 @@ def main():
         module.params['state'])(module.params)
 
     if not is_error:
-        module.exit_json(changed=has_changed, meta=result)
+        module.exit_json(changed=has_changed, msg=str(log_string), meta=result)
     else:
-        module.fail_json(msg='Error node changing', meta=result)
+        module.fail_json(changed=has_changed, msg=str(log_string), meta=result)
 
 
 if __name__ == '__main__':
