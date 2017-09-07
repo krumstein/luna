@@ -1,6 +1,8 @@
 #!/usr/bin/python
 
 from ansible.module_utils.basic import AnsibleModule
+from luna.ansible.helpers import StreamStringLogger
+import logging
 import luna
 
 
@@ -151,10 +153,19 @@ def luna_group_absent(data):
     except RuntimeError:
         return False, False, name
 
-    return not group.delete(), True, name
+    res = group.delete()
+
+    return not res, res, name
 
 
 def main():
+    log_string = StreamStringLogger()
+    loghandler = logging.StreamHandler(stream=log_string)
+    formatter = logging.Formatter('%(levelname)s: %(message)s')
+    logger = logging.getLogger()
+    loghandler.setFormatter(formatter)
+    logger.addHandler(loghandler)
+
     module = AnsibleModule(
         argument_spec={
             'name': {
@@ -192,9 +203,9 @@ def main():
         module.params['state'])(module.params)
 
     if not is_error:
-        module.exit_json(changed=has_changed, meta=result)
+        module.exit_json(changed=has_changed, msg=str(log_string), meta=result)
     else:
-        module.fail_json(msg='Error group changing', meta=result)
+        module.fail_json(changed=has_changed, msg=str(log_string), meta=result)
 
 
 if __name__ == '__main__':
