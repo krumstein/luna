@@ -1,6 +1,8 @@
 #!/usr/bin/python
 
 from ansible.module_utils.basic import AnsibleModule
+from luna.ansible.helpers import StreamStringLogger
+import logging
 import luna
 
 
@@ -9,25 +11,24 @@ def luna_otherdev_present(data):
     name = data.pop('name')
     changed = False
     ret = True
+    if not data['connected']:
+        err_msg = ("Need to specify at least one IP and network " +
+                   "device is connected to")
+        return True, changed, err_msg
+
+    if 'network' not in data['connected'][0]:
+        err_msg = ("Network to which device is connected " +
+                   "needs to be specified")
+        return True, changed, err_msg
+
+    if 'ip' not in data['connected'][0]:
+        err_msg = ("IP of the device " +
+                   "needs to be specified")
+        return True, changed, err_msg
 
     try:
         otherdev = luna.OtherDev(name=name)
     except RuntimeError:
-        if not data['connected']:
-            err_msg = ("Need to specify at least one IP and network " +
-                       "device is connected to")
-            return True, changed, err_msg
-
-        if 'network' not in data['connected'][0]:
-            err_msg = ("Network to which device is connected " +
-                       "needs to be specified")
-            return True, changed, err_msg
-
-        if 'ip' not in data['connected'][0]:
-            err_msg = ("IP device is reachable " +
-                       "needs to be specified")
-            return True, changed, err_msg
-
         args = {
             'name': name,
             'create': True,
@@ -75,10 +76,19 @@ def luna_otherdev_absent(data):
     except RuntimeError:
         return False, False, name
 
-    return not otherdev.delete(), True, name
+    res = otherdev.delete()
+
+    return not res, res, name
 
 
 def main():
+    log_string = StreamStringLogger()
+    loghandler = logging.StreamHandler(stream=log_string)
+    formatter = logging.Formatter('%(levelname)s: %(message)s')
+    logger = logging.getLogger()
+    loghandler.setFormatter(formatter)
+    logger.addHandler(loghandler)
+
     module = AnsibleModule(
         argument_spec={
             'name': {
@@ -102,9 +112,9 @@ def main():
         module.params['state'])(module.params)
 
     if not is_error:
-        module.exit_json(changed=has_changed, meta=result)
+        module.exit_json(changed=has_changed, msg=str(log_string), meta=result)
     else:
-        module.fail_json(msg="Error otherdev changing", meta=result)
+        module.fail_json(changed=has_changed, msg=str(log_string), meta=result)
 
 
 if __name__ == '__main__':
