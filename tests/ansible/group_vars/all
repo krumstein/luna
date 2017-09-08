@@ -10,7 +10,7 @@ luna_bmc_net:               "10.149.0.0"
 luna_bmc_net_name:          "ipmi"
 luna_bmc_net_prefix:        16
 
-luna_luna_dhcp_net:         "cluster"
+luna_luna_dhcp_net:         "{{ luna_cluster_net_name }}"
 luna_dhcp_range_start:      "10.141.128.0"
 luna_dhcp_range_end:        "10.141.140.254"
 luna_dhcp_range_end_other:  "10.141.130.254"
@@ -29,3 +29,10 @@ luna_node_ip_cluster:       "10.141.0.10"
 luna_node_ip_bmc:           "10.149.0.10"
 luna_node_mac:              "00:01:02:03:04:05"
 
+luna_otherdev_name:         "pdu01"
+luna_otherdev_net:          "{{ luna_bmc_net_name }}"
+luna_otherdev_ip:           "10.149.100.1"
+
+luna_switch_name:           "switch01"
+luna_switch_net:            "{{ luna_bmc_net_name }}"
+luna_switch_ip:             "10.149.200.1"
