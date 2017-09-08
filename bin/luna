@@ -1295,7 +1295,7 @@ def _list_otherdev_interfaces(dev):
         if len(n) > padding:
             padding = len(n)
 
-    for net in dev.list_nets():
+    for net in nets:
         tmp = "{:<{}}{}".format(
             "[" + net + "]:",
             padding + 3,
