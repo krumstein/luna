@@ -730,10 +730,9 @@ def network_show(**args):
         print(net.get('comment'))
         return True
     if reservedips:
-        nonfree = utils.freelist.get_nonfree(net['freelist'])
-        ips = [utils.ip.reltoa(net['NETWORK'], elem) for elem in nonfree]
-        print("\n".join(["%s" % i for i in ips]))
-        return None
+        ips = net.resolve_used_ips()
+        print("\n".join(["%s:%s" % (ips[i], i) for i in ips]))
+        return True
     out_json = net.show()
     header = ['Parameter', 'Value']
     content = []
