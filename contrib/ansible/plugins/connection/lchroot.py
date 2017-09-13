@@ -51,37 +51,65 @@ class Connection(ConnectionBase):
     # Have to look into that before re-enabling this
     become_methods = frozenset(C.BECOME_METHODS).difference(('su',))
 
+    def mount(self, source, target, fs):
+        subprocess.Popen(['/usr/bin/mount', '-t', fs, source, target])
+
+    def umount(self, source):
+        subprocess.Popen(['/usr/bin/umount', source])
+
+    def prepare_mounts(self, path):
+        self.mount('devtmpfs', path + '/dev', 'devtmpfs')
+        self.mount('proc', path + '/proc', 'proc')
+        self.mount('sysfs', path + '/sys', 'sysfs')
+
+    def cleanup_mounts(self, path):
+        self.umount(path + '/dev')
+        self.umount(path + '/proc')
+        self.umount(path + '/sys')
+
+
     def __init__(self, play_context, new_stdin, *args, **kwargs):
         super(Connection, self).__init__(play_context, new_stdin, *args, **kwargs)
 
-        self.chroot = luna.OsImage(name=self._play_context.remote_addr).get('path')
-        self.osimage = self._play_context.remote_addr
+        osimage_name = str(self._play_context.remote_addr)
+        self.osimage = luna.OsImage(name=osimage_name)
+        self.path = self.osimage.get('path')
+        self.lock = self.path + "/tmp/lchroot.lock"
 
         if os.geteuid() != 0:
-            raise AnsibleError("chroot connection requires running as root")
+            raise AnsibleError("lchroot connection requires running as root")
 
         # we're running as root on the local system so do some
         # trivial checks for ensuring 'host' is actually a chroot'able dir
-        if not os.path.isdir(self.chroot):
-            raise AnsibleError("%s is not a directory" % self.chroot)
+        if not os.path.isdir(self.path):
+            raise AnsibleError("%s is not a directory" % self.path)
 
-        chrootsh = os.path.join(self.chroot, 'bin/sh')
+        chrootsh = os.path.join(self.path, 'bin/sh')
         # Want to check for a usable bourne shell inside the chroot.
         # is_executable() == True is sufficient.  For symlinks it
         # gets really complicated really fast.  So we punt on finding that
         # out.  As long as it's a symlink we assume that it will work
         if not (is_executable(chrootsh) or (os.path.lexists(chrootsh) and os.path.islink(chrootsh))):
-            raise AnsibleError("%s does not look like a chrootable dir (/bin/sh missing)" % self.chroot)
+            raise AnsibleError("%s does not look like a chrootable dir (/bin/sh missing)" % self.path)
 
-        self.chroot_cmd = distutils.spawn.find_executable('lchroot')
+        self.chroot_cmd = distutils.spawn.find_executable('chroot')
+
         if not self.chroot_cmd:
             raise AnsibleError("chroot command not found in PATH")
+
+        if os.path.isfile(self.lock):
+            raise AnsibleError("%s exists. Unable to proceed." % self.lock)
+
+        with open(self.lock, 'a') as f:
+            f.write("PID %d of the ansible\n" % os.getpid())
+
+        self.prepare_mounts(self.path)
 
     def _connect(self):
         ''' connect to the chroot; nothing to do here '''
         super(Connection, self)._connect()
         if not self._connected:
-            display.vvv("THIS IS A LOCAL CHROOT DIR", host=self.chroot)
+            display.vvv("THIS IS A LOCAL CHROOT DIR", host=self.path)
             self._connected = True
 
     def _buffered_exec_command(self, cmd, stdin=subprocess.PIPE):
@@ -93,17 +121,22 @@ class Connection(ConnectionBase):
         return the process's exit code immediately.
         '''
         executable = C.DEFAULT_EXECUTABLE.split()[0] if C.DEFAULT_EXECUTABLE else '/bin/sh'
-        local_cmd = [self.chroot_cmd, self.osimage, executable, '-c', cmd]
+        local_cmd = [self.chroot_cmd, self.path, executable, '-c', cmd]
 
-        display.vvv("EXEC %s cmd is %s" % (local_cmd,cmd), host=self.chroot)
+        display.vvv(
+            "EXEC %s cmd is %s" % (local_cmd,cmd), host=self.path)
         local_cmd = [to_bytes(i, errors='surrogate_or_strict') for i in local_cmd]
         p = subprocess.Popen(local_cmd, shell=False, stdin=stdin,
+                env={
+                    'FAKE_KERN': self.osimage.get('kernver'),
+                    'LD_PRELOAD': 'libluna-fakeuname.so'
+                },
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         return p
 
     def exec_command(self, cmd, in_data=None, sudoable=False):
-        ''' run a command on the chroot '''
+        ''' run a command on the lchroot '''
         super(Connection, self).exec_command(cmd, in_data=in_data, sudoable=sudoable)
 
         p = self._buffered_exec_command(cmd)
@@ -126,9 +159,9 @@ class Connection(ConnectionBase):
         return os.path.normpath(remote_path)
 
     def put_file(self, in_path, out_path):
-        ''' transfer a file from local to chroot '''
+        ''' transfer a file from local to lchroot '''
         super(Connection, self).put_file(in_path, out_path)
-        display.vvv("PUT %s TO %s" % (in_path, out_path), host=self.chroot)
+        display.vvv("PUT %s TO %s" % (in_path, out_path), host=self.path)
 
         out_path = pipes.quote(self._prefix_login_path(out_path))
         try:
@@ -136,7 +169,7 @@ class Connection(ConnectionBase):
                 try:
                     p = self._buffered_exec_command('dd of=%s bs=%s' % (out_path, BUFSIZE), stdin=in_file)
                 except OSError:
-                    raise AnsibleError("chroot connection requires dd command in the chroot")
+                    raise AnsibleError("lchroot connection requires dd command in the lchroot")
                 try:
                     stdout, stderr = p.communicate()
                 except:
@@ -150,7 +183,7 @@ class Connection(ConnectionBase):
     def fetch_file(self, in_path, out_path):
         ''' fetch a file from chroot to local '''
         super(Connection, self).fetch_file(in_path, out_path)
-        display.vvv("FETCH %s TO %s" % (in_path, out_path), host=self.chroot)
+        display.vvv("FETCH %s TO %s" % (in_path, out_path), host=self.path)
 
         in_path = pipes.quote(self._prefix_login_path(in_path))
         try:
@@ -174,4 +207,7 @@ class Connection(ConnectionBase):
     def close(self):
         ''' terminate the connection; nothing to do here '''
         super(Connection, self).close()
+        self.cleanup_mounts(self.path)
+        if os.path.isfile(self.lock):
+            os.remove(self.lock)
         self._connected = False
