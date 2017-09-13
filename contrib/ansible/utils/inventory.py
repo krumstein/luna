@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 
-'''
-Example custom dynamic inventory script for Ansible, in Python.
-'''
-
 import os
 import sys
 import argparse
+from ansible.utils.display import Display
+
+display = Display()
 
 import luna
 try:
@@ -22,7 +21,11 @@ class LunaInventory(object):
 
         # Called with `--list`.
         if self.args.list:
-            self.inventory = self.luna_inventory()
+            try:
+                self.inventory = self.luna_inventory()
+            except:
+                display.warning('Unable to get data from Luna')
+                self.inventory = self.empty_inventory()
         # Called with `--host [hostname]`.
         elif self.args.host:
             # Not implemented, since we return _meta info `--list`.
@@ -31,28 +34,37 @@ class LunaInventory(object):
         else:
             self.inventory = self.empty_inventory()
 
-        print json.dumps(self.inventory);
+        print json.dumps(self.inventory)
 
     def luna_inventory(self):
+        osimage_suffix = ".osimage.luna"
+        group_suffix = ".group.luna"
         inventory = {}
         inventory['_meta'] = { 'hostvars': {}}
-        osimages = {'hosts':[],'vars': {'ansible_connection': 'chroot' }}
+        osimages = {'hosts':[],'vars': {'ansible_connection': 'lchroot' }}
         for osimage in luna.list('osimage'):
             #osimages['hosts'].append(luna.OsImage(osimage).get('path'))
-            osimages['hosts'].append(osimage)
-            inventory['_meta']['hostvars'][osimage]= {'ansible_host':luna.OsImage(osimage).get('path')}
+            osimages['hosts'].append(osimage + osimage_suffix)
+            osimage_path = luna.OsImage(osimage).get('path')
+            inventory['_meta']['hostvars'][osimage + osimage_suffix]= {
+                'ansible_host': osimage,
+            }
 
         inventory['osimages'] = osimages
         nodes = {}
-        for n in luna.list('node'):
-            node = luna.Node(n)
-            group = node.show()['group'].replace("[","").replace("]","")
-            if group in inventory:
-                inventory[group]['hosts'].append(node.show()['name'])
-            else:
-                inventory[group] = {'hosts':[node.show()['name']]}
-            inventory['_meta']['hostvars'][node.show()['name']]={"bmc_ip":node.get_ip('BMC',version=4)}
+
+        for g in luna.list('group'):
+            group = luna.Group(g)
+            hosts = []
+            nodes = group.list_nodes()
+            for node_name in nodes:
+                node = luna.Node(node_name)
+                hosts.append(node_name)
+                inventory['_meta']['hostvars'][node.show()['name']]={
+                    "bmc_ip":node.get_ip('BMC',version=4)}
+            inventory[g + group_suffix] = {'hosts': hosts}
         return inventory
+
     # Empty inventory for testing.
     def empty_inventory(self):
         return {'_meta': {'hostvars': {}}}
@@ -65,4 +77,3 @@ class LunaInventory(object):
         self.args = parser.parse_args()
 
 # Get the inventory.
-LunaInventory()

@@ -253,7 +253,6 @@ popd
 
 # ansible modules
 pushd contrib/ansible
-%{__install} -m 644 -D inventory/luna_inventory.py              %{buildroot}%{python_sitelib}/ansible/inventory/luna_inventory.py
 %{__install} -m 644 -D plugins/connection/lchroot.py            %{buildroot}%{python_sitelib}/ansible/plugins/connection/lchroot.py
 pushd utils
 for f in ./*; do
@@ -265,6 +264,7 @@ for f in ./*; do
     %{__install} -m 644 -D $f                                   %{buildroot}%{python_sitelib}/ansible/modules/clustering/$f
 done
 popd
+%{__install} -m 755 -D luna                                     %{buildroot}/etc/ansible/hosts/luna
 popd
 
 
@@ -294,6 +294,15 @@ case "$1" in
         %{_bindir}/systemctl stop lweb ltorrent 2>/dev/null || %{_bindir}/true
     ;;
 esac
+exit 0
+
+%pre ansible
+if [ ! -d /etc/ansible/hosts ]; then
+    TMPNAME=$(mktemp -u -p /etc/ansible hosts.XXXXX)
+    mv /etc/ansible/hosts ${TMPNAME}
+    mkdir -p /etc/ansible/hosts
+    mv ${TMPNAME} /etc/ansible/hosts/
+fi
 exit 0
 
 # ///////////////////////////////////////////////
@@ -333,8 +342,6 @@ exit 0
 %preun ansible
 %{_bindir}/rm -rf %{python_sitelib}/luna/ansible/*.pyc
 %{_bindir}/rm -rf %{python_sitelib}/luna/ansible/*.pyo
-%{_bindir}/rm -rf %{python_sitelib}/ansible/inventory/*.pyc
-%{_bindir}/rm -rf %{python_sitelib}/ansible/inventory/*.pyo
 %{_bindir}/rm -rf %{python_sitelib}/ansible/modules/clustering/*.pyc
 %{_bindir}/rm -rf %{python_sitelib}/ansible/modules/clustering/*.pyo
 %{_bindir}/rm -rf %{python_sitelib}/ansible/plugins/connection/*.pyc
@@ -421,7 +428,7 @@ exit 0
 %doc %{_mandir}/man8/*
 %doc %{_defaultdocdir}/%{name}-%{version}-%{release}
 %{_unitdir}/*
-%{_sysconfdir}/sysconfig/lfs_pxelinux
+%config(noreplace) %{_sysconfdir}/sysconfig/lfs_pxelinux
 %{_sysconfdir}/profile.d/luna_autocomplete.sh
 %config(noreplace) %attr(0700, %{luna_user}, %{luna_group}) %{_var}/log/luna
 %{_datadir}/luna
@@ -437,17 +444,15 @@ exit 0
 
 %files ansible
 %{python_sitelib}/luna/ansible
-%{python_sitelib}/ansible/inventory/*.py
 %{python_sitelib}/ansible/modules/clustering/*.py
 %{python_sitelib}/ansible/plugins/connection/*.py
 %exclude %{python_sitelib}/luna/ansible/*.pyc
 %exclude %{python_sitelib}/luna/ansible/*.pyo
-%exclude %{python_sitelib}/ansible/inventory/*.pyc
-%exclude %{python_sitelib}/ansible/inventory/*.pyo
 %exclude %{python_sitelib}/ansible/modules/clustering/*.pyc
 %exclude %{python_sitelib}/ansible/modules/clustering/*.pyo
 %exclude %{python_sitelib}/ansible/plugins/connection/*.pyc
 %exclude %{python_sitelib}/ansible/plugins/connection/*.pyo
+%{_sysconfdir}/ansible/hosts/luna
 
 
 # ///////////////////////////////////////////////
