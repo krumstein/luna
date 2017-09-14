@@ -416,6 +416,9 @@ def osimage_show(**args):
     if args['comment']:
         print(osimage.get('comment'))
         return True
+    if args['kernopts']:
+        print(osimage.get('kernopts'))
+        return True
     if args['kernver']:
         for elem in osimage.list_kernels():
             if elem == osimage.get('kernver'):
