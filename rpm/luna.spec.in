@@ -45,7 +45,7 @@ Requires: nginx
 Requires: mongodb-server >= 2.6, mongodb-server < 3.0
 Requires: python-pymongo >= 2.5, python-pymongo < 3.0
 Requires: mongodb >= 2.6, mongodb < 3.0
-Requires: python-tornado >= 2.2, python-tornado < 3.0
+Requires: python-tornado >= 2.2, python-tornado < 4.3
 Requires: ipxe-bootimgs
 Requires: tftp-server
 Requires: xinetd
