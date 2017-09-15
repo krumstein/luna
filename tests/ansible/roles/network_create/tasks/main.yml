@@ -57,6 +57,11 @@
 
 ###############################################################################
 
+- name: Delete otherdev
+  luna_otherdev:
+    name: "pdu01"
+    state: "absent"
+
 - name: Delete network
   luna_network:
     name: "test01"
