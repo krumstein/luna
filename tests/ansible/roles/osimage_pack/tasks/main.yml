@@ -69,6 +69,10 @@
 
 - name: Check if line 'added torrent{{ ":" }} {{ osimage_files.stdout_lines[0] }}.tgz' is in /var/log/luna/ltorrent.log
   command: "grep 'added torrent: {{ osimage_files.stdout_lines[0] }}.tgz' /var/log/luna/ltorrent.log"
+  register: res
+  until: res.rc == 0
+  retries: 5
+  delay: 10
   changed_when: false
 
 ###############################################################################
