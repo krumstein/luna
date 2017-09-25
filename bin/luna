@@ -1084,7 +1084,11 @@ def _format_node_interfaces(interfaces):
 def node_list(**args):
     header = ['Name', 'Group', 'MAC', 'IPs']
     content = []
-    groups = luna.list('group')
+    group = args['group']
+    if group:
+      groups = [ group ]
+    else:
+      groups = luna.list('group')
     db = None
     for group_name in groups:
         group = luna.Group(group_name, mongo_db=db)
@@ -1775,6 +1779,7 @@ cmd.add_argument('name', help='Name of the Group')
 
 # list
 cmd = node_a.add_parser('list', help='List Nodes')
+cmd.add_argument('--group', '-g',  help='List nodes from a group')
 
 # show
 cmd = node_a.add_parser('show', help='Show Node')

@@ -35,6 +35,15 @@ function _luna_autocomplete() {
                 ;;
         esac
     fi
+    if [ ${LUNA_OBJECT} = "node" -a ${LUNA_OPERATION} = "list" ]; then
+        case "${PREV}" in
+            --group|-g)
+                LUNA_GROUPS=$(python -c "import luna; print \" \".join(luna.list(\"group\"))" 2>/dev/null)
+                COMPREPLY=($(compgen -W "${LUNA_GROUPS}" -- ${CUR}))
+                return 0
+                ;;
+        esac
+    fi
     if [ ${LUNA_OBJECT} = "node" -a ${LUNA_OPERATION} = "change" ]; then
         case "${PREV}" in
             --switch|-s)
@@ -113,7 +122,5 @@ function _lchroot_autocomplete() {
     COMPREPLY=($(compgen -W "${LUNA_OSIMAGES}" -- ${CUR}))
     return 0
 }
-if [ $(id -u) -eq 0 ]; then
-    complete -F _luna_autocomplete luna
-    complete -F _lchroot_autocomplete lchroot
-fi
+complete -F _luna_autocomplete luna
+complete -F _lchroot_autocomplete lchroot
