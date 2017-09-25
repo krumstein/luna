@@ -122,7 +122,5 @@ function _lchroot_autocomplete() {
     COMPREPLY=($(compgen -W "${LUNA_OSIMAGES}" -- ${CUR}))
     return 0
 }
-if [ $(id -u) -eq 0 ]; then
-    complete -F _luna_autocomplete luna
-    complete -F _lchroot_autocomplete lchroot
-fi
+complete -F _luna_autocomplete luna
+complete -F _lchroot_autocomplete lchroot
