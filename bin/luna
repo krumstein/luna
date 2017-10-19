@@ -1378,7 +1378,7 @@ def otherdev_change(**args):
                 new_comment = _edit_script(old_comment)
             out &= dev.set('comment', new_comment)
 
-        if args['ip']:
+        if args['ip'] is not None:
             ret = dev.set_ip(network=args['network'], ip=args['ip'])
             out &= bool(ret)
     return out
