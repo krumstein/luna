@@ -307,12 +307,8 @@ class GroupConfigTests(unittest.TestCase):
         start_dict = self.db['group'].find_one({'_id': self.group._id})
 
         net6 = luna.Network(
-            name='cluster6',
-            NETWORK='fe80::',
-            PREFIX=64,
+            name='net6',
             mongo_db=self.db,
-            create=True,
-            version=6,
         )
 
         show_if_expected = {
@@ -336,7 +332,7 @@ class GroupConfigTests(unittest.TestCase):
 
         self.group.set_net_to_if('eth0', net6.name)
 
-        show_if_expected['network']['6']['name'] = 'cluster6'
+        show_if_expected['network']['6']['name'] = 'net6'
         show_if_expected['network']['6']['netmask'] = 'ffff:ffff:ffff:ffff::'
         show_if_expected['network']['6']['prefix'] = '64'
         show_if_expected['network']['6']['network'] = 'fe80::'
