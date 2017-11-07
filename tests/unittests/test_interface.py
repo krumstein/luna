@@ -1003,6 +1003,12 @@ class ChangeGroupTests(unittest.TestCase):
             [{'start': 2, 'end': 65533}]
         )
 
+    def test_add_del_interface_w_node(self):
+        self.group.add_interface('eth1')
+        self.group.del_interface('eth1')
+        self.node = luna.Node(name=self.node.name, mongo_db=self.db)
+        self.assertEqual(len(self.node._json['interfaces']), 1)
+
 
 class GetMacTests(unittest.TestCase):
     """
