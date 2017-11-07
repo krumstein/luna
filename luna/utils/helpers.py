@@ -362,3 +362,23 @@ def list_node_macs(mongo_db=None):
     return node_macs
 
 
+def find_duplicate_net(num_net, mongo_db=None):
+
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+
+    if mongo_db is None:
+        try:
+            mongo_client = pymongo.MongoClient(**get_con_options())
+        except:
+            err_msg = "Unable to connect to MongoDB."
+            logger.error(err_msg)
+            raise RuntimeError, err_msg
+        logger.debug("Connection to MongoDB was successful.")
+        mongo_db = mongo_client[db_name]
+    mongo_collection = mongo_db['network']
+    net_doc = mongo_collection.find_one({'NETWORK': num_net})
+    if net_doc is None:
+        return False
+    else:
+        return True
