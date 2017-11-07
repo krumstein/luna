@@ -101,6 +101,17 @@ class Network(Base):
             if self.version == 6:
                 num_subnet = str(num_subnet)
 
+            # Try to find duplicate net
+            if utils.helpers.find_duplicate_net(
+                    num_subnet, mongo_db=self._mongo_db
+                ):
+                err_msg = (
+                    "Network {}/{} is defined already"
+                    .format(NETWORK, PREFIX)
+                )
+                self.log.error(err_msg)
+                raise RuntimeError, err_msg
+
             net = {'name': name, 'NETWORK': num_subnet, 'PREFIX': PREFIX,
                    'freelist': flist, 'ns_hostname': ns_hostname,
                    'ns_ip': None, 'version': version,
