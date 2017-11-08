@@ -354,6 +354,8 @@ def cluster_makedhcp(**args):
 def cluster_listmacs(**args):
     cluster = luna.Cluster()
     cached_macs = cluster.list_cached_macs()
+    if not cached_macs:
+        return True
     out_str = []
     for elem in cached_macs:
         if elem['configured']:

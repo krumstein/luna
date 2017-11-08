@@ -800,6 +800,12 @@ class Group(Base):
         for network_name in netnames:
             self.del_net_from_if(interface_name, network_name=network_name)
 
+        reverse_links = self.get_back_links()
+        for link in reverse_links:
+            if link['collection'] == 'node':
+                node_obj = Node(id=link['DBRef'].id, mongo_db=self._mongo_db)
+                node_obj.del_interface(interface_name)
+
         interfaces_dict = self.get('interfaces')
 
         interface_uuid = if_list[interface_name]

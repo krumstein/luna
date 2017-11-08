@@ -27,11 +27,30 @@ class NetworkCreateTests(unittest.TestCase):
                            NETWORK='172.16.1.0', PREFIX=24)
         self.assertIsInstance(net, luna.Network)
 
+    def test_create_duplicate_network(self):
+        net = luna.Network(name='testnet', mongo_db=self.db, create=True,
+                           NETWORK='172.16.1.0', PREFIX=24)
+        self.assertRaises(
+            RuntimeError,
+            luna.Network, name='testnet2', mongo_db=self.db, create=True,
+            NETWORK='172.16.1.1', PREFIX=24
+        )
+
     def test_create_network_ipv6(self):
         net = luna.Network(name='testnet', mongo_db=self.db, create=True,
                            NETWORK='fd12:3456:789a:1::1', PREFIX='64',
                            version=6)
         self.assertIsInstance(net, luna.Network)
+
+    def test_create_duplicate_network_ipv6(self):
+        net = luna.Network(name='testnet', mongo_db=self.db, create=True,
+                           NETWORK='fd12:3456:789a:1::1', PREFIX='64',
+                           version=6)
+        self.assertRaises(
+            RuntimeError,
+            luna.Network, name='testnet2', mongo_db=self.db, create=True,
+            NETWORK='fd12:3456:789a:1::2', PREFIX=64
+        )
 
     def test_create_network_check(self):
         net = luna.Network(name='testnet', mongo_db=self.db, create=True,
