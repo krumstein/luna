@@ -136,7 +136,11 @@ class OsImage(Base):
         self.log = logging.getLogger(__name__ + '.' + self._name)
 
     def list_kernels(self):
-        return self.get_package_ver(self.get('path'), 'kernel')
+        std_kerns = self.get_package_ver(self.get('path'), 'kernel')
+        configured_kerns = self._json['kernver']
+        versions = list(set(std_kerns + [configured_kerns]))
+        versions.sort()
+        return versions
 
     def get_package_ver(self, path, package):
         rpm.addMacro("_dbpath", path + '/var/lib/rpm')
