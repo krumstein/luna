@@ -7,7 +7,13 @@ from ansible.utils.display import Display
 
 display = Display()
 
-import luna
+from ansible.errors import AnsibleError
+
+try:
+    import luna
+except ImportError:
+    raise AnsibleError("luna is not installed")
+
 try:
     import json
 except ImportError:
