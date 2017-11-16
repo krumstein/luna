@@ -14,6 +14,9 @@ try:
 except ImportError:
     raise AnsibleError("luna is not installed")
 
+if luna.__version__ != '1.2':
+    raise AnsibleError("Only luna-1.2 is supported")
+
 try:
     import json
 except ImportError:

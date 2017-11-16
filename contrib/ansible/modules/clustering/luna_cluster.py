@@ -13,6 +13,9 @@ import traceback
 import os
 import logging
 
+if luna.__version__ != '1.2':
+    raise AnsibleError("Only luna-1.2 is supported")
+
 
 def luna_cluster_present(data):
     data.pop('state')
