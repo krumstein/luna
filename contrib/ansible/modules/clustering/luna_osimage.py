@@ -11,6 +11,9 @@ except ImportError:
 from luna_ansible.helpers import StreamStringLogger
 import logging
 
+if luna.__version__ != '1.2':
+    raise AnsibleError("Only luna-1.2 is supported")
+
 
 def luna_osimage_present(data):
 

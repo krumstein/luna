@@ -37,6 +37,9 @@ try:
 except ImportError:
     raise AnsibleError("luna is not installed")
 
+if luna.__version__ != '1.2':
+    raise AnsibleError("Only luna-1.2 is supported")
+
 try:
     from __main__ import display
 except ImportError:
