@@ -25,6 +25,7 @@ import luna
 import libtorrent as lt
 import os
 import sys
+import socket
 import threading
 import logging
 import logging.handlers
@@ -411,7 +412,7 @@ def start_torrent_client():
         settings.ssl_listen = 0
 
         t_session.set_settings(settings)
-        t_session.listen_on(portmin, portmax, ip)
+        t_session.listen_on(portmin, portmax, socket.gethostbyname(ip))
 
     except:
         logger.error("Failed to listen on %s using port range [%s, %s]", ip, portmin, portmax)
