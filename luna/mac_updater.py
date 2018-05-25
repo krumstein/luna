@@ -48,6 +48,7 @@ class MacUpdater(object):
 
         self.interval = interval
         self.active = True
+        self.finished = False
 
         thread = threading.Thread(target=self.run, args=())
         thread.daemon = True
@@ -70,8 +71,12 @@ class MacUpdater(object):
             counter += 1
             time.sleep(1)
 
+        self.finished = True
+
     def stop(self):
         self.active = False
+        while not self.finished:
+            time.sleep(0.1)
 
     def update(self):
         self.log.info("Updating known mac addresses")
