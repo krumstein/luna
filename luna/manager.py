@@ -232,3 +232,6 @@ class Manager(tornado.web.RequestHandler):
             node.update_status('install.request')
 
             self.render("templ_install.cfg", p=install_params)
+
+        else:
+            self.send_error(400)
